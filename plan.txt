@@ -1,48 +1,69 @@
 * 3 weeks practical testing content (L01, L02, L03, L04)
 
 _ L01: general course intro (needs update, brief mention of oracles)
-_ L02: exploratory testing, unit tests, behaviour vs state, test doubles, mock objects, flaky tests
-_ L03: coverage, oracles, fuzzing / property based testing, metamorphic testing
+* L02: exploratory testing, regression testing, unit tests, behaviour vs state, representation invariants, test doubles, mock objects, flaky tests
+_ L03: coverage, oracles, metamorphic testing
+       coverage (https://www.fuzzingbook.org/html/Coverage.html)
        oracles (https://www.fuzzingbook.org/html/DynamicInvariants.html, https://ieeexplore.ieee.org/document/6963470)
-_ L04: mutation analysis; what does graph coverage buy?
+       https://www.cse.ust.hk/~scc/publ/CS98-01-metamorphictesting.pdf
+* L04: mutation analysis; what does graph coverage buy?
 _ L05: code review/documentation
 _ L06: chaos monkey, static analysis content/using tools (Infer?) (look back at 2019 offering)
 
 * 3 weeks Dafny (1251: L13, L14, L15, L16, L17; add the OOPSLA paper)
 * L07 Dafny application: Cedar (might be a bit short)
-_ L08 Dafny
-_ L09 More Dafny, including VC and lemmas
-_ L10 Bubblesort in Dafny
-_ L11 Dafny sequences and VCgen
+* L08 Dafny
+* L09 More Dafny, including VC and lemmas
+* L10 Bubblesort in Dafny
+* L11 Dafny sequences and VCgen
 _ L12 On the impact of formal verification on software development https://ranjitjhala.github.io/static/oopsla25-formal.pdf
 
   Program proof/correct by construction 
 "N things I learned trying to do formal methods in industry" Mike Dodds
 
-* Reading Week *
+* Reading Week * (February 16-20)
 
 * L13: midterm
-_ L14
 
 3 weeks fuzzing (L03)
 
-_ L15
-_ L16
-_ L17
+* L14 intro to fuzzing / address sanitizer
+* L15 mutation-based fuzzing
+_ L16 grammar-based fuzzing aka 
+_ L17 property based testing, 
 _ L18
 _ L19
-_ L20
-
-  https://www.cse.ust.hk/~scc/publ/CS98-01-metamorphictesting.pdf
-2 weeks bounded model checking (L18)
-
-_ L21 Bounded model checking/ proof harnesses
-_ L22
-_ L23
-_ L24
 
 - test generation / assertions 
 - invariant inference: https://www.fuzzingbook.org/html/DynamicInvariants.html
+
+fuzzing book suggestion:
+
+
+
+    Start with Introduction to Testing and Coverage to get the basic concepts. (You may know some of these already, but hey, you're a student, right?)
+
+    Learn how simple fuzzers work from the chapter on Fuzzers. This already gives you tools that took down 30% of UNIX utilities in the 90s. What happens if you test some tool that has never been fuzzed before?
+
+    Mutation-based fuzzing is pretty much the standard in fuzzing today: Take a set of seeds, and mutate them until we find a bug.
+
+    Learn how grammars can be used to generate syntactically correct inputs. This makes test generation much more efficient, but you have to write (or mine) a grammar in the first place.
+
+    Learn how to fuzz APIs and graphical user interfaces. Both of these are important domains for software test generation.
+
+    Learn how to reduce failure-inducing inputs to a minimum automatically. This is a great time saver for debugging, especially in conjunction with automated testing.
+
+
+2 weeks bounded model checking (L18)
+
+_ L20
+_ L21 Bounded model checking/ proof harnesses
+_ L22
+_ L23
+
+
+_ L24 Review
+
 
 Cheap techniques: 
 Testing
@@ -51,3 +72,5 @@ Modelling/model checking
 Symbolic testing 
 
 
+
+https://security.googleblog.com/2025/11/rust-in-android-move-fast-fix-things.html
