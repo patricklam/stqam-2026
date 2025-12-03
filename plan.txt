@@ -4,13 +4,15 @@ _ L01: general course intro (needs update, brief mention of oracles)
 * L02: exploratory testing, regression testing, unit tests, behaviour vs state, representation invariants, test doubles, mock objects, flaky tests
 * L03: coverage (https://www.fuzzingbook.org/html/Coverage.html)
 * L04: mutation analysis; what does graph coverage buy?
-_ L05: 
-       oracles, metamorphic testing
-       oracles (https://www.fuzzingbook.org/html/DynamicInvariants.html, https://ieeexplore.ieee.org/document/6963470)
+* L05: 
+       oracles, 
+       oracles (https://ieeexplore.ieee.org/document/6963470)
        https://www.cse.ust.hk/~scc/publ/CS98-01-metamorphictesting.pdf
-_ L06: 
+_ L06:
+       metamorphic testing
        code review/documentation
-       chaos monkey, static analysis content/using tools (Infer?) (look back at 2019 offering)
+       chaos monkey
+       probably not: static analysis content/using tools (Infer?) (look back at 2019 offering)
 
 * 3 weeks Dafny (1251: L13, L14, L15, L16, L17; add the OOPSLA paper)
 * L07 Dafny application: Cedar (might be a bit short)
@@ -18,9 +20,9 @@ _ L06:
 * L09 More Dafny, including VC and lemmas
 * L10 Bubblesort in Dafny
 * L11 Dafny sequences and VCgen
-_ L12 On the impact of formal verification on software development https://ranjitjhala.github.io/static/oopsla25-formal.pdf
+* L12 On the impact of formal verification on software development https://ranjitjhala.github.io/static/oopsla25-formal.pdf
 
-  Program proof/correct by construction 
+bonus (not done yet)
 "N things I learned trying to do formal methods in industry" Mike Dodds
 
 * Reading Week * (February 16-20)
@@ -31,10 +33,10 @@ _ L12 On the impact of formal verification on software development https://ranji
 
 * L14 intro to fuzzing / address sanitizer
 * L15 mutation-based fuzzing
-_ L16 grammar-based fuzzing aka 
+_ L16 grammar-based fuzzing (https://www.fuzzingbook.org/html/Grammars.html)
 _ L17 property based testing, 
-_ L18
-_ L19
+_ L18 fuzzing APIs (https://www.fuzzingbook.org/html/APIFuzzer.html)
+_ L19 reducing failure-inducing inputs (https://www.fuzzingbook.org/html/Reducer.html)
 
 - test generation / assertions 
 - invariant inference: https://www.fuzzingbook.org/html/DynamicInvariants.html
@@ -68,7 +70,6 @@ _ L24 Review
 
 
 Cheap techniques: 
-Testing
 Ci/cd
 Modelling/model checking
 Symbolic testing 
