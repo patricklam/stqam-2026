@@ -1,31 +1,48 @@
 \documentclass[11pt]{article}
-\usepackage{mathpartir}
-\usepackage{pifont}
-\usepackage{multicol}
+\usepackage{enumitem}
 \usepackage{listings}
-\usepackage{pgf}
+\usepackage[listings]{tcolorbox}
 \usepackage{tikz}
-\usepackage{alltt}
-\usepackage{hyperref}
 \usepackage{url}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{dafny}
-\usetikzlibrary{arrows,automata,shapes,positioning}
+
+%\usepackage{algorithm2e}
+\usetikzlibrary{arrows,automata,shapes}
 \tikzstyle{block} = [rectangle, draw, fill=blue!20, 
     text width=5em, text centered, rounded corners, minimum height=2em]
 \tikzstyle{bt} = [rectangle, draw, fill=blue!20, 
-    text width=1em, text centered, rounded corners, minimum height=2em]
-\newcommand{\xmark}{\ding{55}}
+    text width=4em, text centered, rounded corners, minimum height=2em]
+
+\lstset{ %
+language=Java,
+basicstyle=\ttfamily,commentstyle=\scriptsize\itshape,showstringspaces=false,breaklines=true,numbers=left}
+\newtcbinputlisting{\codelisting}[3][]{
+    extrude left by=1em,
+    extrude right by=2em,
+    listing file={#3},
+    fonttitle=\bfseries,
+    listing options={basicstyle=\ttfamily\footnotesize,numbers=left,language=Java,#1},
+    listing only,
+    hbox,
+}
+\lstdefinelanguage{JavaScript}{
+  keywords={typeof, new, true, false, catch, function, return, null, catch, switch, var, if, in, while, 
+do, else, case, break},
+  keywordstyle=\color{blue}\bfseries,
+  ndkeywords={class, export, boolean, throw, implements, import, this},
+  ndkeywordstyle=\color{darkgray}\bfseries,
+  identifierstyle=\color{black},
+  sensitive=false,
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  commentstyle=\color{purple}\ttfamily,
+  stringstyle=\color{red}\ttfamily,
+  morestring=[b]',
+  morestring=[b]''
+}
+
 
 \newtheorem{defn}{Definition}
 \newtheorem{crit}{Criterion}
-\newcommand{\true}{\mbox{\sf true}}
-\newcommand{\false}{\mbox{\sf false}}
-
-\newcommand*\circled[1]{\tikz[baseline=(char.base)]{
-            \node[shape=circle,draw,inner sep=2pt] (char) {#1};}}
-
 
 \newcommand{\handout}[5]{
   \noindent
@@ -57,847 +74,437 @@
 \parskip 1.5ex
 %\renewcommand{\baselinestretch}{1.25}
 
-\usepackage{enumitem}
-
-\newtheorem{prop}{Proposition}
-\newtheorem{lemma}{Lemma}
-\usepackage{ebproof}
-\newcommand{\qedsymbol}{\rule{1ex}{1ex}}
-\newcommand{\sem}[3]{\langle #1, #2 \rangle \Downarrow #3}
-
-\lstset{ %
-language=Java,
-basicstyle=\ttfamily,commentstyle=\scriptsize\itshape,showstringspaces=false,breaklines=true,numbers=left}
-
-%\usepackage{fontspec}
-%\setmonofont{Cousine}[Scale=MatchLowercase]
-
 \begin{document}
 
-\lecture{08 --- January 30, 2026}{Winter 2026}{Patrick Lam}{version 1}
+\lecture{15 --- March 2, 2026}{Winter 2026}{Patrick Lam}{version 1}
 
-We motivated Dafny last time by talking about Cedar. In brief, Dafny
-proves user-specified annotations and verifies the absence of runtime
-errors---the things that are usually undefined behaviour or crashes,
-like out of bounds array indexes, null dereferences, etc.  We've seen
-how to use symbolic execution to avoid these as well, but Dafny is a
-fully-static approach that aims to work on real code (written in the
-Dafny language).
+American Fuzzy Lop\footnote{\url{http://lcamtuf.coredump.cx/afl/}} is
+a mutation-based fuzzing tool widely used in practice. It's easy to
+use and finds real vulnerabilities. We'll talk about the basic
+principles behind it.
 
-Other applications of verified software besides Cedar:
-\begin{itemize}[noitemsep]
-\item Paris Metro line 14 control system (B)\footnote{\url{https://www.clearsy.com/wp-content/uploads/2020/03/Formal-methods-for-Railways-brochure-mai-2020.pdf}}: 110,000 lines of models, 86,000 lines of Ada.
-\item seL4 (Haskell, Isabelle/HOL, C)\footnote{\url{https://sel4.systems/Info/FAQ/proof.html}}: the seL4 microkernel conforms to its specification and maintains integrity and confidentiality.
-\item CompCert (Coq)\footnote{https://inria.hal.science/hal-01238879}: a formally verified optimizing compiler
-\item IronClad (Dafny)\footnote{https://www.microsoft.com/en-us/research/project/ironclad/}: guarantees about how remote apps behave
-\end{itemize}
+\section*{Mutation-based fuzzing}
+In mutation-based fuzzing (confusingly named, but not at all the same as mutation analysis), you use/develop a tool that randomly modifies existing
+inputs. You could do this totally randomly by flipping bytes in the input,
+or you could parse the input and then change some of the nonterminals.
+If you flip bytes, you also need to update any applicable
+checksums if you want to see anything interesting.
 
-The first three applications were carried out by verification experts; the last one was done by systems programmers. In all of these cases, the systems were designed as verified systems from the start.
+Here's a description of a mutation-based fuzzing workflow by the author of Fuzzinator\footnote{\url{https://github.com/renatahodovan/fuzzinator}}.
+{\small
+\begin{quote}
+  More than a year ago, when I started fuzzing, I was mostly focusing on mutation-based fuzzer technologies since they were easy to build and pretty effective. Having a nice error-prone test suite (e.g. LayoutTests) was the warrant for fresh new bugs. At least for a while. As expected, the test generator based on the knowledge extracted from a finite set of test cases reached the edge of its possibilities after some time and didn't generate essentially new test cases anymore. At this point, a fuzzer girl can reload her gun with new input test sets and will probably find new bugs. This works a few times but she will soon find herself in a loop testing the common code paths and running into the same bugs again and again.\footnote{\url{http://webkit.sed.hu/blog/20141023/fuzzinator-reloaded}}
+\end{quote}
+}
 
-We're going to talk more about formal verification and software development in Lecture 12.
+\paragraph{Generating random inputs: not very successful.}
+Let's work through an example of fuzzing a URL parser\footnote{Much of today's lecture is based on \url{https://www.fuzzingbook.org/html/MutationFuzzer.html}}.
 
-\section*{Dafny}
+So, let's first think about our domain---URLs. There is a definition of a valid URL\footnote{More generally, RFC 3986
+defines Uniform Resource Identifiers, or URIs: \url{https://datatracker.ietf.org/doc/html/rfc3986}}.
+A program that accepts URLs should do something useful with valid URLs
+and reject invalid URLs. Ideally, we would test some number of valid
+URLs and different kinds of invalid URLs.
 
-I don't know how long it will take, but in this set of lecture notes, we'll aim to get through
-the first online guide, which shows how to verify basic imperative code (including loops but not advanced
-topics like objects, sequences and sets, data structures, lemmas). I'm going to summarize what's
-there, and in class, we'll work on exercises together.
-
-\begin{itemize}[noitemsep]
-\item \url{https://dafny.org/dafny/OnlineTutorial/guide}
-\item \url{https://dafny.org/blog/2023/12/15/teaching-program-verification-in-dafny-at-amazon/}
-\end{itemize}
-
-\section*{Dafny: annotations}
-This annotation in Dafny should be familiar to you from what we've seen in class:
-\begin{lstlisting}[language=dafny]
-  forall k: int :: 0 <= k < a.Length ==> 0 < a[k]
-\end{lstlisting}
-or in ASCII,
+A valid URL looks like this:
+\begin{center}
 \begin{verbatim}
-  forall k: int :: 0 <= k < a.Length ==> 0 < a[k]
+    scheme://netloc/path?query#fragment
 \end{verbatim}
-It says that all elements of array $a$ are positive.
+\end{center}
+We are going to talk about the \texttt{scheme} part. There are fixed number of valid
+\texttt{scheme}s, including \texttt{http}, \texttt{https}, \texttt{file}, etc.
 
-Let's start Dafny and write a method that ensures this as a postcondition.
-Can you fill this in on your computer, experimenting with how to make it verify?
-\begin{lstlisting}[language=dafny]
-  method all_positive() returns (rv:array<int>)
-  ensures forall k: int :: 0 <= k < rv.Length ==> 0 < rv[k]
-  {
-    var arr := new int[2];
-    // ...
-    return arr;
-  }  
+Let's use a library function to parse URLs.
+
+\begin{lstlisting}[language=Python]
+>>> from typing import Tuple, List, Callable, Set, Any
+>>> from urllib.parse import urlparse
+
+>>> urlparse("http://www.google.com/search?q=fuzzing")
+ParseResult(scheme='http', netloc='www.google.com', path='/search', params='', query='q=fuzzing', fragment='')
 \end{lstlisting}
 
-\section*{Dafny: methods}
-We saw a method above. A \emph{method} is a piece of imperative, executable code.
-It's like a Java method, or a procedure or function in other languages. Dafny uses
-``function'' to mean something else. Here's another method declaration:
-\begin{lstlisting}[language=dafny]
-  method Abs(x:int) returns (y:int)
-  {
-    // ...
-  }
+And here's an example function that uses \texttt{urlparse}. How can we test this function?
+\begin{lstlisting}[language=Python]
+def url_consumer(url: str) -> bool:
+    supported_schemes = ["http", "https"]
+    result = urlparse(url)
+    if result.scheme not in supported_schemes:
+        raise ValueError("Scheme must be one of " + 
+                         repr(supported_schemes))
+    if result.netloc == '':
+        raise ValueError("Host must be non-empty")
+
+    # Do something with the URL
+    return True
 \end{lstlisting}
-Dafny methods can return multiple values:
-\begin{lstlisting}[language=dafny]
-  method MultipleReturns(x:int, y:int) returns (more:int, less:int)
-  {
-    more := x + y;
-    less := x - y;
-  }
+This function tries to parse its input and enforce the \texttt{scheme} being
+either \texttt{http} or \texttt{https}. If it's a valid URL with allowed scheme,
+it returns \texttt{True}. Otherwise it raises an error.
+
+Let's see what happens if we run this 1000 times with random inputs, using the \texttt{fuzzer()} from last time to generate these inputs, rather than mutating existing inputs:
+\begin{lstlisting}[language=Python]
+  for i in range(1000):
+    try:
+        url = fuzzer()
+        result = url_consumer(url)
+        print("Success!")
+    except ValueError:
+        pass
 \end{lstlisting}
-Note the use of ``:='' for assignment (and ``=='' for equality).
+How likely is it that this is going to ever print success? The \emph{Fuzzing Book} has a calculation,
+but basically, not very likely at all.
 
-Return variables are just like local variables and can be assigned multiple times.
-Parameters are read-only.
+So, \texttt{fuzzer()} can find errors in the library function \texttt{urlparse()}, but it'll basically
+never get beyond that to test behaviour on any valid inputs. That is, if \texttt{url\_consumer} were to actually do anything on the \texttt{True}-returning branch, we'd never be able to test that with inputs from \texttt{fuzzer()}.
 
-Let's fill in the body of Abs.
-\begin{lstlisting}[language=dafny]
-  method Abs(x:int) returns (y:int)
-  {
-    if x < 0 { // must write the {
-        return -x;
-      } else {
-        return x;
-     }
-  }
-\end{lstlisting}
+\subsection*{Mutating inputs}
+If we do want a more dense set of valid inputs, there are basically two things we can do: mutate existing
+inputs, or use a grammar to generate inputs. (As a variant of generating with a grammar, one can also parse an input with the grammar, mutate the parse tree, and unparse.)
+We'll talk about mutating inputs, or mutational fuzzing.
 
-\section*{Preconditions and postconditions}
-What's special about Dafny, of course, is that you can write \textsf{requires}
-and \textsf{ensures} clauses on methods, and Dafny will try to verify them, or
-complain. Let's add a postcondition to the Abs method.
-\begin{lstlisting}[language=dafny]
-method AbsWithPostcondition(x:int) returns (y:int)
-  ensures 0 < y
-{
-  if x < 0 {
-    return -x;
-  } else {
-    return x;
-  }
-}
-\end{lstlisting}
-Note that we use the name of the return value, \textsf{y}. Now, why doesn't this verify?
+Today's code is in the repo in the \texttt{L15/mutation\_fuzzer.py} file.
 
-We can write multiple postconditions as well.
-\begin{lstlisting}[language=dafny]
-  method MultipleReturns(x:int, y:int) returns (more:int, less:int)
-    ensures less < x
-    ensures x < more
-  {
-    more := x + y;
-    less := x - y;
-  }
-\end{lstlisting}
-OK, what goes wrong here? How can we verify this method?
+When our input is a string, then we can insert a random character, delete a character, or change an existing
+character.
 
-This doesn't help, but we can also write:
-\begin{lstlisting}[language=dafny]
-  method MultipleReturns(x:int, y:int) returns (more:int, less:int)
-    ensures less < x < more
-  {
-    more := x + y;
-    less := x - y;
-  }
-\end{lstlisting}
+\begin{lstlisting}[language=Python]
+def delete_random_character(s: str) -> str:
+    """Returns s with a random character deleted"""
+    if s == "":
+        return s
 
-There are two reasons why Dafny can't prove something.
-(1) it's ``too hard'' for Dafny and Boogie/Z3 (under the hood) to prove; (2)
-it's actually not true. Test cases can help with (2).
-The other thing you will need, in general, is invariants.
+    pos = random.randint(0, len(s) - 1)
+    #print("Deleting", repr(s[pos]), "at", pos)
+    return s[:pos] + s[pos + 1:]
 
-So, of course \textsf{less $<$ x} isn't true if \textsf{y} is negative.
-Let's make sure that it's impossible to call \textsf{MultipleReturns}
-in that case.
-\begin{lstlisting}[language=dafny]
-  method MultipleReturns(x:int, y:int) returns (more:int, less:int)
-    requires y >= 0
-    ensures less < x < more
-  {
-    more := x + y;
-    less := x - y;
-  }
-\end{lstlisting}
-You can also write more than one requires clause. OK, here's an exercise.
+def insert_random_character(s: str) -> str:
+    """Returns s with a random character inserted"""
+    pos = random.randint(0, len(s))
+    random_character = chr(random.randrange(32, 127))
+    #print("Inserting", repr(random_character), "at", pos)
+    return s[:pos] + random_character + s[pos:]
 
-\paragraph{Exercise 0.} Write a method \textsf{Max} that takes two
-integer parameters and returns their maximum. Add appropriate annotations
-and make sure your code verifies.
+def flip_random_character(s):
+    """Returns s with a random bit flipped in a random position"""
+    if s == "":
+        return s
 
-\begin{lstlisting}[language=dafny]
-  method Max(a: int, b: int) returns (c: int)
-    // write a postcondition
-  {
-    // write code
-  }
+    pos = random.randint(0, len(s) - 1)
+    c = s[pos]
+    bit = 1 << random.randint(0, 6)
+    new_c = chr(ord(c) ^ bit)
+    #print("Flipping", bit, "in", repr(c) + ", giving", repr(new_c))
+    return s[:pos] + new_c + s[pos + 1:]    
 \end{lstlisting}
 
-\section*{Assertions}
-We can put assertions anywhere, for instance:
-\begin{lstlisting}[language=dafny]
-  method TryingOutAssertions() {
-    assert 2 < 3;
-    // what about asserting something not true?
-  }
-\end{lstlisting}
-Assertions are especially helpful for debugging Dafny, because it tries to prove that they hold
-on all executions. So if you think that Dafny knows something, write it as an assertion and see
-if it does or not.
+We can run these functions:
+\begin{lstlisting}[language=Python]
+seed_input = "A quick brown fox"
+for i in range(10):
+    x = delete_random_character(seed_input)
+    print(repr(x))
 
-Local variables are useful, including for assertions.
-\begin{lstlisting}[language=dafny]
-  method m()
-  {
-    var x, y, z: bool := 1, 2, true;
-  }
-\end{lstlisting}
-Dafny infers types for local variables, or you can explicitly specify them. Using variables:
-\begin{lstlisting}[language=dafny]
-  method TestAbsWithPostcondition(){
-    var v := AbsWithPostcondition(3);
-    assert 0 <= v;
-  }
+for i in range(10):
+    print(repr(insert_random_character(seed_input)))
+
+for i in range(10):
+    print(repr(flip_random_character(seed_input)))
 \end{lstlisting}
 
-\paragraph{Exercise 1.} Write a test method that calls your \textsf{Max} method from Exercise 0
-and then asserts something about the result.
-
-But what about:
-\begin{lstlisting}[language=dafny]
-  method AbsWithPostcondition(x:int) returns (y:int)
-  ensures 0 <= y
-  {
-    if x < 0 {
-      return -x;
-    } else {
-      return x;
-    }
-  }
-
-  method TestAbs()
-  {
-    var v := AbsWithPostcondition(3);
-    assert 0 <= v;
-    assert v == 3; // oops, can't prove this
-  }
+Or we can randomly choose one of the three functions to call:
+\begin{lstlisting}[language=Python]
+def mutate(s: str) -> str:
+    """Return s with a random mutation applied"""
+    mutators = [
+        delete_random_character,
+        insert_random_character,
+        flip_random_character
+    ]
+    mutator = random.choice(mutators)
+    # print(mutator)
+    return mutator(s)
 \end{lstlisting}
-Looking at \textsf{AbsWithPostcondition}, clearly \textsf{v} is 3 if we use the body of that method.
-But Dafny doesn't know that. It just looks at the postcondition. From the postcondition, it knows
-that \textsf{v} is non-negative, but not exactly what it is.
-
-Indeed, Dafny doesn't know the difference between \textsf{AbsWithPostcondition} and:
-\begin{lstlisting}[language=dafny]
-  method NotAbs(x:int) returns (y:int)
-  ensures 0 <= y
-  {
-    return 5;
-  }
-\end{lstlisting}
-and it also can't prove this:
-\begin{lstlisting}[language=dafny]
-  method TestNotAbs(x:int) returns (y:int)
-  ensures 0 <= y
-  {
-    var v := NotAbs(3);
-    assert v == 3; // actually not true
-  }
-\end{lstlisting}
-So what postcondition do we want? How about this?
-\begin{lstlisting}[language=dafny]
-  method AbsBetterPostcondition(x:int) returns (y:int)
-  ensures 0 <= y
-  ensures 0 <= x ==> y == x
-  {
-    if x < 0 {
-      return -x;
-    } else {
-      return x;
-    }
-  }
-\end{lstlisting}
-Well\ldots
-\begin{lstlisting}[language=dafny]
-  method TestAbsBetter(x:int) returns (y:int)
-  {
-    var v := AbsBetterPostcondition(5);
-    assert v == 5;
-    var w := AbsBetterPostcondition(-2);
-    assert w == 2;
-  }
-\end{lstlisting}
-OK, one way to write the postcondition we really want is:
-\begin{lstlisting}[language=dafny]
-  method AbsFullPostcondition(x:int) returns (y:int)
-  ensures 0 <= y
-  ensures 0 <= x ==> y == x
-  ensures x < 0 ==> y == -x
-  {
-    if x < 0 {
-      return -x;
-    } else {
-      return x;
-    }
-  }
-\end{lstlisting}
-Or we can write:
-\begin{lstlisting}[language=dafny]
-  ensures 0 <= y && (y == x || y == -x)
-\end{lstlisting}
-There can be more than one way to write a postcondition.
-
-Now, we want to eliminate the redundancy between the postcondition and the implementation.
-Functions can help here. But, first, some exercises.
-
-\paragraph{Exercise 2.} Using a precondition, change \textsf{Abs} such that it can only be called
-on negative values. Simplify the body of \textsf{Abs} into just one return statement and make sure
-the method still verifies.
-
-\paragraph{Exercise 3.} Keeping the postconditions of \textsf{Abs} the same as for
-\textsf{AbsFullPostcondition}, change the body of the method to just \textsf{y := x + 2}. What
-precondition do you need to impose on the method so that it verifies? What about body
-\textsf{y := x + 1}? What does that precondition say about when you can call the method?
-
-% requires x == -1
-% requires false
-
-\section*{Functions}
-
-Here is a function. A function body must consist of exactly one expression, which must have the correct type.
-\begin{lstlisting}[language=dafny]
-  function abs(x:int) : int
-  {
-    if x < 0 then -x else x
-  }
+and call that function:
+\begin{lstlisting}[language=Python]
+for i in range(10):
+    print(repr(mutate("A quick brown fox")))
 \end{lstlisting}
 
-Why functions? They can be used directly in specifications (e.g. asserts, requires, ensures), e.g.
-\begin{lstlisting}[language=dafny]
-  method m()
-  {
-    assert abs(3) == 3;
-  }
+\subsection*{Back to URLs}
+In terms of its API, it's a bit inconvenient that our earlier \texttt{url\_consumer()} function raises an error. Let's fit it into a function
+that returns \texttt{True} or \texttt{False}:
+\begin{lstlisting}[language=Python]
+def is_valid_url(url: str) -> bool:
+    try:
+        result = url_consumer(url)
+        return True
+    except ValueError:
+        return False
+
+assert is_valid_url("http://www.google.com/search?q=fuzzing")
+assert not is_valid_url("xyzzy")
 \end{lstlisting}
-We don't need to store the result of function \textsf{abs} in a temporary local variable, nor did we have
-to write a postcondition for it. Dafny doesn't forget about the function body. It is allowed to write
-preconditions and postconditions for functions, but not required.
+We can now use our \texttt{mutate} function:
+\begin{lstlisting}[language=Python]
+seed_input = "http://www.google.com/search?q=fuzzing"
+valid_inputs = set()
+trials = 20
 
-\paragraph{Exercise 4.} Write a function \textsf{max} that returns the larger of two integer parameters.
-Write a test method using an \textsf{assert} that checks that your function is correct (at least on one
-case).
-
-\paragraph{Exercise 5.} Change the postcondition of method \textsf{Abs} to use function \textsf{abs}, make sure
-that \textsf{Abs} still verifies, and then change the body of \textsf{Abs} to also use the function.
-
-Let's continue using functions. Here is a na\"ive implementation of the Fibonacci function.
-
-\begin{lstlisting}[language=dafny]
-function fib(n: nat): nat
-{
-  if n == 0 then 0
-  else if n == 1 then 1
-  else fib(n-1) + fib(n-2)
-}
+for i in range(trials):
+    inp = mutate(seed_input)
+    if is_valid_url(inp):
+        valid_inputs.add(inp)
 \end{lstlisting}
+and if you evaluate \texttt{len(valid\_inputs)/trials}, you can see the
+proportion of your mutations that are valid inputs.
 
-Some notes. (1) We had \textsf{int}s before, but now we have
-\textsf{nat}s, i.e. natural numbers, which can't be negative; these
-are a subset type of \textsf{int}. (By the way, Dafny \textsf{int}s
-and \textsf{nat}s are unbounded.) (2) You wouldn't actually want to
-\emph{calculate} Fibonacci numbers this way, but it obviously matches
-the definition, and we can ask Dafny to prove that a (faster) implementation
-also computes the same thing as this function. It can serve as an oracle,
-more obviously matching the definition of Fibonacci numbers than the iterative implementation.
+The \emph{Fuzzing Book} talks about the probability of randomly mutating from
+\texttt{http} to \texttt{https} in an input, and works out that it's actually
+possible in reasonable time (3656 trials, 0.0049s in their example).
 
-\begin{lstlisting}[language=dafny]
-method ComputeFib(n: nat) returns (b: nat)
-  ensures b == fib(n)
-{
-  // ...
-}
-\end{lstlisting}
+\paragraph{Multiple mutations.} The setup for using multiple mutations
+in the book is somewhat contrived. For mutation analysis as discussed in Lecture 4,
+we only applied one mutation. But sometimes one does want to apply multiple mutations.
 
-\section*{Loops and Loop Invariants}
-The usual more efficient way to compute Fibonacci numbers is using a loop. You've seen loops in the context of Hoare logic, and Dafny is similar, except that it does a lot of
-proving for you. But it doesn't supply invariants.
-
-Here's a loop, with an invariant.
-\begin{lstlisting}[language=dafny]
-method FirstLoop(n:nat)
-{
-  var i := 0;
-  while i < n
-    invariant 0 <= i
-  {
-    i := i + 1;
-  }
-  assert i == n;
-}
-\end{lstlisting}
-We can see that $\mathsf{i == n}$ at the end of the loop, but does Dafny know that? We can ask it, using
-\textsf{assert}. (It doesn't). We need to strengthen the loop invariant. If we try $0 \leq i < n$, then
-Dafny complains that the invariant might not hold on entry and it might not be maintained by the loop body.
-Why is that?
-
-Well, in any case, if we use the invariant $0 \leq i \leq n$, then Dafny is satisfied with everything.
-
-\paragraph{Exercise 6.} Change the loop invariant to $0 \leq i \leq n + 2$. Does the loop still verify?
-Does the assertion $i == n$ after the loop still verify?
-
-\paragraph{Exercise 7.} With the original loop invariant, change the loop guard from $i < n$ to
-$i \neq n$. Do the loop and assertion after the loop still verify? Why or why not?
-
-Here is another loop, which implements multiplication using addition.
-\begin{lstlisting}[language=dafny]
-method AddByInc(n:nat, m:nat) returns (r:nat)
-  ensures r == n + m
-{
-  r := n;
-  var i := 0;
-  while (i < m)
-  {
-    i := i + 1;
-    r := r - 1;
-  }
-}
-\end{lstlisting}
-
-Turns out that we need to add two invariants for the while:
-\begin{lstlisting}[language=dafny]
-    invariant 0 <= i <= m;
-    invariant r == n + i;
-\end{lstlisting}
-These are similar invariants to what we've seen in Hoare logic, but it's easier to experiment with them here and see exactly what we need and when Dafny complains.
-The second invariant really is an invariant. We can express it as $n = r - i$. The loop doesn't modify $n$. So, as $i$ goes up, $r$ goes down by the same amount.
-
-We can also check some assertions at the end to see what Dafny actually knows:
-\begin{lstlisting}[language=dafny]
-  assert (r == n + i && i == m);
-  assert (r == n + m);
-\end{lstlisting}
-
-Here's a method that multiplies two numbers by addition.
-\begin{lstlisting}[language=dafny]
-method Product(m:nat, n:nat) returns (res:nat)
-  ensures res == m*n
-{
-  var m1 := m;
-  res := 0;
-  while m1 != 0
-  {
-    var n1 := n;
-    while n1 != 0
-    {
-      res := res + 1;
-      n1 := n1 - 1;
-    }
-    m1 := m1 - 1;
-  }
-}
-\end{lstlisting}
-We need invariants for both \textsf{while} loops. We can start with the outer loop.
-We could write an invariant about the range of \textsf{m1} but it turns out that this is not
-mandatory. The invariant that actually is mandatory is about the value of \textsf{res}.
-It looks like magic, but you can examine the postcondition and the fact that \textsf{m1}
-is the induction variable here, and conclude that your invariant should be:
-\begin{lstlisting}[language=dafny]
-  invariant res == (m-m1) * n
-\end{lstlisting}
-When the loop starts, it has gone around the loop zero times, so
-$\mathsf{m} == \mathsf{m1}$ and their difference is 0, as is
-$\mathsf{res}$.  In terms of maintaining the invariant, each time around
-the outer loop, the program is adding one \textsf{n} to $\mathsf{res}$
-and subtracting 1 from \textsf{m1}, and the invariant does that.
-
-As for the second invariant, we are now doing the adding of \textsf{n} to \textsf{res} one at a time.
-Through this loop, \textsf{m} and \textsf{m1} are both constant, and we are changing \textsf{res}
-from $(\mathsf{m}-\mathsf{m1}) \times n$ to $(\mathsf{m}-\mathsf{m1}) + 1 \times n$. We have that \textsf{n} stays constant
-and \textsf{n1} goes down. Every time that \textsf{n1} goes down by 1, \textsf{res} goes up by 1,
-so putting $-\mathsf{n1}$ is a good bet.
-The invariant is thus
+Let's see what happens when we apply multiple mutations.
 \begin{lstlisting}
-  invariant res == (m-m1)*n + (n-n1)
+seed_input = "http://www.google.com/search?q=fuzzing"
+mutations = 50
+inp = seed_input
+for i in range(mutations):
+    if i % 5 == 0:
+        print(i, "mutations:", repr(inp))
+    inp = mutate(inp)
 \end{lstlisting}
-and Dafny will verify this.
+After 45 mutations we see that we get something quite different from
+the original string:
+\begin{center}
+\begin{verbatim}
+45 mutations: " htP&)5q>-3ww.oo0lB_e/sca3ujdtzi'"
+\end{verbatim}
+\end{center}
 
-Let's implement the Fibonacci method.
-\begin{lstlisting}[language=dafny]
-method ComputeFib(n: nat) returns (b: nat)
-  ensures b == fib(n)
-{
-  var i := 1;
-  var a := 0;
-  b := 1;
-  while i < n
-  {
-    a, b := b, a + b;
-    i := i + 1;
-  }
-}
+\paragraph{Implementation of a mutation fuzzer.} In the \texttt{code/L15} directory, you'll find a \texttt{MutationFuzzer} class
+along with its dependencies. This class's constructor takes a seed
+and a minimum and maximum number of mutations to apply.
+Here is a base \texttt{Fuzzer} class, along with a \texttt{MutationFuzzer} class.
+\begin{lstlisting}[language=Python]
+class MutationFuzzer(Fuzzer):
+    """Base class for mutational fuzzing"""
+
+    def __init__(self, seed: List[str],
+                 min_mutations: int = 2,
+                 max_mutations: int = 10) -> None
+        # ...
+
+    def reset(self) -> None:
+        """Set population to initial seed.
+        To be overloaded in subclasses."""
+        self.population = self.seed
+        self.seed_index = 0
+
+    def create_candidate(self) -> str:
+        """Create a new candidate by mutating a population member"""
+        candidate = random.choice(self.population)
+        trials = random.randint(self.min_mutations, self.max_mutations)
+        for i in range(trials):
+            candidate = self.mutate(candidate)
+        return candidate
+
+    def fuzz(self) -> str:
+        if self.seed_index < len(self.seed):
+            # Still seeding
+            self.inp = self.seed[self.seed_index]
+            self.seed_index += 1
+        else:
+            # Mutating
+            self.inp = self.create_candidate()
+        return self.inp
 \end{lstlisting}
-(Note that Dafny allows assignment to \textsf{a} and \textsf{b} simultaneously).
+Basically, the important method here, \texttt{fuzz()}, returns the seeds
+the first few times it's called, and then calls \texttt{create\_candidate} to obtain
+a randomlmy-chosen population member, mutated the appropriatet number of times.
+The population is currently populated with the seeds.
 
-We have postcondition $b = \mathsf{fib}(n)$, and we also know
-that $i == n$, so it must be that $b == \mathsf{fib}(i)$ which we can have as a loop invariant. This
-is promising as part of the loop invariant: it talks about the loop counter. Hence, we have what we had before,
-plus this.
-\begin{lstlisting}[language=dafny]
-  invariant 0 <= i <= n
-  invariant b == fib(i)
+We can try it:
+\begin{lstlisting}[language=Python]
+seed_input = "http://www.google.com/search?q=fuzzing"
+mutation_fuzzer = MutationFuzzer(seed=[seed_input])
+print(mutation_fuzzer.fuzz())
+print(mutation_fuzzer.fuzz())
+print(mutation_fuzzer.fuzz())
 \end{lstlisting}
-We also know that $a$ is the previous Fibonacci number. So,
-\begin{lstlisting}[language=dafny]
-  invariant a == fib(i - 1)
-\end{lstlisting}
-Finally, since Dafny \textsf{nat} starts at 0, we include:
-\begin{lstlisting}[language=dafny]
-  if n == 0 { return 0; }
-\end{lstlisting}
-All together:
-\begin{lstlisting}[language=dafny]
-function fib(n:nat): nat
-{
-  if n == 0 then 0
-  else if n == 1 then 1
-  else fib(n-1) + fib(n-2)
-}
+and we get the seed first and then its mutations, most of which aren't valid URLs---but more are valid than when we took randomly-generated strings.
 
-method ComputeFib(n:nat) returns (b:nat)
-  ensures b == fib(n)
-{
-  if n == 0 { return 0; }
-  var i := 1;
-  var a := 0;
-  b := 1;
-  while i < n
-    invariant 0 < i <= n
-    invariant a == fib(i - 1)
-    invariant b == fib(i)
-  {
-    a, b := b, a + b;
-    i := i + 1;
-  }
-}
-\end{lstlisting}
+\section*{Hierarchies}
+Before we started talking about mutation, we were generating pretty much purely-random inputs and fed them to
+the programs that we were testing. How effective is that going to be?
+We saw that most random inputs to \texttt{bc} didn't do anything interesting.
+Let's still use randomness, but generate inputs in a more directed way.
+I've alluded to this above, but we are going to say a bit more now.
 
-% stopped about here after 90minutes
+Say that we're trying to
+generate C programs rather than URLs. They have a lot more structure!
+One could propose the following hierarchy of inputs\footnote{\url{http://www.cs.dartmouth.edu/~mckeeman/references/DifferentialTestingForSoftware.pdf}}:
+\begin{enumerate}
+\item sequence of ASCII characters;
+\item sequence of words, separators, and white space (gets past the lexer);
+\item syntactically correct C program (gets past the parser);
+\item type-correct C program (gets past the type checker);
+\item statically conforming C program (starts to exercise optimizations);
+\item dynamically conforming C program;
+\item model conforming C program.
+\end{enumerate}
+Each of these levels contains a subset of the inputs from
+previous levels. However, as the level increases, we are more likely
+to find interesting bugs that reveal functionality specific
+to the system (rather than simply input validation issues).
 
-\paragraph{Exercise 8.} It is possible to simplify \textsf{ComputeFib}.
-Write a simpler program by not introducing \textsf{a} as the Fibonacci number
-that precedes \textsf{b}, but instead introducing \textsf{c} as the variable that
-succeeds \textsf{b}. Verify that your program is correct according to the mathematical
-definition of Fibonacci.
+How do we generate inputs at higher levels of the hierarchy?
+There are two choices: grammars will get you up to some levels of the hierarchy,
+but then you need more smarts than you can encode in a context-free grammar to generate
+type-correct programs; or, you can modify existing inputs, as we've seen above.
 
-(I'm omitting Exercise 9 from the tutorial because it's not really that useful.)
+While the example above is specific to C, the concept applies to all
+generational fuzzing tools. Of course, the system under test
+shouldn't ever crash on random ASCII characters. But it's hard
+to find the really interesting cases without incorporating knowledge
+about correct syntax for inputs. Increasing the level should also increase
+code coverage.
 
-As you know, an issue with just verifying partial correctness is that it doesn't tell you
-anything at all if the program doesn't terminate. When you run the program, you can see it not
-terminating, but if you're just proving it, you might write non-terminating code.
+John Regehr discusses this issue at greater
+length\footnote{\url{blog.regehr.org/archives/1039}} and concludes
+that generational fuzzing tools should operate at all levels, rather than
+restricting themselves to only some of the levels.
 
-\section*{Termination}
-Dafny does prove termination for loops and recursion. It does so by proving that there is something
-that decreases and that is bounded. Usually Dafny manages to guess what is decreasing. When that is
-something over natural numbers, the lower bound is often 0. You can hover over
-the loop to see the inferred decreases clause. Sometimes Dafny can't guess, and you have to provide an annotation.
+\section*{Guiding by Coverage}
+Time to introduce a new idea---one that has been made popular in practice by AFL.
+We've previously talked about coverage in terms of evaluating how good a test suite is.
+Now, we're going to use coverage to guide test generation.
 
-\begin{lstlisting}[language=dafny]
-method Decreases()
-{
-  var i := 20;
-  while 0 < i
-    invariant 0 <= i
-    decreases i // could be inferred
-    {
-      i := i - 1;
-    }
-}
-\end{lstlisting}
-Note that the thing that is decreasing might be the negation of something that's increasing.
-\begin{lstlisting}[language=dafny]
-method Decreases2()
-{
-  var i, n := 0, 20;
-  while i < n
-    invariant 0 <= i <= n
-    decreases n - i
-    {
-      i := i + 1;
-    }
-}
-\end{lstlisting}
-Dafny can guess this one too, from the loop condition $i < n$.
-The lower bound is from $i \leq n$ in the invariant, which implies
-$n - i \geq 0$. The bound doesn't have to be constant, as in binary search.
+Let's build some infrastructure first. We have an abstract \texttt{Runner} class with a \texttt{run()} function. By default, the abstract class just says everything is ``unresolved''. Here is a subclass that runs a function it is given during instantiation, and returns \texttt{PASS} if the function returns sucessfully and \texttt{FAIL} if the function raises an exception.
 
-\paragraph{Exercise 10.} In the loop above, the invariant $i \leq n$
-and the negation of the loop guard allow us to conclude $i == n$ after the loop,
-as we've previously checked with an \textsf{assert}. If the loop guard was instead
-$i \neq n$ (as in Exercise 7), then the negation of the guard immediately gives $i == n$,
-without needing the loop invariant. Change the loop guard to $i \neq n$ and delete the invariant.
-What happens?
+\begin{lstlisting}[language=Python]
+class FunctionRunner(Runner):
+    def __init__(self, function: Callable) -> None:
+        """Initialize.  `function` is a function to be executed"""
+        self.function = function
 
-We have also seen the recursive function \textsf{fib}. Dafny also guesses the decreases
-annotation here. We could specify it explicitly:
+    def run_function(self, inp: str) -> Any:
+        return self.function(inp)
 
-\begin{lstlisting}[language=dafny]
-function fib(n:nat): nat
-  decreases n
-{
-  if n == 0 then 0
-  else if n == 1 then 1
-  else fib(n-1) + fib(n-2)
-}
-\end{lstlisting}
+    def run(self, inp: str) -> Tuple[Any, str]:
+        try:
+            result = self.run_function(inp)
+            outcome = self.PASS
+        except Exception:
+            result = None
+            outcome = self.FAIL
 
-There is a longer Dafny tutorial on termination, and we'll probably go through that one as well.
-
-\section*{Arrays}
-In Dafny we have one-dimensional arrays $\mathsf{array}\langle T \rangle$ for any $T$ (though here we'll only consider
-$\mathsf{array}\langle int \rangle$), as well as $\mathsf{array}?\langle T \rangle$ which includes possibly-null arrays.
-
-Array access is as you might expect, $a[i]$, and there is a built-in
-length field: $\mathsf{a}.\mathsf{Length}$.  Part of Dafny's
-compile-time verification includes showing that all array accesses are
-in-bounds, i.e.  betweeen 0 and $\textsf{Length}-1$ inclusive.
-
-We saw array allocation right at the beginning of this document:
-\begin{lstlisting}[language=dafny]
-    var arr := new int[2];
+        return result, outcome
 \end{lstlisting}
 
-Let's express the easy part of the contract for the \textsf{Find} method.
-\begin{lstlisting}[language=dafny]
-method FindPartialContract(a: array<int>, key:int) returns (index:int)
-  // partial contract
-  ensures 0 <= index ==> index < a.Length && a[index] == key
-{
-  // can you write code that satisfies this postcondition?
-  // it can be done with one statement.
-}
-\end{lstlisting}
-This is the case where the key is in the array. It's at index \textsf{index}.
-The conjunct $\mathsf{index} < a.\mathsf{Length}$ guards against out-of-bounds array
-accesses that might be caused by \textsf{a[index]}, and works because Dafny has short-circuit
-logical ands/ors (like C and many other languages).
-
-For the other case, we need to say that \textsf{key} does not exist at \emph{any}
-index in the array, so we need quantifiers.
-
-\paragraph{Quantifiers.} Dafny supports quantifiers in expressions. Use a double-colon (::)
-after the variable name; it shows up as a dark $\cdot$ in Emacs and VS Code.
-
-\begin{lstlisting}[language=dafny]
-method WithQuantifier()
-{
-  assert forall k :: k < k + 1;
-}
-\end{lstlisting}
-(This verifies, but there's a warning about triggers. We won't talk about this here.)
-
-Typically we quantify over some more limited set than ``all integers'' (Dafny infers the type of
-$k$, though you can specify it if you want). For instance, all integers that are valid indices into an array,
-i.e. between 0 and $a.\mathsf{Length}$.
-\begin{lstlisting}[language=dafny]
-  forall k :: 0 <= k <= a.Length => a[k] != key
-\end{lstlisting}
-We can thus write the whole contract:
-\begin{lstlisting}[language=dafny]
-method Find(a: array<int>, key:int) returns (index:int)
-  ensures 0 <= index ==> index < a.Length && a[index] == key
-  ensures index < 0 ==> forall k :: 0 <= k < a.Length ==> a[k] != key
-{
-    // TODO implement this
-}
-\end{lstlisting}
-Linear search is the easiest way to implement \textsf{Find}:
-\begin{lstlisting}[language=dafny]
-  index := 0;
-  while index < a.Length {
-    if a[index] == key {
-      return;
-    }
-    index := index + 1;
-  }
-  index := -1;
-\end{lstlisting}
-and when we plug that into the contract, we see that Dafny can't prove the postcondition
-saying that if \textsf{index} is negative, then \textsf{key} is not in the array. Makes sense:
-all we know upon leaving the loop is that \textsf{index} has reached the end of the array.
-We need to add an invariant showing that the part of the array we've visited so far does not
-contain \textsf{key}.
-\begin{lstlisting}[language=dafny]
-  invariant forall k :: 0 <= k < index ==> a[k] != key
-\end{lstlisting}
-Dafny complains: it doesn't know that \textsf{index} doesn't go off the end of the array.
-This invariant works.
-\begin{lstlisting}[language=dafny]
-  invariant 0 <= index <= a.Length
-\end{lstlisting}
-We often see loop invariants where we build the property that we need one element at a time,
-as we do here. In this case, the property is that the visited part of the array doesn't contain
-the key that we're looking for.
-
-\paragraph{Exercise 11.} Write a method that takes an integer array, which it requires to have
-at least one element, and returns an index to the maximum of the array's elements. Annotate
-the method with pre- and postconditions that state the intent of the method, and annotate
-its body with a loop invariant to verify it.
-\begin{lstlisting}[language=dafny]
-method FindMax(a: array<int>) returns (index:int)
-  // TODO put preconditions and postconditions here  
-{
-  // TODO implement this
-}
+We can create and invoke this runner, with the original exception-raising function:
+\begin{lstlisting}[language=Python]
+http_runner = FunctionRunner(url_consumer)
+http_runner.run("https://foo.bar/")
 \end{lstlisting}
 
-Linear search is fine, but if the array is sorted, then binary search is faster. We can't
-prove that binary search is correct unless we can somehow express a property about the array
-being sorted. Which we can. But let's see if we can refactor this property, using predicates.
+Back in Lecture 3, we talked about measuring coverage programmatically. Now we can use that to guide fuzzing. We'll also use the notation of populations. First, measuring coverage. We can create a
+\texttt{FunctionCoverageRunner} which subclasses \texttt{FunctionRunner} but defines this \texttt{run\_function()} implementation:
 
-\paragraph{Predicates.} Dafny has functions, which can return anything. Dafny also has
-predicates, which return booleans. We are going to define the \textsf{sorted} predicate
-which will return true if and only iff its array argument is sorted. Using this predicate
-makes our expressions shorter and more readable (as long as the name of the predicate
-corresponds to its meaning).
+\begin{lstlisting}[language=Python]
+class FunctionCoverageRunner(FunctionRunner):
+    def run_function(self, inp: str) -> Any:
+        with Coverage() as cov:
+            try:
+                result = super().run_function(inp)
+            except Exception as exc:
+                self._coverage = cov.coverage()
+                raise exc
 
-\begin{lstlisting}[language=dafny]
-predicate sorted(a: array<int>)
-{
-  forall j, k :: 0 <= j < k < a.Length ==> a[j] <= a[k]
-}
-\end{lstlisting}
-A predicate is like a function, but the return type must be boolean, and so you don't have to write this.
+        self._coverage = cov.coverage()
+        return result
 
-Dafny won't compile this, and says that there is an insufficient \textsf{reads} clause.
-
-\paragraph{Framing.} Dafny needs to know when heap locations might change.
-
-We know that functions and predicates can't change the heap. But
-Dafny isn't a purely functional language---methods can change the heap.
-
-So, Dafny wants to know when the value of \textsf{sorted} might change
-between calls. In a world where there are two arrays, and a method
-writes to one of the arrays, a \textsf{reads} annotation tells
-Dafny \emph{which} array \textsf{sorted} is reading from, and whether
-that array might have been changed by the method. If not, then the
-array has the same sortedness before and after the method was called.
-
-\begin{lstlisting}[language=dafny]
-predicate sorted(a: array<int>)
-  reads a
-{
-  forall j, k :: 0 <= j < k < a.Length ==> a[j] <= a[k]
-}
-\end{lstlisting}
-The \textsf{reads} annotation specifies a set of memory
-locations that the function is allowed to access. Here, it is
-an array, which means that \textsf{sorted} can access all
-of the elements of the array. It could also be object fields and
-sets of objects. We'll probably check that later.
-
-As we've seen, Dafny checks that the \textsf{reads} clause
-specifies everything that the function might read. This includes
-any functions that the function transitively calls.
-
-Conversely, as we've seen, methods can read anything they want.
-But they must declare any changes to memory using a \textsf{modifies}
-clause.
-
-These clauses allow Dafny to reason about methods and functions
-in isolation, and hence they make verification much more tractable.
-
-Dafny only requires framing information for memory on the heap,
-which includes arrays and objects, but not sets, sequences, or multisets
-(which we'll talk about later).
-
-\paragraph{Exercise 12.} Create a \textsf{sortedAndDistinct}
-predicate that returns true exactly when the array is sorted and all its
-elements are distinct.
-
-\paragraph{Exercise 13.} Create a \textsf{sortedAndNonNull}
-predicate that accepts references to a possibly-null array and that
-returns true exactly when the array is sorted and not null.
-
-\paragraph{Binary Search.} Predicates: software engineering principles for
-annotations. Here we use the \textsf{sorted} predicate in the precondition
-for \textsf{BinarySearch}. Dafny thus knows that the array is sorted
-when verifying the method body.
-
-\begin{lstlisting}[language=dafny]
-method BinarySearch(a: array<int>, value: int) returns (index:int)
-  requires 0 <= a.Length && sorted(a)
-  ensures 0 <= index ==> index < a.Length && a[index] == value
-  ensures index < 0 ==> forall k :: 0 <= k < a.Length ==> a[k] != value
-{
-    // ...
-}
+    def coverage(self) -> Set[Location]:
+        return self._coverage
 \end{lstlisting}
 
-Here's an implementation of binary search.
-\begin{lstlisting}[language=dafny]
-  var low, high := 0, a.Length;
-  while low < high
-    invariant 0 <= low <= high <= a.Length
-    invariant forall i ::
-      0 <= i < a.Length && !(low <= i < high) ==> a[i] != value
-    {   
-      var mid := (low + high) / 2;
-      if a[mid] < value {
-        low := mid + 1;
-      } else if value < a[mid] {
-        high := mid;
-      } else {
-        return mid;
-      }
-    }
-    return -1;
+Running it and calling getter function \texttt{coverage()}
+gives a list of program points, which are function/line tuples.
+
+Now, the idea is to add an input to the population of source inputs whenever that input adds to coverage. When the runner next asks for an input, it will mutate something that has been added to the population in a previous iteration. 
+\begin{lstlisting}[language=Python]
+class MutationCoverageFuzzer(MutationFuzzer):
+    """Fuzz with mutated inputs based on coverage"""
+
+    def reset(self) -> None:
+        super().reset()
+        self.coverages_seen: Set[frozenset] = set()
+        # Now empty; we fill this with seed in the first fuzz runs
+        self.population = []
+
+    def run(self, runner: FunctionCoverageRunner) -> Any:
+        """Run function(inp) while tracking coverage.
+           If we reach new coverage,
+           add inp to population and its coverage to population_coverage
+        """
+        result, outcome = super().run(runner)
+        new_coverage = frozenset(runner.coverage())
+        if outcome == Runner.PASS and new_coverage not in self.coverages_seen:
+            # We have new coverage
+            self.population.append(self.inp)
+            self.coverages_seen.add(new_coverage)
+
+        return result
 \end{lstlisting}
-Let's look at the implementation and the invariants.
-\begin{lstlisting}[language=dafny]
-    invariant 0 <= low <= high <= a.Length
-    invariant forall i ::
-      0 <= i < a.Length && !(low <= i < high) ==> a[i] != value
-\end{lstlisting}
-The first invariant says that the search is looking between
-$[\mathsf{low}, \mathsf{high})$, and the second invariant
-says that the searched-for value is not anywhere outside
-that range.
+After running this fuzzer for a number of trials, we can look
+at the population and see how it consists of a number of
+valid inputs.
 
-Reasoning about how the first invariant continues to hold is
-straightforward.
+\begin{verbatim}
+['http://www.google.com/search?q=fuzzing', 'http://wwwgo\x7fgie.c*om/{earchq=fuzzing',
+'http://\\www=go\x7fgie.c*nm{erchq=fuzzig', 'http://www.google.com/ear#h?q=fuzzing',
+'http://\\www=g/\x7fgienc*nKmer;chq=nuzzig', 'http://wwv.goog?le.com/?ear#h?q9fuzzing',
+'http://\\www=g/\x7fgienC*nKmer;#hq=nuzzig', 'http://\\www=g/\x7fgiec*n(ier;c/hq=nuZrig.',
+'http://\\wwiw=ag/\x7fgienC*nKmer;iq=nuzzi?g']
+\end{verbatim}
 
-For the second invariant, Dafny needs to show that changing
-\textsf{low} or \textsf{high} doesn't miss the value that we are
-searching for. It can use the fact that predicate \textsf{sorted}
-holds. Taking the first \textsf{if} case, we are bumping up
-\textsf{low} to above \textsf{mid}, based on sortedness and the fact
-that $\mathsf{a}[\mathsf{mid}] < \mathsf{value}$, which ensure that
-the value isn't in that part of the range.
+We need additional machinery to see how coverage over time
+increases using this strategy, and there's a plot of that
+in the \emph{Fuzzing Book}, but maybe you can take my word for it.
 
-Off-by-one errors are easy to write. Dafny catches them in this case.
-
-\paragraph{Exercise 14.} Change the assignments in the body of
-\textsf{BinarySearch} to set \textsf{low} to \textsf{mid} or
-to set \textsf{high} to $\mathsf{mid}-1$. What goes wrong?
-
-\section*{Conclusion}
-We've seen a bunch of the major features of Dafny and used it to verify
-some simple code, up to a binary search implementation. There are more
-features: objects, sequences and sets, data structures, lemmas, modules, etc.
-We'll probably talk about them in the next few lectures. You don't
-really need them to do the assignment this year. Maybe next year.
-
-There is a lot of information about Dafny online, including other
-tutorials and the reference.
-
-SE 465 is not actually the course on specifications. That's SE 463.
-But we use formal specifications in this part of SE 465 to prove
-that implementations conform to these specifications, and that
-they are using other code consistently with that code's specifications.
-Both tests and verification are tools that you can use to verify
-that your code does what it's supposed to do. Tests are more
-practical, while verification is conceptually more powerful.
+In any case, coverage-guided fuzzing definitely explores new parts of the program's behaviour as it runs. Of course, as with any type of fuzzing,
+it will eventually hit diminishing returns.
 
 \end{document}
+
+\begin{lstlisting}[language=Python]
+>>> seed_input = "http://www.google.com/search?q=fuzzing"
+>>> mutation_fuzzer = MutationFuzzer(seed=[seed_input])
+>>> [mutation_fuzzer.fuzz() for i in range(10)]
+['http://www.google.com/search?q=fuzzing',
+ ']hTtp://ww,google\x1ecom/searc?q=fuzzig',
+ 'hppY://www.google.cm/seacH?q=fduzzing',
+ 'http:&//www.goole.com/sear#h?q=fuzz(ingw',
+ 'http://vww.googlje.om/{earch?q5fuzzing',
+ 'http://www.google.com/seach?q=uzzing',
+ 'hv,tp*//www.ggogle.com/seagrch/q=fuzzing',
+ "h(tpy:/wGw.goo'l%.com/searc?q=fuz~ing",
+ 'hp://www.gooelecom/)search?q=fuz?zing?',
+ "httpv//www.goo6gl.#om'search?q=Puzzin"]
+\end{lstlisting}
+
+Inside the \texttt{MutationCoverageFuzzer}, there is a \texttt{population}.
+\begin{lstlisting}[language=Python]
+  >>> mutation_fuzzer = MutationCoverageFuzzer(seed=[seed_input])
+>>> mutation_fuzzer.runs(http_runner, trials=10000)
+>>> mutation_fuzzer.population[:5]
+['http://www.google.com/search?q=fuzzing',
+ 'http://www.google.com</searc?q=fzzinw',
+ 'http://twww.google.com/searc`pnu<zzing',
+ 'http://Btwnww.gIoog|e.cnsearc`pn<zzing',
+ 'http://www\x0egoogle.com</sea#r#?q=_fdz0zinw']
+\end{lstlisting}
