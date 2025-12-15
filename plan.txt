@@ -5,7 +5,6 @@ _ L01: general course intro (needs update, brief mention of oracles)
 * L03: coverage (https://www.fuzzingbook.org/html/Coverage.html)
 * L04: mutation analysis; what does graph coverage buy?
 * L05: 
-       oracles, 
        oracles (https://ieeexplore.ieee.org/document/6963470)
        https://www.cse.ust.hk/~scc/publ/CS98-01-metamorphictesting.pdf
 _ L06:
@@ -14,29 +13,20 @@ _ L06:
        chaos monkey
        probably not: static analysis content/using tools (Infer?) (look back at 2019 offering)
 
-* 3 weeks Dafny (1251: L13, L14, L15, L16, L17; add the OOPSLA paper)
-* L07 Dafny application: Cedar (might be a bit short)
-* L08 Dafny
-* L09 More Dafny, including VC and lemmas
-* L10 Bubblesort in Dafny
-* L11 Dafny sequences and VCgen
-* L12 On the impact of formal verification on software development https://ranjitjhala.github.io/static/oopsla25-formal.pdf
-
-bonus (not done yet)
-"N things I learned trying to do formal methods in industry" Mike Dodds
-
-* Reading Week * (February 16-20)
-
-* L13: midterm
+* A1 is due on the day of L08, so could mention fuzzing
 
 3 weeks fuzzing (L03)
 
-* L14 intro to fuzzing / address sanitizer
-* L15 mutation-based fuzzing
-_ L16 grammar-based fuzzing (https://www.fuzzingbook.org/html/Grammars.html)
-_ L17 property based testing, 
-_ L18 fuzzing APIs (https://www.fuzzingbook.org/html/APIFuzzer.html)
-_ L19 reducing failure-inducing inputs (https://www.fuzzingbook.org/html/Reducer.html)
+* L07 intro to fuzzing / address sanitizer
+* L08 mutation-based fuzzing
+_ L09 grammar-based fuzzing (https://www.fuzzingbook.org/html/Grammars.html)
+_ L10 fuzzing APIs (https://www.fuzzingbook.org/html/APIFuzzer.html)
+  (March 13; A2 through to constraint-based fuzzing)
+_ L11 reducing failure-inducing inputs (https://www.fuzzingbook.org/html/Reducer.html)
+_ L12 constraint-based fuzzing / property based testing / automatic test generation
+  (March 9)
+      https://www.fuzzingbook.org/html/FuzzingWithConstraints.html
+      https://increment.com/testing/in-praise-of-property-based-testing/
 
 - test generation / assertions 
 - invariant inference: https://www.fuzzingbook.org/html/DynamicInvariants.html
@@ -58,13 +48,44 @@ fuzzing book suggestion:
     Learn how to reduce failure-inducing inputs to a minimum automatically. This is a great time saver for debugging, especially in conjunction with automated testing.
 
 
-2 weeks bounded model checking (L18)
+bonus (not done yet)
+"N things I learned trying to do formal methods in industry" Mike Dodds
 
-_ L20
-_ L21 Bounded model checking/ proof harnesses
-_ L22
-_ L23
+* Reading Week * (February 16-20)
 
+* L13: midterm
+
+2 weeks bounded model checking
+
+https://model-checking.github.io/kani/tool-comparison.html
+https://www.cs.cmu.edu/~15414/s22/lectures/17-bmc.pdf
+Dirk Beyer on test generation vs software model checkers
+https://model-checking.github.io/kani/tutorial-real-code.html
+https://www.cs.cmu.edu/~15414/lectures/21-bmc.pdf
+https://www.cs.cmu.edu/~15414/f18/2018/f17/labs/lab5.pdf
+https://www.cprover.org/cprover-manual/test-suite/
+https://people.mpi-sws.org/~rupak/Papers/SoftwareModelChecking.pdf
+https://www.cprover.org/cbmc/doc/manual.pdf
+
+_ L14 L07 from W25
+_ L15 CBMC/CPROVER, bounded model checking for C, and loop unwinding
+_ L16 Verifying Rust with Kani: proof harnesses, contracts, and unsafe Rust
+
+(A2 due here, could include CBMC)
+
+* 3 weeks Dafny (1251: L13, L14, L15, L16, L17; add the OOPSLA paper)
+* L17 Dafny application: Cedar (might be a bit short)
+  (January 26)
+* L18 Dafny
+* L19 More Dafny, including VC and lemmas
+* L20 Bubblesort in Dafny
+* L21 Dafny sequences and VCgen
+* L22 On the impact of formal verification on software development https://ranjitjhala.github.io/static/oopsla25-formal.pdf
+
+_ L23 Reasoning about software quality
+https://dl.acm.org/doi/10.1145/1882362.1882382
+https://www.sosy-lab.org/research/pub/2024-STTT.Six_Years_Later_Testing_vs_Model_Checking.pdf
+https://www.sosy-lab.org/research/pub/2017-TACAS.Software_Verification_with_Validation_of_Results.pdf
 
 _ L24 Review
 
