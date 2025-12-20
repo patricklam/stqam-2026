@@ -1,0 +1,154 @@
+\section{ChatGPT's take on Implicit Oracles}
+
+I asked ChatGPT this question:
+
+\begin{quote}
+  What are some implicit oracles useful for software testing?
+\end{quote}
+
+Here's what it told me:
+
+\begin{quote}
+Implicit oracles are test oracles that don't explicitly define expected behavior in a formal, documented way, but instead rely on inherent properties of the software, system behavior, or domain knowledge. These types of oracles are often used in situations where formal documentation or specifications are unavailable, incomplete, or difficult to construct. They typically rely on a tester’s intuition, experience, or observable system characteristics to determine whether the system is behaving as expected.
+
+Here are some examples of {\bf implicit oracles} that can be useful for software testing:
+
+\paragraph{1. Human Expert Knowledge (Domain Expertise)}
+
+\begin{itemize}[noitemsep]
+\item[] {\bf Description:} Testers or domain experts can leverage their deep understanding of the system or business domain to evaluate whether the software behaves as expected.
+
+\item[] {\bf Example:} A tester with expertise in banking systems can manually review whether a newly implemented feature (e.g., fund transfer) follows the expected logic based on real-world banking rules and principles.
+
+\item[] {\bf Use Case:} This is especially useful when documentation is lacking or ambiguous, but the tester understands the typical behavior of similar systems in the domain.
+\end{itemize}
+
+\paragraph{2. Behavior Consistency}
+
+\begin{itemize}[noitemsep]
+  \item[] {\bf Description:} If the software behaves consistently under similar conditions, you can use its behavior as an implicit oracle. This relies on the principle that software should act predictably and consistently across different runs.
+
+\item[] {\bf Example:} If a web application consistently loads pages in a certain amount of time under normal conditions, a significant deviation in response time can be flagged as a potential issue.
+
+\item[] {\bf Use Case:} This is useful for performance testing or verifying that the system maintains stable behavior over time, especially for non-functional requirements like load time or uptime.
+\end{itemize}
+
+\paragraph{3. Equivalence Class Partitioning}
+
+\begin{itemize}[noitemsep]
+  \item[] {\bf Description:} Rather than comparing results against a documented specification, you can test different equivalence classes or categories of input to see if they produce valid outputs. Implicitly, this is based on the assumption that similar inputs should yield similar outputs.
+
+\item[] {\bf Example:} For an age field that accepts numeric values, you can test different equivalence classes like valid ages (e.g., 18-60), boundary conditions (e.g., 0, 100), and invalid ages (e.g., -5, 150) to check if the software handles these correctly.
+
+\item[] {\bf Use Case:} This works well when you don’t have a detailed specification but have a general understanding of what ranges or categories of input are expected to be valid.
+\end{itemize}
+
+\paragraph{4. Consistency with Previous Versions}
+
+\begin{itemize}[noitemsep]
+  \item[] {\bf Description:} You can compare the current version of the software to a previous stable version to verify that the system still behaves correctly. If the previous version behaved well, significant deviations in the new version may be considered failures.
+
+\item[] {\bf Example:} A regression test where the software’s output or behavior from an old release is compared with the new one to ensure that existing features haven’t been broken.
+
+\item[] {\bf Use Case:} Especially useful in continuous integration and continuous delivery (CI/CD) pipelines to ensure backward compatibility and prevent regressions.
+\end{itemize}
+
+[...] 
+%% \paragraph{5. User Interface (UI) and User Experience (UX) Expectations}
+
+%% \begin{itemize}[noitemsep]
+%%   \item[] {\bf Description:} Implicit oracles can be based on common UI/UX design principles, such as responsiveness, intuitiveness, and usability. If the system’s UI behaves in an intuitive or standard way, it’s likely functioning as expected.
+
+%% \item[] {\bf Example:} A user interface where form validation highlights incorrect input with red borders or error messages is an implicit oracle—if these elements are missing or behave unexpectedly, it suggests a failure.
+
+%% \item[] {\bf Use Case:} Useful for testing front-end applications, especially when there are no explicit requirements for how certain UI behaviors should be implemented.
+%% \end{itemize}
+
+%% \paragraph{6. System Health and Resource Utilization}
+
+%% \begin{itemize}[noitemsep]
+%%   \item[] {\bf Description:} A system's health metrics, such as CPU, memory usage, and disk I/O, can act as an implicit oracle. Unexpected spikes in resource consumption or failure to meet expected resource constraints can indicate potential bugs.
+
+%% \item[] {\bf Example:} A system that regularly exceeds 80% CPU usage under normal load could signal an optimization problem, even without explicit performance specifications.
+
+%% \item[] {\bf Use Case:} Particularly useful for performance testing, stress testing, and monitoring resource utilization under typical and heavy loads.
+%% \end{itemize}
+
+%% \paragraph{7. Logs and Error Messages}
+
+%% \begin{itemize}[noitemsep]
+%%   \item[] {\bf Description:} System logs, error messages, and trace outputs often contain implicit oracles. The absence of expected messages, or the appearance of unexpected error codes or warnings, can serve as an indicator of a failure.
+
+%% \item[] {\bf Example:} If an application is expected to log successful database connections but fails to log them, or if it logs unusual error messages that were not seen in normal operations, this could indicate an issue.
+
+%% \item[] {\bf Use Case:} Useful for backend or infrastructure testing where detailed system logs help in identifying failures or performance degradation.
+%% \end{itemize}
+
+%% \paragraph{8. Code Behavior and Design Patterns}
+
+%% \begin{itemize}[noitemsep]
+%%   \item[] {\bf Description:} Implicit oracles can be based on expected design patterns or coding conventions. If a piece of software follows known design patterns (like MVC, Singleton, etc.), deviations from those patterns can be considered as an indicator of failure.
+
+%% \item[] {\bf Example:} If the software is built around a specific pattern (e.g., client-server) and the expected response or interaction does not happen (e.g., missing API calls or improper data passing), it might suggest something has gone wrong.
+
+%% \item[] {\bf Use Case:} This is particularly useful when testing internally developed applications or systems with complex logic, especially if there is a shared understanding of how certain patterns should behave.
+%% \end{itemize}
+
+%% \paragraph{9. Peer Review and Collaborative Testing}
+
+%% \begin{itemize}[noitemsep]
+%%   \item[] {\bf Description:} Often, testing is collaborative, with peer reviews providing implicit oracles. In such cases, testers or developers use their collective expertise and knowledge to assess the software’s behavior.
+
+%% \item[] {\bf Example:} In code reviews or pair programming sessions, peers may identify potential bugs or inconsistencies based on their collective understanding, even if there is no formal test case for the issue.
+
+%% \item[] {\bf Use Case:} Effective in agile environments or small development teams, where informal discussions and reviews happen frequently.
+%% \end{itemize}
+
+\paragraph{10. Expected System State Transitions}
+
+\begin{itemize}[noitemsep]
+  \item[] {\bf Description:} Implicit oracles can be based on the expected transitions between different states of the system. If the system moves between states in an unexpected way or fails to reach the desired end state, this is considered a failure.
+
+\item[] {\bf Example:} In a login system, if the user successfully logs in and is taken to the dashboard, this is an expected state transition. If the system takes the user to an error page instead, this is a failure.
+
+\item[] {\bf Use Case:} Useful for systems with clear state transitions, such as workflows, state machines, or applications with clear progression (e.g., multi-step forms, user onboarding, or approval processes).
+\end{itemize}
+
+\paragraph{11. Third-Party Integrations and External Systems}
+
+\begin{itemize}[noitemsep]
+  \item[] {\bf Description:} When software interacts with external systems or APIs, their behavior can act as an implicit oracle. If an external system is expected to return certain data (e.g., via an API call) and doesn’t, this can signal an issue.
+
+\item[] {\bf Example:} A payment gateway that successfully processes transactions should return a success message, while an unexpected error code or delay in response could indicate an issue.
+
+\item[] {\bf Use Case:} Especially useful for testing integrations, such as with third-party APIs, payment gateways, or external databases.
+\end{itemize}
+
+\paragraph{12. End-to-End User Scenarios}
+
+\begin{itemize}[noitemsep]
+  \item[] {\bf Description:} Implicit oracles can also be derived from expected user journeys or end-to-end workflows. If the system allows users to complete tasks or workflows in a smooth, uninterrupted fashion, it's likely functioning correctly.
+
+\item[] {\bf Example:} In an e-commerce application, a typical flow of browsing products, adding them to the cart, and completing a checkout without errors is considered a sign of correct system behavior.
+
+\item[] {\bf Use Case:} Useful in functional testing, especially when testing critical business flows like purchases, user registrations, or data submissions.
+\end{itemize}
+
+\subsection*{Conclusion}
+
+Implicit oracles are often more flexible and adaptable than formal, documented test oracles. They rely on human intuition, domain expertise, system behavior, and other indirect cues to identify problems. While they can be highly effective, especially when formal documentation is lacking or incomplete, they require skilled testers who have a good understanding of the system and its intended behavior.
+\end{quote}
+
+What ChatGPT says is an implicit oracle does not match with what the
+literature and Wikipedia (which follows the literature) say: none of
+its examples fit the definition of implicit oracle from the literature.
+
+Your task: for each of the categories of oracle \{ specified, derived,
+human \}, identify one of the examples from the ChatGPT output that
+better fits this category.  Briefly explain (1--2 sentences) why this
+example fits into your chosen category, and say whether or not the example is
+either overall correct as a description of an oracle, or incorrect in
+at least one aspect, explaining why that is.
+
+
+
