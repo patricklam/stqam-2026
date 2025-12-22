@@ -1,0 +1,46 @@
+\section*{Question 3: Mutation Analysis (15 points)}
+
+Consider the following program from \url{http://www.rosettacode.org/wiki/Tokenize_a_string_with_escaping}:
+
+
+\lstinputlisting[language=Python,numbers=left]{q3_prg.py}
+
+\begin{itemize}
+\item [(a)] (5 points) Add to \texttt{a1q3/coverage\_tests.py} unit tests that achieve 100\% statement coverage. You can add tests to \texttt{test\_statement\_coverage} and any other test methods you want. You measure coverage on \texttt{coverage\_tests.py} with the command:
+
+\begin{verbatim}
+  coverage run -m a1q3.test a1q3.coverage_tests.CoverageTests
+\end{verbatim}
+(or maybe \texttt{python3-coverage} if your system is like that.)
+
+note: this question turns out to be a giveaway as I inadvertently added a test that achieves this coverage to the skeleton. Enjoy the freebie.
+
+\item [(b)] (5 points) Manually inject faults into this program. Specifically, propose two non-stillborn and non-equivalent mutants of this program. Put the mutated versions of the code in functions \texttt{token\_with\_escape\_mutant1} and \texttt{token\_with\_escape\_mutant2}. Clearly indicate (with comments in the code) where you've mutated the program and which mutation operator you are applying. 
+
+  % I think this was not as nice as it could have been; TODO: reconsider the specific example.
+\item [(c)] (5 points) Additionally, write unit tests that  
+  kill each of the mutants and put them in  \texttt{a1q3/coverage\_tests.py}. You'll find skeleton tests \texttt{test\_kill\_mutant\_1} and \texttt{test\_kill\_mutant\_2}. We are going to run your tests to verify that they succeed on the original program and fail
+  on the mutant with an assertion failure; the grading script will modify \texttt{a1q3/settings.py} to run the different variants.
+
+  In \texttt{a1\_sub.pdf},
+  discuss whether these are useful test cases---do they say something useful
+  about expected program behaviour beyond what you got from the tests in part (b).
+
+  You can execute all of the tests from the \texttt{a1} directory of your repo with the following command:
+\begin{verbatim}
+  python -m a1q3.test
+\end{verbatim}
+
+  You can get coverage reports with the following commands\footnote{See \url{https://coverage.readthedocs.io/en/6.3.2/} for more information.}:
+\begin{verbatim}
+  coverage run -m a1q3.test
+  coverage report
+\end{verbatim}
+(On my computer I have python3 so I run \texttt{python3} and \texttt{python3-coverage}).
+\end{itemize}
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "a1"
+%%% End:

@@ -73,6 +73,8 @@ https://www.cprover.org/cprover-manual/test-suite/
 https://people.mpi-sws.org/~rupak/Papers/SoftwareModelChecking.pdf
 https://www.cprover.org/cbmc/doc/manual.pdf
 https://opencourse.inf.ed.ac.uk/sites/default/files/https/opencourse.inf.ed.ac.uk/fv/2023/l17-cbmc-pres.pdf
+https://etaps.org/blog/040-totta-2025/
+https://aws.amazon.com/blogs/opensource/how-open-source-projects-are-using-kani-to-write-better-software-in-rust/
 
 * L14 L07 from W25
 * L15 CBMC/CPROVER, bounded model checking for C, and loop unwinding; verifying Rust with Kani: proof harnesses, contracts, and unsafe Rust
