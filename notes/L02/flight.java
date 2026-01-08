@@ -3,7 +3,7 @@
 public void testRemoveFlightLogging_NSC() {
  // arrange:
  FlightDto expectedFlightDto=createRegisteredFlight();
- FlightMgmtFacade=new FlightMgmtFacadeImpl();
+ FlightMgmtFacade facade=new FlightMgmtFacadeImpl();
  // act:
  facade.removeFlight(expectedFlightDto.getFlightNo());
  // assert:

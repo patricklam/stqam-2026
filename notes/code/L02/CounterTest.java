@@ -10,6 +10,6 @@ public class CounterTest {
       c.addToCount(10); // act
       // after calling SUT, read off results
       int count = c.getCount();
-      assertEquals("value", count); // assert
+      assertEquals(10, count); // assert
   }
 }
