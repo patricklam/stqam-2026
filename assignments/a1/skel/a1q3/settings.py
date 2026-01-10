@@ -1,0 +1,5 @@
+from .token_with_escape import token_with_escape
+from .token_with_escape_mutant1 import token_with_escape_mutant1
+from .token_with_escape_mutant2 import token_with_escape_mutant2
+
+VARIANT_TO_RUN = token_with_escape
