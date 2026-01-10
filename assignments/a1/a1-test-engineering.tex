@@ -3,14 +3,14 @@ This is meant to be a practical question that has you engaging with various libr
 used to support writing tests.
 
 
-\subsection*{Part 1(a): flaky tests (2.5 points)}
+\subsection*{Part 2(a): flaky tests (2.5 points)}
 
 One of the reasons for flaky tests is the use of \texttt{sleep()} instead of
 waiting for something to be done. I've created a somewhat contrived
 example of that, and your task is to add a \texttt{wait()} in place of the
 \texttt{sleep()}.
 
-In the skeleton code, you will find \texttt{a1/a1q1a/network\_retrieve.py}
+In the skeleton code, you will find \texttt{a1q2a/network\_retrieve.py}
 which has an asynchronous \texttt{retriever()} function. (You'll see
 async/await in CS 343, though I think under different names). This function
 retrieves a resource from the Internet and makes things super flaky
@@ -26,7 +26,7 @@ global variable and returns it to its caller.
 
 There is a test suite, which you can invoke using
 \begin{verbatim}
-    python -m a1q1a.test
+    python -m a1q2a.test
 \end{verbatim}
 inside the \texttt{a1} subdirectory. (You may have to install
 pip packages \texttt{aiohttp} and \texttt{requests}; see
@@ -40,7 +40,7 @@ simulation of flakiness and make things deterministic; we will grade
 by running the code with \texttt{GRADING} set to \texttt{True}
 and by manually diffing your code from the skeleton.
 
-\subsection*{Part 1(b): fake objects (2.5 points)}
+\subsection*{Part 2(b): fake objects (2.5 points)}
 For this part, I've created a badly implemented
 \texttt{count\_characters.py} module. Class
 \texttt{CharacterCounterClass} is bad in a lot of ways, but the way
@@ -58,33 +58,33 @@ is not part of this course's material, but it would be a fairly common mechanic 
 
 You can run the test suite, such that it is, with the command
 \begin{verbatim}
-    python -m a1q1b.test
+    python -m a1q2b.test
 \end{verbatim}
 
 Your task is to modify \texttt{test\_suite.py} (and only that file) so
 that it still tests \texttt{count\_characters()} from \texttt{CharacterCounterClass} but does not perform
-any disk IO. (\texttt{a1q1b/test.py} invokes \texttt{test\_suite.py}). One could use Python's \texttt{unittest.mock} library
+any disk IO. (\texttt{a1q2b/test.py} invokes \texttt{test\_suite.py}). One could use Python's \texttt{unittest.mock} library
 but the intent of this question is for you to do it manually. Please don't use \texttt{unittest.mock}.
 
-We will grade this question by pulling your \texttt{test\_suite.py} file into a fresh copy of the \texttt{a1q1b} directory minus
+We will grade this question by pulling your \texttt{test\_suite.py} file into a fresh copy of the \texttt{a1q2b} directory minus
 the \texttt{lorem-ipsum.txt} file, running it, making sure it passes, and checking that your solution still contains the
 assertion from the skeleton.
 
 \emph{Hints:} Python 3 provides \texttt{io.StringIO} which creates a file-like object from a string, and you can cut-and-paste the contents of the file into a multiline string with a triple quote (\verb+"""+). You are allowed to subclass \texttt{CharacterCounterClass} and use your implementation in the test.
 
-\subsection*{Part 1(c): implementing behavioural testing (10 points)}
-In directory \texttt{a1q1c} you will find a \texttt{Model} and a \texttt{Controller}. Your task is to create a number of mocks for the \texttt{Model} using Python's \texttt{unittest.mock}.
+\subsection*{Part 2(c): implementing behavioural testing (10 points)}
+In directory \texttt{a1q2c} you will find a \texttt{Model} and a \texttt{Controller}. Your task is to create a number of mocks for the \texttt{Model} using Python's \texttt{unittest.mock}.
 I've provided skeleton tests for you to fill in as well as directions about what you put in each of these tests. Each test that you write is worth 2.5 points.
 
 The \texttt{settings.py} file contains a setting \texttt{WHICH\_STORY} which determines which story runs in the \texttt{Controller}.
 
 Run tests 1-2 with invocation:
 
-\verb+  python3 -m unittest a1q1c.test_suite -k calls+
+\verb+  python3 -m unittest a1q2c.test_suite -k calls+
 
 and tests 3-4 with invocation:
 
-\verb+  python3 -m unittest a1q1c.test_suite -k three+
+\verb+  python3 -m unittest a1q2c.test_suite -k three+
 
 The skeleton gives more specific instructions about tests 3 and 4 and when they should succeed and fail.
 

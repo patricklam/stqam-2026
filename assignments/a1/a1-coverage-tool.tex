@@ -1,1 +1,75 @@
-\section*{Question 5: Developing a Coverage Checker}
+\section*{Question 5: Developing a Coverage Checker (40 points)}
+
+The \texttt{Coverage} class in the \emph{Fuzzing Book}\footnote{\url{https://www.fuzzingbook.org/html/Coverage.html}} records the lines that have been executed. In this question, your goal is to extend a modified version of this class to compute (1) the set of executable lines, (2) the set of executed branches, and (3) the set of executable branches (i.e. the skeleton of the program's control-flow graph). Plus, you will write a test suite for your implementation.
+
+You will find the skeleton \texttt{coverage.py} in your \texttt{a1} repo under the \texttt{coverage-tool} directory.
+You can run the built-in doctests with \texttt{python3 coverage.py}.
+In this code, the type \texttt{Location} is a tuple containing a function name (string) and a line number
+(int).
+
+\paragraph{Executed branches (5 points).} Let's start with the method \texttt{executed\_branches()}.
+This method returns the set of executed branches, using the set of observed lines in the trace as input.
+By branch I include the edge from a statement to its successor, as well as edges for loops and conditionals.
+The \emph{Fuzzing Book} provides a starting point for its \texttt{Coverage} implementation,
+but you will need to adapt it a bit.
+
+\paragraph{Executable lines (5 points).} Fuzzing doesn't need the denominator, i.e the number of unexecuted
+lines or branches, but we might want it for other reasons. In this
+part, you will compute the complete set of executable lines in the
+functions that have been visited. I think that the easiest way to do
+this is using the Python disassembler, in the \texttt{dis} module. To
+get the same results as us, you should also use \texttt{dis}.
+
+My template for \texttt{populate\_executable\_lines()} requests the
+function bytecode by creating a \texttt{Bytecode} object for each
+function that has been seen in the collected trace. (The populate
+functions are called when tracing is turned off.)
+
+Look through the documentation for \texttt{dis}, at
+\url{https://docs.python.org/3/library/dis.html}, and find a function
+that is going to tell you line numbers. You'll want to pass to this
+function \texttt{function\_bytecode.codeobj}. You also want to do
+something (not much) to the results from this function so that you can
+append tuples \texttt{(function\_name, lineno)} to
+\texttt{self.\_lines}.
+
+(I guess you're allowed to ask an LLM for this information, but I recommend
+reading the documentation. Hopefully you won't hallucinate if you're doing
+the reading.)
+
+\paragraph{Executable branches (20 points).} The largest part of this question is
+implementing function \texttt{populate\_succ()}. This function computes the key part of
+a control-flow graph---the successor relation. For each executable line $\ell$, the
+dict \texttt{self.\_succ} should contain a set of \texttt{Locations} containing the
+successors of $\ell$.
+
+In my implementation, I first compute a dict mapping each instruction's bytecode offset (obtainable from
+the \texttt{.offset} field of a bytecode instruction) to its line number. Because not every
+instruction has a line number (sometimes it is \texttt{None}), I track the most recently
+seen line number as I iterate through the function's instructions, and store the instruction's
+most recently seen line number for it.
+
+Next, I get a fresh \texttt{get\_instructions} and iterate on it. There are two kinds of edges
+that you need to add: (1) edges from an instruction to its jump target; and (2) edges from
+an instruction to the one immediately following it. These edges are the same as the
+edges in the executed branches part, although we are computing a dict here and not a set.
+This CFG operates in line numbers and not offsets,
+so you sometimes need to translate.
+
+In theory, the CFG shouldn't contain a successor edge to the immediately-following instruction after an unconditional
+jump (i.e. case (2) above should only apply when the instruction is not a jump). Ignore that detail for this question.
+
+\paragraph{Test suite (10 points).} Finally, write a test suite for the code that you've written, and provide an argument that your test suite is sufficient. You can define ``sufficient'' in any reasonable manner, but tell us what your definition is. You will need to provide some input for \texttt{Coverage} beyond the provided \texttt{cgi\_decode()} method.
+
+There is a starter test in the \texttt{coverage\_tool\_test\_suite.py} file.
+
+%% \begin{lstlisting}
+%% from coverage import Coverage
+%% from cgi_decode import cgi_decode
+%% \end{lstlisting}
+
+%% \begin{lstlisting}
+%% with Coverage() as cov:
+%%   cgi_decode("a+b")
+%% \end{lstlisting}
+
