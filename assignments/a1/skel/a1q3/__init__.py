@@ -1,4 +1,4 @@
-from .token_with_escape import token_with_escape
+from .rle import run_length_encoding
 
 def main(s):
-    return token_with_escape(s)
+    return run_length_encoding(s)
