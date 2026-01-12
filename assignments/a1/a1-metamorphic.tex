@@ -16,21 +16,24 @@ of the set of images tagged ``bird'' \emph{or} ``fauna''.
 \paragraph{Tag inequality.}
 Another metamorphic property is that the sum of the number of images
 returned (as the \texttt{counter} field) for each of the tags is
-at most the number of images with a tag.
+greater than or equal to the number of tagged images.
 
-In other words: let's say that there are two tags, ``a'' and ``b'', and
+For example: let's say that there are two tags, ``a'' and ``b'', and
 four images.
 Images \{1, 2, 3\} are tagged ``a'', while images \{1, 2, 4\} are tagged
-``b''. If you request all images tagged either ``a'' or ``b'',
-then you should get 3 images---but certainly at most 4.
+``b''. If you sum the number of images tagged as ``a'' and the number of images tagged ``b'',
+then you will get 6 images---but certainly at least 4:
+\[ \#(A) + \#(B) \ge \# (A+B), \]
+or, more specifically,
+\[ 3 + 3 \ge 4. \]
 
 (5 points) Write a test that calls \texttt{pwg.tags.getList} and
 sums the number of images reported in the \texttt{counter} for each of
-the tags. Next, the test must then call \texttt{pwg.tags.getImages},
+the tags. Next, the test calls \texttt{pwg.tags.getImages},
 passing it all of the reported tag ids, and creating an overall set
-of images which have any of the tags. Finally, the test must assert
-that the sum of the number of images returned by \texttt{getList} is at most
-the number of images returned by \texttt{getImages}.
+of images which have a tag of any sort. Finally, the test must assert
+that the sum of the number of images returned by \texttt{getList} is greater than
+or equal to the number of images returned by \texttt{getImages}.
 
 \paragraph{Your choice.} (15 points) Look through the piwigo
 API, which you can explore at \url{https://gallery.patricklam.ca/tools/ws.htm},

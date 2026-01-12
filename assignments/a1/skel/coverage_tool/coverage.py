@@ -125,7 +125,7 @@ class Coverage:
                     continue
 
             function_bytecode = dis.Bytecode(fun)
-            # TODO (5 points) you need three lines of code here, populating self._lines, and using function_bytecode with the dis Python module.
+            # TODO (5 points) you can do this with 2 or 3 lines of code here, populating self._lines, using function_bytecode as the source of data.
 
     def populate_succ(self) -> None:
         """Populates the internal control-flow graph _succ of successors"""
@@ -147,7 +147,7 @@ class Coverage:
             # prev->current is similar to what is in executed_branches
             # you are not required to omit the prev->current edge when there is an unconditional branch
 
-            # my solution has 17 lines of code
+            # PL's solution has 17 lines of code; Alex's solution uses an API to compute (1), uses a single loop, and has 10 lines of code.
             
     def coverage_stats(self) -> Tuple[int, int, int, int]:
         (lines, executable_lines) = (len(self.executed_lines()), len(self.executable_lines()))
