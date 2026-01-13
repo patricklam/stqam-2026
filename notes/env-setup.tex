@@ -1,0 +1,99 @@
+\documentclass[11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\geometry{margin=1in}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{gray!5},
+  frame=single,
+  breaklines=true,
+  columns=fullflexible
+}
+
+\title{Environment Setup for Assignments}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{Environment Setup for Assignments}
+
+All assignments must be run using \textbf{Python $\ge$ 3.12.3} inside a
+\textbf{virtual environment (venv)}.
+Running inside a venv ensures that package versions are isolated,
+reproducible, and do not interfere with system Python.
+
+You can check your Python version with:
+\begin{lstlisting}[language=bash]
+python3 --version
+\end{lstlisting}
+
+\section{Creating a Virtual Environment}
+
+From the project root, create and activate a virtual environment:
+
+\begin{lstlisting}[language=bash]
+python3 -m venv venv
+\end{lstlisting}
+
+Activate it:
+
+\subsection*{On macOS / Linux}
+\begin{lstlisting}[language=bash]
+source venv/bin/activate
+\end{lstlisting}
+
+\subsection*{On Windows (PowerShell)}
+\begin{lstlisting}[language=powershell]
+venv\Scripts\Activate.ps1
+\end{lstlisting}
+
+Once activated, your shell prompt should show \texttt{(venv)}.
+
+\section{Installing Required Packages}
+
+Install the required packages inside the virtual environment:
+
+\begin{lstlisting}[language=bash]
+pip3 install coverage aiohttp requests
+\end{lstlisting}
+
+Or install using the given requirement file:
+\begin{lstlisting}[language=bash]
+pip3 install -r requirement.txt
+\end{lstlisting}
+
+\section{Running Coverage}
+
+Within the virtual environment, the \texttt{coverage} package can be executed in two equivalent ways.
+
+\subsection{Using the installed binary}
+
+During installation of the coverage package, a binary tool is also installed
+and added to your \texttt{PATH}. Hence you can run it with:
+
+\begin{lstlisting}[language=bash]
+coverage run -m pytest
+coverage report
+\end{lstlisting}
+
+\subsection{Using the Python module}
+
+This method is more robust and always uses the correct Python interpreter:
+
+\begin{lstlisting}[language=bash]
+python -m coverage run -m pytest
+python -m coverage report
+\end{lstlisting}
+
+Both methods invoke the same \texttt{coverage} package; the second form avoids
+issues with incorrect \texttt{PATH} or mismatched Python installations.
+
+\end{document}
