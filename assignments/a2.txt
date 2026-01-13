@@ -1,0 +1,35 @@
+some cbmc examples:
+
+https://doina.net/AR15/AR15-L6.pdf
+Assignment
+Assignment (software bugs)
+(72 ) For each of the types of programming scenarios below9, write (or ﬁnd) a small C
+or C++ program, add the required speciﬁcation against the error (only if CBMC doesn’t
+already do it for you), and use CBMC to get a counterexample showing the error. Name
+the type of software bug. Say whether each veriﬁcation run is complete (slide 25). Say
+what the eﬀect of executing each buggy program would be.
+1. The program writes into a local string (allocated on the stack) one character more
+than expected.
+2. The same for a string allocated on the heap (with malloc or new).
+3. The program tries to read the memory pointed by a global, uninitialized pointer
+variable.
+4. A float variable is divided by a variable whose value is currently zero.
+5. A 16-bit signed integer overﬂow.
+6. A ﬂoat underﬂow10.
+9For an overview of programming bugs, see also
+http://en.wikipedia.org/wiki/Software bug, section “Common types of computer bugs”.
+10One note: in the current version, CBMC ”forgets” to add the required assertion for
+underﬂow when you give it --signed-overflow-check; add it yourselves manually.
+
+(38 ) Integer overﬂow can happen in the well-known binary search
+algorithm. See the blog post: http://googleresearch.blogspot.com/
+2006/06/extra-extra-read-all-about-it-nearly.html.
+Use CBMC to get a counterexample showing that error.
+You may be surprised at how little computation time is needed by the tool,
+even if you use the general integer type, and nondeterministic initialization
+of most variables, including the array contents.
+If you are curious: the webpage
+http://sv-comp.sosy-lab.org/2013/benchmarks.php (see the ﬁrst
+link on the page) has many real-world benchmarks for CBMC
+
+
