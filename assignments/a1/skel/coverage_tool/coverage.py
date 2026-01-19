@@ -54,9 +54,8 @@ class Coverage:
         self._targets = targets
         self._trace: List[Location] = []
         self._lines: List[Location] = []
-        self._branches: List[Tuple[Location,Location]] = []
         # a mapping of line numbers to a set of line-number successors
-        self._succ: Dict[Tuple[Location, Location], Set[Tuple[Location, Location]]] = self.Cfg()
+        self._succ: Dict[Location, Set[Location]] = self.Cfg()
 
     def traceit(self, frame: FrameType, event: str, arg: Any) -> Optional[Callable]:
         """Tracing function. To be overloaded in subclasses."""
@@ -98,7 +97,7 @@ class Coverage:
         """The set of executed lines, as (function_name, line_number) pairs"""
         return set(self.trace())
 
-    def succ(self) -> Dict[Tuple[Location, Location], Set[Tuple[Location, Location]]]:
+    def succ(self) -> Dict[Location, Set[Location]]:
         """The succ relation, as ((function name, line_number), (function_name, line_number)) pairs"""
         return self._succ
 
@@ -165,15 +164,19 @@ class Coverage:
 
     def __repr__(self) -> str:
         """Return a string representation of this object.
-           Show covered (and uncovered) program code"""
+           Show covered (and uncovered) program code.
+           Covering __repr__ in your tests is not required"""
         t = ""
         for function_name in self.function_names():
             # Similar code as in the example above
             try:
-                fun = next((func for func in self._targets if func.__name__ == function_name), eval(function_name))
-            except Exception as exc:
-                t += f"Skipping {function_name}: {exc}"
-                continue
+                fun = next(func for func in self._targets if func.__name__ == function_name)
+            except StopIteration:
+                try:
+                    fun = eval(function_name)
+                except Exception as exc:
+                    print (f"Skipping {function_name}: {exc}")
+                    continue
 
             source_lines, start_line_number = inspect.getsourcelines(fun)
             for lineno in range(start_line_number, start_line_number + len(source_lines)):
@@ -194,9 +197,10 @@ class Coverage:
 if (__name__ == '__main__'):
     #from cgi_decode import *
 
-    # since we did an import * it's not strictly necessary to pass cd to the Coverage constructor
+    ## since we did an import * it's not strictly necessary to pass cd to the Coverage constructor
     #with Coverage([cd]) as cov:
     #    cd("a+b")
+    #print (cov)
     #cov.print_coverage_stats()
 
     # can also run the doctest in Coverage:
