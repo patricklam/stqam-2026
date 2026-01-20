@@ -5,11 +5,12 @@ _* L01: general course intro (needs update, brief mention of oracles)
 ** L03: coverage (https://www.fuzzingbook.org/html/Coverage.html) -> likely to be short, but put lots of stuff in L06, including also perhaps static analysis/semgrep content
 ** L04: mutation analysis; what does graph coverage buy?
 ** L05: oracles (https://ieeexplore.ieee.org/document/6963470)
-       https://www.cse.ust.hk/~scc/publ/CS98-01-metamorphictesting.pdf
+        metamorphic testing
+        https://www.cse.ust.hk/~scc/publ/CS98-01-metamorphictesting.pdf
 *_ L06:
-       metamorphic testing (done)
-       code review/documentation (done)
-       chaos monkey (done)
+        code review/documentation (done)
+        PMD/static analysis
+        chaos monkey (done)
 
 
        if time permits or if L05 finishes early: SpotBugs, SemGrep, CodeQL, Checker framework

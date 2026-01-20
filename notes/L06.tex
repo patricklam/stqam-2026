@@ -17,7 +17,7 @@
 
 \lstset{ %
 language=Java,
-basicstyle=\ttfamily,commentstyle=\scriptsize\itshape,showstringspaces=false,breaklines=true,numbers=left}
+basicstyle=\ttfamily,commentstyle=\itshape,showstringspaces=false,breaklines=true,numbers=left}
 \newtcbinputlisting{\codelisting}[3][]{
     extrude left by=1em,
     extrude right by=2em,
@@ -83,21 +83,22 @@ do, else, case, break},
 
 \section*{Code Review}
 
-Code review is a powerful tool for improving code quality. Today's lecture is
+Code review is a powerful tool for improving code quality. Quality Assurance
+is in the course name, so we'll talk about code review. Today's lecture is
 based on the following references:
 
-\begin{itemize}
+\begin{itemize}[noitemsep]
 \item course reading on code review (main source):
 
   \url{http://web.mit.edu/6.031/www/sp17/classes/04-code-review/}
 \item how code review works in an MIT course on software construction:
 
   \url{http://web.mit.edu/6.031/www/sp17/general/code-review.html}
-\item blog post by Vadim Kravcenko on code review:
+\item blog post by Vadim Kravcenko on code review:\\
   \url{https://vadimkravcenko.com/shorts/code-reviews/}
-\item Fog Creek code review checklist:
+\item Fog Creek code review checklist (archived):
 
-  {\scriptsize \url{https://github.com/godber/software_dev_templates_and_checklists/blob/master/code_review/fog_creek-code_review-checklist.md} }
+  {\tiny \url{https://github.com/godber/software_dev_templates_and_checklists/blob/master/code_review/fog_creek-code_review-checklist.md} }
 \end{itemize}
 
 The MIT course has more comprehensive coverage of code reviews; it
@@ -109,10 +110,37 @@ We sometimes think that communicating with the computer is our primary goal
 when programming, but communicating with other people is at least as important
 over the long run.
 
-From the blog post:
+From the Kravcenko blog post:
 \begin{quote}
-  The real problem was that no one could understand what the hell anyone else had written; we had duplicate logic in many places and different code styles in our modules. It was really bad
+  The real problem was that no one could understand what the hell anyone else had written; we had duplicate logic in many places and different code styles in our modules. It was really bad.
 \end{quote}
+
+\paragraph{Levels of code review.} An old comment on Hacker News\footnote{\url{https://news.ycombinator.com/item?id=8862602}} says:
+
+\begin{quote}
+From my experience doing reviews and having my code reviewed the most important thing is to understand:
+
+\begin{itemize}[noitemsep]
+  \item What the intention of change is (what is this trying to achieve)
+  \item What is the code actually doing
+\end{itemize}
+
+There are three levels of review I typically observe:
+
+\begin{enumerate}[noitemsep]
+  \item Skim, find one or two comments to leave. LGTM!
+  \item Review each line or method in isolation. Recognize style and
+     formatting errors. Identify a couple local bugs.
+   \item Understand the purpose and the code.
+\end{enumerate}
+
+\#3 takes time. It's what it takes however to find the issues where the implementation doesn't actually accomplish what was set out to do (at least in all cases). To recognize where the code is going to break when integrated with other modules. To suggest big simplifications.
+
+\#3 is also where you get one of the biggest review benefits---shared understanding of the code base.
+\end{quote}
+
+Of course, it depends on how big the patch being reviewed actually is. If it's really simple\footnote{e.g. \url{https://github.com/Piwigo/Piwigo/commit/c614efd33c696062aca57d5676052f4b7ab85946}},
+\#1 may well be enough. A more in-depth change merits more in-depth review.
 
 \paragraph{Purpose of code review.} The communication inherent in code review
 aims to improve both the code itself as well as the author of the
@@ -120,14 +148,23 @@ code.  Good code review can give timely information to developers
 about the context in which their code operates,
 particularly the project and best-practices uses of the language.
 
-We'll continue with a list of items that you are inspecting when you do a code review.
+\paragraph{Receiving feedback.} We usually talk about giving feedback, not receiving feedback,
+but receiving is important as well. You don't have to argue about it (or many other things).
+In person, let the person finish talking. In the context of code review,
+Kravcenko points out the misconception ``So if the code is bad = they are bad'',
+which is of course not true, but it can feel that way. The other misconception is an ``us vs them''
+mentality. You write code, you review code, you are working together to improve code quality.
+
+We'll continue with a list of items that you are inspecting when you do a code review. It is worthwhile
+to use a checklist customized for your (organization's) needs.
 
 \paragraph{Formatting.} Consistency in formatting helps avoid preventable
 errors. Positioning of \{ \}s isn't something that necessarily has one
 right answer. Spaces are probably better than tabs. But the most important thing is
-to be self-consistent with yourself and within your project. Use a tool to check this.
+to be self-consistent with yourself and within your project. Use a tool to check this
+(and anything else you can check automatically).
 
-\section*{Code smell example 1.}
+\subsection*{Code smell example 1.}
 
 The following code has a number of bad smells:
 \begin{lstlisting}[language=Java]
@@ -154,7 +191,8 @@ Let's go through some of the bad smells.
 
 \begin{itemize}
 \item {\bf Don't Repeat Yourself}. Code cloning isn't always bad. Sometimes it is bad, as in the code above. The usual reason for it
-  being bad is that fixes in one place may remain unfixed in the other place. (Recall: it wasn't
+  being bad is that fixes in one place may remain unfixed in the other place, as happened in
+  your Assignment 1 code. (not
   always bad when used for forking and templating). For instance, if February actually had 30
   days, you'd need to change a lot of code.
 \item {\bf Fail Fast.} In the language of MIT course 6.031, we mean that a defect should be caught
@@ -175,7 +213,7 @@ Let's go through some of the bad smells.
   non-modifiable.
 \end{itemize}
 
-\section*{Comments and code documentation}
+\subsection*{Comments and code documentation}
 Code should, ideally, be self-documenting, with good names for
 classes, methods, and variables. Methods should come with
 specifications in the form of Javadoc comments, e.g.
@@ -199,7 +237,7 @@ Note how this comment describes what the method does, in one sentence,
 provides context, and then describes the parameters and return values.
 
 Also, when you incorporate code from other sources, cite the sources.
-For instance, in last year's A2 {\tt index.html} file:
+For instance, in a previous year's assignment's {\tt index.html} file:
 \begin{lstlisting}[language=Java]
     // adapted from Eli Bendersky's Lexer: http://eli.thegreenplace.net/2013/07/16/hand-written-lexer-in-javascript-compared-to-the-regex-based-ones
     // public domain according to author
@@ -213,6 +251,112 @@ Don't write comments that don't contribute to code understanding.
 If it's blatantly obvious from the code, it shouldn't be a comment.
 Such comments can mislead and hence do more harm than good.
 
+\paragraph{Providing feedback.} I'm pretty convinced that, as humans,
+we would prefer not to receive feedback. Certainly it's true for me.
+Kravcenko writes ``I’ve seen quite a few times when the developers
+were demotivated for weeks after a bad review. And that’s not how it
+should go.'' And yet, there are better ways and worse ways to provide feedback;
+Kravcenko advocates for Nonviolent Code Review\footnote{\url{https://www.mediawiki.org/wiki/Nonviolent_Code_Review}}.
+
+Specifically:
+\begin{itemize}[noitemsep]
+\item it's about the code, not the coder
+\item no personal feelings (on both sides)
+\item write positive comments, aiming to improve the code
+\end{itemize}
+There is an example of using I-messages, like ``I'm finding it hard to understand what's happening here.''
+rather than ``You write code like a toddler''. And ask questions rather than making declarations.
+
+There is one final comment in the Kravcenko post, which is that a code review should take 30 to 60
+minutes. If code reviews are taking longer, the pull requests should be smaller.
+
+\section*{Static code analysis: PMD}
+We'll dive into static code analysis by talking about one particular code
+analysis tool, PMD\footnote{\url{pmd.github.io}}.
+Last week, we said that it was better to use tools to
+flag style issues. PMD is one way to do so. Gitlab sells SAST as another way to do static analysis.
+
+\subsection*{PMD out of the box: built-in rulesets} 
+The easiest way to use PMD is in an IDE with its built-in rulesets. 
+It has rulesets for languages from C++ to Scala, including
+Java. For Java there are a number of rulesets, which group related rules. Let's look
+at a few examples of rules.
+
+\begin{itemize}[noitemsep]
+\item SimplifyConditional: [design ruleset] detect redundant null checks
+\begin{lstlisting}
+class Foo {
+  void bar(Object x) {
+    if (x != null && x instanceof Bar) {
+      // just drop the "x != null" check
+    }
+  }
+}
+\end{lstlisting}
+Note that this code is not wrong. It's just redundant.
+\item UseCollectionIsEmpty: [design ruleset] better to use {\tt c.isEmpty()} rather than {\tt c.size() == 0}
+\begin{lstlisting}
+class Foo {
+    void good() {
+        List foo = getList();
+        if (foo.isEmpty()) { /* blah */ }
+    }
+
+    void bad() {
+        List foo = getList();
+        if (foo.size() == 0) { /* blah */ }
+    }
+}
+\end{lstlisting}
+Again, it's not wrong to call {\tt size()} and see if the result is 0.
+It's just more idiomatic, and sometimes more efficient, to check {\tt isEmpty()}.
+\item MisplacedNullCheck: [basic ruleset] don't check nullness after relying on non-nullness
+\begin{lstlisting}
+public class Foo {
+    void bar() { if (a.equals(baz) || a == null) {}     }
+}
+\end{lstlisting}
+The check {\tt a == null} is never going to succeed, because {\tt a.equals()} would
+throw a {\tt NullPointerException} instead. So if {\tt a} can ever be null, there is
+a fault.
+\item UseNotifyAllInsteadOfNotify: [design ruleset] most of the time,
+  {\tt notifyAll()} is the right call to use, not {\tt
+    notify()}. Unless you know what you're doing, using {\tt notify()}
+  is going to result in a bunch of stuck threads, which is a bug.
+\end{itemize}
+
+Find more about the above rules at 
+\url{https://pmd.github.io/pmd/pmd_rules_java.html}.
+
+I've included examples from the design and basic rulesets. There's a ruleset 
+specifically for JUnit, rule sets detecting empty or otherwise useless
+code, naming conventions, and much more.
+
+It is also possible for you to write your own rules. 
+PMD supports XPath queries or Java visitors for user-supplied rules.
+SemGrep is a tool
+that supposedly makes it easier to write rules compared to PMD: the marketing
+copy says ``Semgrep rules look like the code you already write''.
+
+\paragraph{Strengths.} In addition to tabs vs spaces,
+these tools are especially good at identifying well-known security vulnerabilities
+that are present in your code---for instance, uses of unsafe APIs. (The easiest
+example of that is calling C's \texttt{gets()} function; use \texttt{fgets()} instead.
+The documentation for \texttt{gets()} is pretty clear: ``Never use \texttt{gets()}.'')
+It is possible to write custom checkers for new vulnerability classes as they come out.
+
+Static analysis tools are exhaustive, so they are also good at catching things like missing
+error handling, or other edge cases.
+
+\paragraph{Limitations.} The flip side is that because static analysis tools are exhaustive,
+they may return false positives. This is especially the case for patterns that cross method boundaries.
+It's hard to reason interprocedurally, both for people and for computers. If you get too many
+false positives, you will ignore the false positive producer.
+
+PMD and tools like it can tell you about things that may be wrong, or
+that are certainly wrong. However, they cannot tell you about how
+important that wrongness is. We still need (experienced!)  human
+judgment to know that.
 
 \section*{Chaos Monkey}
 Instead of thinking about bogus inputs, consider instead what happens
@@ -241,7 +385,7 @@ Jeff Atwood (co-founder of StackOverflow) writes about experiences with a Chaos 
 \item     ``We implemented workarounds to stay running at all times, even when services we previously considered essential were suddenly no longer available.''
 \end{itemize}
 
-\bibliographystyle{alpha}
-\bibliography{L06}
+%\bibliographystyle{alpha}
+%\bibliography{L06}
 
 \end{document}
