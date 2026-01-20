@@ -3,8 +3,8 @@
 02-extra Selenium
 03 Coverage
 04 Mutation-Analysis
-05 Oracles
-06 Misc-Practical-Topics
+05 Oracles-and-Metamorphic-Testing
+06 Code-Review-Static-Analysis-Chaos-Monkey
 07 Fuzzing-Intro-and-Address-Sanitizer
 08 Mutation-Based-Fuzzing
 09 Grammar-Based-Fuzzing

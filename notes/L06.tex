@@ -115,7 +115,7 @@ From the Kravcenko blog post:
   The real problem was that no one could understand what the hell anyone else had written; we had duplicate logic in many places and different code styles in our modules. It was really bad.
 \end{quote}
 
-\paragraph{Levels of code review.} An old comment on Hacker News\footnote{\url{https://news.ycombinator.com/item?id=8862602}} says:
+\paragraph{Code review: purpose and levels.} An old comment on Hacker News\footnote{\url{https://news.ycombinator.com/item?id=8862602}} says:
 
 \begin{quote}
 From my experience doing reviews and having my code reviewed the most important thing is to understand:
@@ -142,11 +142,11 @@ There are three levels of review I typically observe:
 Of course, it depends on how big the patch being reviewed actually is. If it's really simple\footnote{e.g. \url{https://github.com/Piwigo/Piwigo/commit/c614efd33c696062aca57d5676052f4b7ab85946}},
 \#1 may well be enough. A more in-depth change merits more in-depth review.
 
-\paragraph{Purpose of code review.} The communication inherent in code review
-aims to improve both the code itself as well as the author of the
-code.  Good code review can give timely information to developers
-about the context in which their code operates,
-particularly the project and best-practices uses of the language.
+The communication inherent in code review aims to improve both the
+code itself as well as the author of the code.  Good code review can
+give timely information to developers about the context in which their
+code operates, particularly the project and best-practices uses of the
+language.
 
 \paragraph{Receiving feedback.} We usually talk about giving feedback, not receiving feedback,
 but receiving is important as well. You don't have to argue about it (or many other things).
@@ -253,8 +253,8 @@ Such comments can mislead and hence do more harm than good.
 
 \paragraph{Providing feedback.} I'm pretty convinced that, as humans,
 we would prefer not to receive feedback. Certainly it's true for me.
-Kravcenko writes ``I’ve seen quite a few times when the developers
-were demotivated for weeks after a bad review. And that’s not how it
+Kravcenko writes ``I've seen quite a few times when the developers
+were demotivated for weeks after a bad review. And that's not how it
 should go.'' And yet, there are better ways and worse ways to provide feedback;
 Kravcenko advocates for Nonviolent Code Review\footnote{\url{https://www.mediawiki.org/wiki/Nonviolent_Code_Review}}.
 
@@ -271,9 +271,14 @@ There is one final comment in the Kravcenko post, which is that a code review sh
 minutes. If code reviews are taking longer, the pull requests should be smaller.
 
 \section*{Static code analysis: PMD}
+Static analysis is where a tool inspects (most often) the source code of a system
+and reaches conclusions on possible behaviours or code defects. Contrast that with
+dynamic analysis, which we've seen, where a tool observes system properties from
+(dynamic) runs of the system, e.g. measuring coverage.
+
 We'll dive into static code analysis by talking about one particular code
 analysis tool, PMD\footnote{\url{pmd.github.io}}.
-Last week, we said that it was better to use tools to
+Just above, we said that it was better to use tools to
 flag style issues. PMD is one way to do so. Gitlab sells SAST as another way to do static analysis.
 
 \subsection*{PMD out of the box: built-in rulesets} 
@@ -284,7 +289,7 @@ at a few examples of rules.
 
 \begin{itemize}[noitemsep]
 \item SimplifyConditional: [design ruleset] detect redundant null checks
-\begin{lstlisting}
+\begin{lstlisting}[language=Java]
 class Foo {
   void bar(Object x) {
     if (x != null && x instanceof Bar) {
@@ -295,23 +300,23 @@ class Foo {
 \end{lstlisting}
 Note that this code is not wrong. It's just redundant.
 \item UseCollectionIsEmpty: [design ruleset] better to use {\tt c.isEmpty()} rather than {\tt c.size() == 0}
-\begin{lstlisting}
+\begin{lstlisting}[language=Java]
 class Foo {
     void good() {
         List foo = getList();
-        if (foo.isEmpty()) { /* blah */ }
+        if (foo.isEmpty()) { /* ... */ }
     }
 
     void bad() {
         List foo = getList();
-        if (foo.size() == 0) { /* blah */ }
+        if (foo.size() == 0) { /* ... */ }
     }
 }
 \end{lstlisting}
 Again, it's not wrong to call {\tt size()} and see if the result is 0.
 It's just more idiomatic, and sometimes more efficient, to check {\tt isEmpty()}.
 \item MisplacedNullCheck: [basic ruleset] don't check nullness after relying on non-nullness
-\begin{lstlisting}
+\begin{lstlisting}[language=Java]
 public class Foo {
     void bar() { if (a.equals(baz) || a == null) {}     }
 }
@@ -323,6 +328,16 @@ a fault.
   {\tt notifyAll()} is the right call to use, not {\tt
     notify()}. Unless you know what you're doing, using {\tt notify()}
   is going to result in a bunch of stuck threads, which is a bug.
+  \begin{lstlisting}[language=Java]
+class Notifier {
+    void bar() {
+      synchronized(this) {
+        this.notify(); // should likely be .notifyAll()
+      }
+    }
+}
+\end{lstlisting}
+  
 \end{itemize}
 
 Find more about the above rules at 
@@ -357,6 +372,96 @@ PMD and tools like it can tell you about things that may be wrong, or
 that are certainly wrong. However, they cannot tell you about how
 important that wrongness is. We still need (experienced!)  human
 judgment to know that.
+
+\subsection*{Writing your own PMD rules} 
+Now we'll talk about
+how to write your own PMD rules. The intellectual core of a PMD rule is 
+a query on the Abstract Syntax Tree (AST). You can use either Java or XPath to describe
+this query. XPath is cleaner, in that it's a declarative query language.
+
+Here are some links about how to make rule sets and the boilerplate you need for rules:
+\begin{itemize}[noitemsep]
+\item \url{https://pmd.github.io/latest/customizing/howtomakearuleset.html}
+\item \url{https://pmd.github.io/latest/customizing/howtowritearule.html}
+\end{itemize}
+
+We'll be focussing on what goes into the rule itself, as per
+\url{https://pmd.github.io/latest/customizing/xpathruletutorial.html}.
+The tutorial skips a lot of detail about how to actually use XPath. So let's start
+with that.
+
+\paragraph{XPath.} Let's start from the fundamentals. You write 
+\emph{selectors} to find nodes. We'll look at a simple XML document.
+XPath also applies to web programming (in particular the Document
+Object Model) and also to the Java code we'll be analyzing. Source:
+\url{https://www.w3schools.com/xml/xpath_syntax.asp}; specification:
+\url{https://www.w3.org/TR/xpath/}.
+
+Here is an XML file:
+\begin{lstlisting}[language=XML]
+<?xml version="1.0" encoding="UTF-8"?>
+
+<bookstore>
+ <book>
+  <title lang="fr">Harry Potter</title>
+  <price>29.99</price>
+ </book>
+ <book>
+  <title lang="en">Learning XML</title>
+  <price>39.95</price>
+ </book>
+</bookstore>
+\end{lstlisting}
+You can observe the tree structure of the file. And you can play along
+with either
+\url{https://www.w3schools.com/xml/tryit.asp?filename=try_xpath_select_cdnodes}
+(which is hardcoded to XML similar to the above) or else {\tt
+  http://www.freeformatter.com/xpath-tester.html}.
+
+Consider XPath expression {\tt //price}. The
+result is the set of price nodes with data {\tt 29.99}, {\tt
+  39.95}. So, expression {\tt //price} selects nodes with name {\tt price};
+the {\tt //} means any descendants (including self) of the context node (= root node, here)---we asked for all descendants of the root named {\tt price}.
+And, {\tt count(//price)} counts the number of {\tt price} elements
+in the tree.
+
+We can also specify an exact path through the tree, say
+with {\tt /bookstore/book[1]/title}. This starts at the root,
+visits the {\tt bookstore} element, then its first {\tt book} child,
+then returns the title. If we omitted {\tt [1]}, then we'd
+get all of the titles.
+
+We can also select all elements that satisfy some condition,
+e.g. {\tt /bookstore/book[price>35]/title} selects the titles
+of books with price greater than 35.
+
+Note the {\tt lang} attribute. We can select elements with a
+certain value for {\tt lang}: {\tt //title[@lang="fr"]}.
+
+In general, square brackets can contain predicates. We've 
+seen pretty simple ones, but you can put arbitrary tree queries,
+e.g. {\tt //price[../title[text()="Learning XML"]]}.
+
+You can also combine predicates with {\tt and}, {\tt or}, etc.
+e.g. {\tt //title[../price < 35 or @lang="en"]}. 
+{\tt *} works as you might expect.
+
+The double-slash {\tt //} includes descendants and self.
+If you want descendants excluding self, write 
+e.g. {\tt descendant::book} as part of your expression.
+For the above example, there's no difference, but you can see it
+here:
+
+\begin{lstlisting}[language=XML]
+<?xml version="1.0" encoding="UTF-8"?>
+<bookstore>
+ <book><book><title lang="fr">Harry Potter</title></book></book>
+ <book><title lang="en">Learning XML</title></book>
+</bookstore>
+\end{lstlisting}
+
+Also, try {\tt //book[descendant::book]} versus {\tt
+  //book[//book]}. 
 
 \section*{Chaos Monkey}
 Instead of thinking about bogus inputs, consider instead what happens

@@ -23,6 +23,7 @@
 \usepackage{rotating}
 \usepackage{ulem}
 \usepackage{pythonhighlight}
+\usepackage{enumitem}
 
 \usetikzlibrary{arrows,automata,shapes}
 \tikzstyle{block} = [rectangle, draw, fill=blue!20, 
@@ -91,5 +92,480 @@ do, else, case, break},
 \begin{frame}
   \partpage
 \end{frame}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.2]{\includegraphics[width=\paperwidth]{L06/20221208_222810601_practicing_onward_essay_talk.jpg}};}
+\begin{frame}
+  \frametitle{Software Engineering is communication}
+
+  \Large
+  \begin{changemargin}{2em}
+    \ldots but not just with the computer.
+  \end{changemargin}
+
+\end{frame}
+
+\usebackgroundtemplate{\tikz\node[]{\includegraphics[width=\paperwidth, trim=0 0 0 -5em]{L06/08152_teamwork_on_the_taiko_v2.JPG}};}
+\begin{frame}
+  \frametitle{Teamwork is key}
+
+  \Large
+  \begin{changemargin}{2em}
+%    \ldots but not just with the computer.
+  \end{changemargin}
+
+\end{frame}
+
+\usebackgroundtemplate{}
+
+\begin{frame}
+  \frametitle{What Code Review Is}
+  \Large
+  \begin{changemargin}{2em}
+    Reviewer must:
+    \begin{itemize}
+    \item read someone else's code;
+    \item communicate suggestions to the code author.
+    \end{itemize}
+    Almost always in the context of a proposed code change.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Experience Report: Vadim Kravcenko}
+  \Large
+
+\quad At a startup, early in his career:\\[1em]
+\begin{quote}
+  The real problem was that no one could understand what the hell anyone else had written; we had duplicate logic in many places and different code styles in our modules. It was really bad.
+\end{quote}
+
+\scriptsize \hfill \url{https://vadimkravcenko.com/shorts/code-reviews/}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Code Review: Purpose}
+
+  An old comment on Hacker News says (\url{https://news.ycombinator.com/item?id=8862602}):
+  \begin{changemargin}{2em}
+
+  \Large
+  
+From my experience doing reviews and having my code reviewed the most important thing is to understand:
+
+\begin{itemize}[noitemsep]
+  \item - What the intention of change is (what is this trying to achieve)
+  \item - What is the code actually doing
+\end{itemize}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Code Review: Levels}
+
+  and it continues:
+  \begin{changemargin}{2em}
+
+  \Large
+  
+There are three levels of review I typically observe:
+
+\begin{itemize}
+  \item 1. Skim, find one or two comments to leave. LGTM!
+  \item 2. Review each line or method in isolation. Recognize style and
+     formatting errors. Identify a couple local bugs.
+   \item 3. Understand the purpose and the code.
+\end{itemize}
+  \end{changemargin}
+  
+\end{frame}
+
+\begin{frame}
+  \frametitle{Code Review: Benefits}
+
+Our HN commenter observes:
+  \begin{changemargin}{2em}
+
+  \Large
+  
+\#3 takes time. It's what it takes however to find the issues where the implementation doesn't actually accomplish what was set out to do (at least in all cases). To recognize where the code is going to break when integrated with other modules. To suggest big simplifications.\\[1em]
+
+\#3 is also where you get one of the biggest review benefits---shared understanding of the code base.
+  \end{changemargin}
+  
+\end{frame}
+
+\begin{frame}
+  \frametitle{Review all the things at \#3?}
+
+  \includegraphics[width=\textwidth]{L06/piwigo-diff.png}
+
+  \begin{changemargin}{2em}
+    LGTM is probably fine here.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{On formatting and style}
+
+  \Large
+  \begin{changemargin}{2em}
+    Use a tool to enforce consistent standards, e.g.
+    \begin{itemize}
+    \item - positioning of \{ \}
+    \item - spaces vs tabs
+    \end{itemize}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Receiving feedback}
+
+  \Large
+  \begin{changemargin}{2em}
+    Usually not useful: getting into an argument.\\[1em]
+    Let them finish, thank them for their input.\\[1em]
+    Consider whether you agree with it or not.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{In the context of code review}
+
+  \Large
+  \begin{changemargin}{2em}
+    Some misconceptions Kravcenko points out:
+    \begin{itemize}
+    \item - ``So if the code is bad = they are bad''
+    \item - ``US VS THEM''
+    \end{itemize}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Let's review this code}
+
+\begin{lstlisting}[language=Java,basicstyle=\small]
+  public static int dayOfYear(int month, int dayOfMonth,
+                              int year) {
+    if (month == 2) {
+        dayOfMonth += 31;
+    } else if (month == 3) {
+        dayOfMonth += 59;
+    } else if (month == 4) {
+        dayOfMonth += 90;
+    } else if (month == 5) {
+        dayOfMonth += 31 + 28 + 31 + 30;
+    } else if (month == 6) {
+        dayOfMonth += 31 + 28 + 31 + 30 + 31;
+    } else if (month == 7) {
+        dayOfMonth += 31 + 28 + 31 + 30 + 31 + 30;
+    }
+    // ... through month == 12
+    return dayOfMonth;
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Code Smells}
+
+  \Large
+  \begin{changemargin}{2em}
+    \begin{itemize}
+    \item $\bullet$ don't repeat yourself
+    \item $\bullet$ fail fast
+    \item $\bullet$ avoid magic numbers
+    \item $\bullet$ one purpose per variable
+    \end{itemize}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{What to do with dayOfYear?}
+
+  \Large
+  \begin{changemargin}{.5em}
+    \begin{itemize}
+    \item $\bullet$ frame proposed changes positively
+    \item $\bullet$ don't provide overwhelming amounts of feedback at once
+    \item $\bullet$ I'd probably propose a pair programming session
+    \end{itemize}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Good documentation example}
+
+\begin{lstlisting}[language=Java,basicstyle=\small]
+/**
+ * Compute the hailstone sequence.
+ * See http://en.wikipedia.org/wiki/Collatz_conjecture
+ * @param n starting number of sequence; requires n > 0.
+ * @return the hailstone sequence starting at n
+ *         and ending with 1.
+ *         For example, hailstone(3)=[3,10,5,16,8,4,2,1].
+ */
+public static List<Integer> hailstoneSequence(int n) {
+    ...
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Citing your sources}
+
+\begin{lstlisting}[language=Java,basicstyle=\small]
+  // adapted from Eli Bendersky's Lexer:
+  //   http://eli.thegreenplace.net/2013/07/16/hand-written-lexer-in-javascript-compared-to-the-regex-based-ones
+  // public domain according to author
+  // modifications by Patrick Lam
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Writing Comments}
+  \Large
+  \begin{changemargin}{2em}
+    Explain why, not what.
+    \begin{center}
+      \includegraphics[width=.4\textwidth]{L06/20260120_170538307_no_captain_obvious.jpg}
+    \end{center}
+  \end{changemargin}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{Nonviolent code review}
+  \Large
+  \begin{changemargin}{2em}
+
+  \begin{itemize}[noitemsep]
+\item $\bullet$ it's about the code, not the coder
+\item $\bullet$ no personal feelings (on both sides)
+\item $\bullet$ write positive comments, aiming to improve the code
+\end{itemize}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Use I-messages}
+  \Large
+  \begin{changemargin}{2em}
+
+    $\times$ ``You write code like a toddler.''\\[1em]
+    $\checkmark$ ``I'm finding it hard to understand what's happening here.''\\[2em]
+    Prefer to ask (non-``why'') questions.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{How long per review?}
+  \Large
+  \begin{changemargin}{2em}
+    Kravchenko suggests: 30--60 minutes
+  \end{changemargin}
+\end{frame}
+
+\part{Static code analysis (via PMD)}
+\begin{frame}
+  \partpage
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Static and dynamic analysis}
+  \Large
+  \begin{changemargin}{2em}
+    Static analysis: \\
+    \begin{changemargin}{1em} look at the source code of a system \& infer properties (including code smells and fault detection)
+    \end{changemargin}
+    ~\\[1em]
+    Dynamic analysis:\\
+    \begin{changemargin}{1em}  look at the executions of a system \& infer properties (example: coverage)
+    \end{changemargin}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Static analysis tools}
+  \Large
+  \begin{changemargin}{2em}
+    We'll talk about PMD (\url{pmd.github.io}).\\[1em]
+
+    Other tools exist: SpotBugs, SAST (by gitlab), clippy (for Rust), etc.\\[1em]
+
+    We said: use tools to flag style issues. \\
+    PMD can do this.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Using PMD}
+  \Large
+  \begin{changemargin}{2em}
+    Easiest: in an IDE, using built-in PMD rulesets.\\[1em]
+    PMD has rulesets for many languages, including C++, Scala, Java.\\[1em]
+    For Java: many rulesets, grouping related rules.\\[1em]
+    You can choose rules to apply for your project.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{PMD Example: SimplifyConditional\\ \qquad [design ruleset]}
+  Detect redundant null checks.
+\begin{lstlisting}[language=Java]
+class ConditionalToBeSimplified {
+  void bar(Object x) {
+    if (x != null && x instanceof Bar) {
+      // just drop the "x != null" check
+    }
+  }
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{PMD Example: UseCollectionIsEmpty\\ \qquad [design ruleset]}
+  Better to use {\tt c.isEmpty()} rather than {\tt c.size() == 0}.
+  \begin{lstlisting}[language=Java]
+class UseIsEmpty {
+    void good() {
+        List foo = getList();
+        if (foo.isEmpty()) { /* ... */ }
+    }
+
+    void bad() {
+        List foo = getList();
+        if (foo.size() == 0) { /* ... */ }
+    }
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{PMD Example: MisplacedNullCheck\\ \qquad [basic ruleset]}
+Don't check nullness after relying on non-nullness.
+  \begin{lstlisting}[language=Java]
+class RedundantNullCheck {
+    void bar() {
+      if (a.equals(baz) || a == null) {
+        // don't need to check a == null
+        /* ... */
+      }
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{PMD Example: UseNotifyAllInsteadOfNotify\\ \qquad [design ruleset]}
+Usually,
+  {\tt notifyAll()} is the right call to use, not {\tt
+    notify()}. \\
+  Unless you know what you're doing, using {\tt notify()}
+  is going to result in stuck threads, which is a bug.
+  \begin{lstlisting}[language=Java]
+class Notifier {
+    void bar() {
+      synchronized(this) {
+        // should likely be .notifyAll()
+        this.notify();
+      }
+    }
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{PMD}
+  \begin{changemargin}{2em}
+Find more about the above rules at 
+\url{https://pmd.github.io/pmd/pmd_rules_java.html}.\\[1em]
+
+We saw rules from the design and basic rulesets.\\[1em]
+
+Other rulesets:  
+specifically for JUnit; detecting empty or otherwise useless
+code; naming conventions; etc.\\[1em]
+
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Static analysis: strengths}
+  \begin{changemargin}{2em}
+  \end{changemargin}
+\end{frame}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.2]{\includegraphics[width=\paperwidth, trim=0 0 0 -5em]{L06/05111_she_wolf2.jpg}};}
+\begin{frame}[fragile]
+  \frametitle{Static analysis: limitations}
+  \begin{changemargin}{2em}
+  \end{changemargin}
+\end{frame}
+\usebackgroundtemplate{}
+
+\begin{frame}[fragile]
+  \frametitle{Writing your own PMD rules}
+  \begin{changemargin}{2em}
+You can also write your own rules, via
+XPath queries or Java visitors.\\[1em]
+SemGrep 
+supposedly easier to write rules for compared to PMD: the marketing
+copy says ``Semgrep rules look like the code you already write''.
+  \end{changemargin}
+\end{frame}
+
+
+\usebackgroundtemplate{\tikz\node[opacity=0.3]{\includegraphics[width=\paperwidth]{L03/1140_monkeys.JPG}};}
+\part{Chaos Monkey}
+\begin{frame}
+  \partpage
+\end{frame}
+
+\begin{frame}
+  \frametitle{Motivation: Chaos Monkey}
+  \large
+  \begin{changemargin}{2em}
+    Instead of inputs, think distributed systems.\\[1em]
+    Some instances (components) randomly fail\\
+    ~~(because of bogus inputs, or \ldots).\\[1em]
+
+    Ideally: system continues to work.\\[1em]
+
+    Failures are inevitable, need a strategy to deal with,\\
+    better to encounter not-at-4am.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Netflix Simian Army}
+  \large
+  \begin{changemargin}{2em}
+    \begin{itemize}
+      \item Chaos Monkey: operates at instance level
+      \item Chaos Gorilla: disables an Availability Zone;
+      \item Chaos Kong: knocks out an entire Amazon region.
+    \end{itemize}
+  \end{changemargin}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Jeff Atwood Quotes}
+  \large
+  \begin{changemargin}{2em}
+    Why inflict such a system on yourself?\\
+    ``Sometimes you don't get a choice; the Chaos Monkey chooses you.''\\[1em]
+
+    Software engineering benefits:
+\begin{itemize}
+\item    ``Where we had one server performing an essential function, we switched to two.''
+\item    ``If we didn't have a sensible fallback for something, we created one.''
+\item    ``We removed dependencies all over the place, paring down to the absolute minimum we required to run.''
+\item     ``We implemented workarounds to stay running at all times, even when services we previously considered essential were suddenly no longer available.''
+\end{itemize}
+  \end{changemargin}
+\end{frame}
+
+
 
 \end{document}
