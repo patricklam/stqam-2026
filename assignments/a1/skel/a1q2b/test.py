@@ -1,6 +1,6 @@
 import unittest
 
 if __name__ == "__main__":
-    name = "a1q1b.test_suite"
+    name = "a1q2b.test_suite"
     suite = unittest.defaultTestLoader.loadTestsFromNames([name])
     result = unittest.TextTestRunner().run(suite)
