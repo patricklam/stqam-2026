@@ -14,7 +14,7 @@
 
 \lstset{ %
 language=Java,
-basicstyle=\ttfamily,commentstyle=\scriptsize\itshape,showstringspaces=false,breaklines=true,numbers=left}
+basicstyle=\ttfamily,commentstyle=\itshape,showstringspaces=false,breaklines=true,numbers=left}
 \newtcbinputlisting{\codelisting}[3][]{
     extrude left by=1em,
     extrude right by=2em,
@@ -129,7 +129,7 @@ inputs that match the grammar.
 
 In fuzzing, you feed generated inputs to the program and find
 crashes, or assertion failures, or you run the program under a dynamic
-analysis tool such as Valgrind and observe runtime errors.
+analysis tool such as Valgrind and observe runtime errors (using implicit oracles).
 
 \paragraph{The Simplest Thing That Could Possibly Work.}
 Consider generation-based testing for HTML5.  The simplest grammar---actually a regular

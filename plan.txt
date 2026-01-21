@@ -7,7 +7,7 @@ _* L01: general course intro (needs update, brief mention of oracles)
 ** L05: oracles (https://ieeexplore.ieee.org/document/6963470)
         metamorphic testing
         https://www.cse.ust.hk/~scc/publ/CS98-01-metamorphictesting.pdf
-*_ L06:
+** L06:
         code review/documentation (done)
         PMD/static analysis
         chaos monkey (done)

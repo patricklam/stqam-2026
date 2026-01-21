@@ -123,7 +123,7 @@ test();
   \end{changemargin}
 \end{frame}
 
-\usebackgroundtemplate{\tikz\node[opacity=0.3]{\includegraphics[width=\paperwidth]{L03/01537_purple_dusk.JPG}};}
+\usebackgroundtemplate{\tikz\node[opacity=0.2]{\includegraphics[width=\paperwidth]{L03/01537_purple_dusk.JPG}};}
 \begin{frame}[fragile]
   \frametitle{Fuzzing Origin Story}
   \begin{changemargin}{2em}
@@ -150,7 +150,7 @@ test();
 
 \usebackgroundtemplate{\tikz\node[opacity=0.3]{\includegraphics[width=\paperwidth]{L03/1140_monkeys.JPG}};}
 \begin{frame}
-  \frametitle{(An earlier use of Fuzzing)}
+  \frametitle{(an earlier use of Fuzzing)}
   \begin{changemargin}{2em}
   \begin{itemize}
   \item 1983: Apple's ``The Monkey\footnote{\url{http://www.folklore.org/StoryView.py?story=Monkey_Lives.txt}}''
@@ -168,7 +168,7 @@ test();
   \begin{changemargin}{2em}
     Two kinds of fuzzing:
     \begin{itemize}
-    \item \alert{mutation-based}: start with existing, randomly modify
+    \item \alert{mutation-based}: start with existing tests, randomly modify
     \item \alert{generation-based}: start with grammar, generate inputs
     \end{itemize}
 
@@ -177,7 +177,7 @@ test();
     \begin{itemize}
     \item feed randomly-generated inputs to the program;
     \item look for crashes or assertion errors;
-    \item or run under a dynamic analysis tool (e.g. Valgrind) and observe runtime errors.
+    \item or run under a dynamic analysis tool (e.g. Valgrind) and observe runtime errors (implicit oracles).
     \end{itemize}
   \end{changemargin}
 \end{frame}
@@ -192,6 +192,7 @@ test();
     \begin{center}
       {\tt .*}
     \end{center}
+    ~\\
     that is: ``any character'', ``0 or more times''.\\[1em]
     
 Found a WebKit assertion failure:
@@ -205,6 +206,10 @@ Process:
   \item Find an assertion failure/crash.
 \end{itemize}
   \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Worked example: fuzzing bc}
 \end{frame}
 
 \begin{frame}
