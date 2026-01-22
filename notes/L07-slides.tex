@@ -161,6 +161,19 @@ test();
   \end{changemargin}
 \end{frame}
 
+\begin{frame}
+  \frametitle{Experience report: Fuzzinator author}
+\begin{changemargin}{2em}
+\begin{quote}
+  More than a year ago, when I started fuzzing, I was mostly focusing on mutation-based fuzzer technologies since they were easy to build and pretty effective. Having a nice error-prone test suite (e.g. LayoutTests) was the warrant for fresh new bugs. At least for a while.\\[1em]
+
+  As expected, the test generator based on the knowledge extracted from a finite set of test cases reached the edge of its possibilities after some time and didn't generate essentially new test cases anymore.\\[1em]
+
+  At this point, a fuzzer girl can reload her gun with new input test sets and will probably find new bugs. This works a few times but she will soon find herself in a loop testing the common code paths and running into the same bugs again and again.\footnote{\url{http://webkit.sed.hu/blog/20141023/fuzzinator-reloaded}}
+\end{quote}
+\end{changemargin}
+\end{frame}
+
 \usebackgroundtemplate{}
 
 \begin{frame}
@@ -196,7 +209,7 @@ test();
     that is: ``any character'', ``0 or more times''.\\[1em]
     
 Found a WebKit assertion failure:
-\url{https://bugs.webkit.org/show_bug.cgi?id=132179}.\\
+\url{https://bugs.webkit.org/show_bug.cgi?id=132179}.\\[1em]
 
 Process:
 \begin{itemize}
@@ -208,57 +221,110 @@ Process:
   \end{changemargin}
 \end{frame}
 
+
 \begin{frame}
   \frametitle{Worked example: fuzzing bc}
-\end{frame}
 
-\begin{frame}
-  \frametitle{Hierarchy of inputs: C}
-  \begin{changemargin}{1em}
-\begin{enumerate}
-\item sequence of ASCII characters;
-\item sequence of words, separators, and white space (gets past the lexer);
-\item syntactically correct C program (gets past the parser);
-\item type-correct C program (gets past the type checker);
-\item statically conforming C program (starts to exercise optimizations);
-\item dynamically conforming C program;
-\item model conforming C program.
-\end{enumerate}
-~\\[1em]
-Each level is a subset of previous level, but more likely to find interesting inputs specific to the system.\\[1em]
-Operate at all the levels.
-  \end{changemargin}
-\end{frame}
-
-\begin{frame}
-  \frametitle{Mutation-based Fuzzing}
-
+  \Large
   \begin{changemargin}{2em}
-    \Large
-Develop a tool that randomly modifies existing
-inputs:
-\begin{itemize}
-  \item totally randomly, by flipping bytes in the input; or,
-  \item parse the input and then change some of the nonterminals.
-\end{itemize}
-~\\
-If you flip bytes, you also need to update any applicable
-checksums if you want to see anything interesting (similar to
-level 3 above).
+  bc: one of the UNIX calculator utilities.\\[1em]
+  \includegraphics[width=.8\textwidth]{L07/bc.png}
   \end{changemargin}
 \end{frame}
 
-\begin{frame}
-  \frametitle{Quote from Fuzzinator author}
-\begin{changemargin}{2em}
-\begin{quote}
-  More than a year ago, when I started fuzzing, I was mostly focusing on mutation-based fuzzer technologies since they were easy to build and pretty effective. Having a nice error-prone test suite (e.g. LayoutTests) was the warrant for fresh new bugs. At least for a while.\\[1em]
+\begin{frame}[fragile]
+  \frametitle{Generating random input}
+  \lstinputlisting[language=Python,basicstyle=\scriptsize\tt]{code/L07/fuzzer.py}
+  \Large
+  \begin{changemargin}{2em}
+    I've created a wrapper, \texttt{code/L07/run\_fuzzer.py}, that you can just run; there are also wrappers for the subsequent runs too.
+  \end{changemargin}
+\end{frame}
 
-  As expected, the test generator based on the knowledge extracted from a finite set of test cases reached the edge of its possibilities after some time and didn't generate essentially new test cases anymore.\\[1em]
+\begin{frame}[fragile]
+  \frametitle{Roundtripping from disk: \texttt{roundtrip\_to\_disk.py}}
+  \lstinputlisting[language=Python,basicstyle=\scriptsize\tt]{code/L07/roundtrip_to_disk.py}
+  \large
+  \begin{changemargin}{2em}
+    This writes fuzzer-created input to disk, reads it back, and compares. \\
+    (*Secure temp file creation must be in one step like this.)
+  \end{changemargin}
+\end{frame}
 
-  At this point, a fuzzer girl can reload her gun with new input test sets and will probably find new bugs. This works a few times but she will soon find herself in a loop testing the common code paths and running into the same bugs again and again.\footnote{\url{http://webkit.sed.hu/blog/20141023/fuzzinator-reloaded}}
-\end{quote}
-\end{changemargin}
+\begin{frame}[fragile]
+  \frametitle{Running bc once: \texttt{run\_bc\_once.py}}
+  \lstinputlisting[language=Python,basicstyle=\scriptsize\tt]{code/L07/run_bc_once.py}
+\end{frame}
+  
+
+\begin{frame}[fragile]
+  \frametitle{Our Very Own Fuzzing Campaign: \texttt{fuzzing\_campaign.py}}
+  \lstinputlisting[language=Python,basicstyle=\scriptsize\tt]{code/L07/fuzzing\_campaign.py}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Queries: \texttt{run\_fuzzing\_campaign.py}}
+  \lstinputlisting[language=Python,basicstyle=\scriptsize\tt]{code/L07/run\_fuzzing\_campaign.py}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{More on crashing: buffer overflows}
+  \Large
+  \begin{changemargin}{2em}
+    We saw this recently:
+    \includegraphics[width=.8\paperwidth]{L05/segfault.png} \\[0.3em]
+    That's bad. So is this:
+    \begin{lstlisting}[language=C,numbers=none]
+  // input = "Wednesday"
+  char weekday[9];
+  strcpy(weekday, input);
+    \end{lstlisting}
+    Buffer overflows are always wrong.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Choose your language}
+  \Large
+  \begin{changemargin}{2em}
+    C/C++ are rife with buffer overflows.\\[1em]
+    Safe Rust, Python don't have buffer overflows.\\[1em]
+    They will fail fast instead.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Failing to check errors}
+  \Large
+  \begin{changemargin}{2em}
+    \begin{lstlisting}[language=C,numbers=none]
+while (getchar() != ' ') /* ... */ ;
+    \end{lstlisting}
+    Turns out that \texttt{getchar()} might return EOF---\\
+    especially likely for fuzz-generated inputs.\\[1em]
+    If so, this code causes an infinite loop; \\
+    can detect with timeouts.\\[1em]
+    Not just a C problem.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Other unexpected unsanitized inputs}
+  \Large
+    \begin{lstlisting}[language=C,numbers=none]
+char *read_input() {
+ size_t size = read_buffer_size(); //<--
+ char *buffer = (char *)malloc(size);
+ // fill buffer
+ return (buffer);
+}
+    \end{lstlisting}
+  \begin{changemargin}{2em}
+    \texttt{size} may not be a valid size:\\
+    too big, too small; \\
+    conceptually, negative (but \texttt{size\_t} can't be).
+  \end{changemargin}
+  
 \end{frame}
 
 \begin{frame}
@@ -267,12 +333,118 @@ level 3 above).
   \begin{changemargin}{2em}
     Fuzzing finds interesting test cases.\\[1em]
     
-    Works best at interfaces between components.\\[1em]
+    Works best at interfaces between components\\
+    \qquad (including system/user interface).\\[1em]
     
     Advantages: it runs automatically and really works.\\
     Disadvantages: without
 significant work, it won't find sophisticated domain-specific issues.
   \end{changemargin}
 \end{frame}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.2]{\includegraphics[width=\paperwidth]{L07/20221122_031042825_hand_sanitizer_on_clearance.jpg}};}
+\part{Address Sanitizer}
+\begin{frame}
+  \partpage
+\end{frame}
+
+\usebackgroundtemplate{}
+
+\begin{frame}
+  \frametitle{Buffer Overflow On Demand}
+\lstinputlisting[language=C]{code/L07/buffer-overflow-on-demand.c}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{About that \texttt{free()}}
+  \Large
+  \begin{changemargin}{2em}
+    In this context, \texttt{buf} would be freed on exit anyway.\\[1em]
+    Relying on free-upon-exit is less tidy, \\
+    and it would be a problem in not-\texttt{main()}.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{The Demand}
+  \scriptsize
+\begin{verbatim}
+$ clang -fsanitize=address -g buffer-overflow-on-demand.c
+$ ./a.out 5000
+=================================================================
+==638062==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7bbdd5fe13c8 at pc 0x55755ed98b50 bp 0x7ffc88d42f40 sp 0x7ffc88d42f38
+READ of size 1 at 0x7c21313e13c8 thread T0
+    #0 0x55e13d86cb4f in main /home/plam/courses/stqam-2026-working-notes/notes/code/L07/buffer-overflow-on-demand.c:11:16
+    #1 0x7f7132029f74  (/usr/lib/x86_64-linux-gnu/libc.so.6+0x29f74) (BuildId: 6912f8b2c62f57ddcf44220d4d678d5414f8d7b3)
+    #2 0x7f713202a026 in __libc_start_main (/usr/lib/x86_64-linux-gnu/libc.so.6+0x2a026) (BuildId: 6912f8b2c62f57ddcf44220d4d678d5414f8d7b3)
+    #3 0x55e13d783360 in _start (/home/plam/courses/stqam-2026-working-notes/notes/code/L07/a.out+0x2c360) (BuildId: 12afca78d23793dfe466363ecef0fca5fe01f689)
+
+Address 0x7c21313e13c8 is a wild pointer inside of access range of size 0x000000000001.
+SUMMARY: AddressSanitizer: heap-buffer-overflow /home/plam/courses/stqam-2026-working-notes/notes/code/L07/buffer-overflow-on-demand.c:11:16 in main
+Shadow bytes around the buggy address:
+  0x7c21313e1100: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c21313e1180: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c21313e1200: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c21313e1280: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c21313e1300: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+=>0x7c21313e1380: fa fa fa fa fa fa fa fa fa[fa]fa fa fa fa fa fa
+  0x7c21313e1400: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c21313e1480: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c21313e1500: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c21313e1580: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c21313e1600: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Fuzzing \& AddressSanitizer}
+  \includegraphics[width=\textwidth]{L07/1920px-Reeses-PB-Cups.png}\\
+  \hfill { \scriptsize Wikimedia Commons, Evan-Amos, public domain }
+  % https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Reeses-PB-Cups.png/1920px-Reeses-PB-Cups.png
+  \Large
+  \begin{changemargin}{2em}
+    Two Great Tastes\ldots
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Fuzzing \& AddressSanitizer}
+  \Large
+  \begin{changemargin}{2em}
+    Fuzzing causes (memory and other) problems;\\
+    AddressSanitizer detects them.\\[1em]
+
+    The program runs like $2\times$ slower in AddressSanitizer.\\
+    Or, choose Valgrind: find more bugs, program runs like $100\times$ slower.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Found w/sanitizer: Heartbleed (thx xkcd)}
+  \begin{center}
+    \includegraphics[height=.8\textheight]{L07/heartbleed_explanation.png}\\
+  \end{center}
+\end{frame}
+
+\begin{frame}
+  \frametitle{How Found?}
+  \Large
+  \begin{changemargin}{2em}
+    Researchers at Google and Codenomicon \\
+    found Heartbleed via memory sanitizer.\\[1em]
+    Fed fuzzed inputs to OpenSSL.\\[1em]
+    Sanitizer found illegal accesses; easy to fix.\\[1em]
+    (Note: use responsible disclosure if you find something.)
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Side note: on Open Source}
+  \begin{center}
+    \includegraphics[height=.8\textheight]{L07/dependency.png}\\
+    but note also \url{https://cryptography.io/en/latest/statements/state-of-openssl/}
+  \end{center}
+\end{frame}
+
 
 \end{document}

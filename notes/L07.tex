@@ -120,6 +120,16 @@ was to introduce a system flag, ``MonkeyLives'', and have MacPaint and
 MacWrite ignore the quit command if MonkeyLives was true.)
 % footnote: folklore.org
 
+\paragraph{Experience Report: Fuzzinator.} The author of Fuzzinator, a fuzzing tool, wrote on her blog\footnote{\url{http://webkit.sed.hu/blog/20141023/fuzzinator-reloaded}}:
+
+\begin{quote}
+  More than a year ago, when I started fuzzing, I was mostly focusing on mutation-based fuzzer technologies since they were easy to build and pretty effective. Having a nice error-prone test suite (e.g. LayoutTests) was the warrant for fresh new bugs. At least for a while.\\[1em]
+
+  As expected, the test generator based on the knowledge extracted from a finite set of test cases reached the edge of its possibilities after some time and didn't generate essentially new test cases anymore.\\[1em]
+
+  At this point, a fuzzer girl can reload her gun with new input test sets and will probably find new bugs. This works a few times but she will soon find herself in a loop testing the common code paths and running into the same bugs again and again.
+\end{quote}
+
 \paragraph{How Fuzzing Works.} 
 Two kinds of fuzzing: \emph{mutation-based} and
 \emph{generation-based}. Mutation-based testing starts with
@@ -144,102 +154,28 @@ and generate random strings from it.  Feed them to the browser and see
 what happens. Find an assertion failure/crash.
 
 \subsection*{Worked Example: Fuzzing UNIX utility bc}
+The next bit, until we talk about Address Sanitizer, is from \url{https://www.fuzzingbook.org/html/Fuzzer.html}.
+
 We can demonstrate ``any character''-style generation with the UNIX command {\tt bc}. These days,
-you're unlikely to find anything that way, but we can still demonstrate it. Here is some code that generates some number (default 100) of ASCII characters (between 32 and 64):
+you're unlikely to find anything that way---especially since the \texttt{bc} we're working with is a modern reimplementation, and its author believes in fuzzing. But we can still use it for demonstration purposes. Here is some code that generates some number (default 100) of ASCII characters (between 32 and 64):
 
-\begin{lstlisting}[language=Python]
-import random
+\lstinputlisting[language=Python]{code/L07/fuzzer.py}
 
-def fuzzer(max_length: int = 100, char_start: int = 32, char_range: int = 32) -> str:
-    """A string of up to `max_length` characters
-       in the range [`char_start`, `char_start` + `char_range`)"""
-    string_length = random.randrange(0, max_length + 1)
-    out = ""
-    for i in range(0, string_length):
-        out += chr(random.randrange(char_start, char_start + char_range))
-    return out
-\end{lstlisting}
+We can write it to a temp file. As an example of using assertions, let's read it back and check that we got back the same thing we wrote. This depends on having the \texttt{fuzzer()} function, defined above, available. This example does not yet call \texttt{bc}.
 
-We can write it to a temp file. As an example of using assertions, let's read it back and check that we got back the same thing we wrote. This depends on having the \texttt{fuzzer()} function, defined above, available.
-
-\begin{lstlisting}[language=Python]
-import os
-import tempfile
-import random
-
-basename = "input.txt"
-tempdir = tempfile.mkdtemp()
-FILE = os.path.join(tempdir, basename)
-print(FILE)
-
-data = fuzzer()
-with open(FILE, "w") as f:
-    f.write(data)
-
-contents = open(FILE).read()
-print(contents)
-assert(contents == data)
-\end{lstlisting}
-(By the way, this one-step call to \texttt{mkdtemp()} is the safe way to create a temporary directory, with \texttt{mkdtemp()}\footnote{\url{https://cwe.mitre.org/data/definitions/377.html}}. If you create a temporary file or directory in two steps---requesting a name and then creating a file with that name---that can be exploited by an attacker in another process.)
+\lstinputlisting[language=Python]{code/L07/roundtrip_to_disk.py}
+(By the way, this one-step call to \texttt{mkdtemp()} is the safe way to create a temporary directory, with \texttt{mkdtemp()}\footnote{\url{https://cwe.mitre.org/data/definitions/377.html}}. If you create a temporary file or directory in two steps---requesting a name and then creating a file with that name---that can be exploited by an attacker in another process. The higher-level way to create a temp file is \texttt{tempfile.TemporaryFile}.)
 
 We can run a subprocess in Python, e.g. \texttt{bc}, like so:
-\begin{lstlisting}[language=Python]
-import os
-import tempfile
-import subprocess
-
-program = "bc"
-basename = "input.txt"
-tempdir = tempfile.mkdtemp()
-FILE = os.path.join(tempdir, basename)
-print(FILE)
-with open(FILE, "w") as f:
-    f.write("2 + 2\n")
-result = subprocess.run([program, FILE],
-                        stdin=subprocess.DEVNULL,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        universal_newlines=True)  # Will be "text" in Python 3.7
-
-print (result.stdout)
-print (result.returncode)
-\end{lstlisting}
+\lstinputlisting[language=Python]{code/L07/run_bc_once.py}
 This calls \texttt{bc} with input ``2 + 2''. We expect output ``4''.
 
 And we can run \texttt{bc} repeatedly, with output from \texttt{fuzzer()}. This is a pretty small-scale fuzzing campaign.
-\begin{lstlisting}[language=Python]
-trials = 100
-program = "bc"
-runs = []
-basename = "input.txt"
-tempdir = tempfile.mkdtemp()
-FILE = os.path.join(tempdir, basename)
-
-for i in range(trials):
-    data = fuzzer()
-    with open(FILE, "w") as f:
-        f.write(data)
-    result = subprocess.run([program, FILE],
-                            stdin=subprocess.DEVNULL,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            universal_newlines=True)  # Will be "text" in Python 3.7
-    runs.append((data, result))
-\end{lstlisting}
+\lstinputlisting[language=Python]{code/L07/fuzzing_campaign.py}
 
 We can inspect the outcome in various ways:
-\begin{lstlisting}[language=Python]
-count_no_errors = sum(1 for (data, result) in runs if result.stderr == "")
-print (count_no_errors)
-
-errors = [(data, result) for (data, result) in runs if result.stderr != ""]
-(first_data, first_result) = errors[0]
-
-print(repr(first_data))
-print(first_result.stderr)
-
-print (sum(1 for (data, result) in runs if result.returncode != 0))
-\end{lstlisting}
+\lstinputlisting[language=Python]{code/L07/run_fuzzing_campaign.py}
+We can see that almost all runs result in error messages (about 95\%) and there are almost no non-empty outputs from non-error runs.
 
 \paragraph{Causes of problems.} Programs should never crash; ideally they
 might fail in a controlled way (with an error message), and best yet,
@@ -292,24 +228,7 @@ about them in more detail.
 
 Here is a C program that can trigger a buffer overflow on demand.
 
-\begin{lstlisting}[language=C]
-#include <stdlib.h>
-#include <string.h>
-
-int main(int argc, char** argv) {
-    /* Create an array with 100 bytes, initialized with 42 */
-    char *buf = malloc(100);
-    memset(buf, 42, 100);
-
-    /* Read the N-th element, with N being the first command-line argument */
-    int index = atoi(argv[1]);
-    char val = buf[index];
-
-    /* Clean up memory so we don't leak */
-    free(buf);
-    return val;
-}
-\end{lstlisting}
+\lstinputlisting[language=C]{code/L07/buffer-overflow-on-demand.c}
 
 (How nice of it to clean up memory; it's fine to rely on \texttt{buf}
 being freed upon exit, but less tidy, and potentially problematic
@@ -571,12 +490,8 @@ Running programs compiled with debug information yields better errors.
 
 %% I didn't have time to incorporate this content this year, but it goes over similar content with more code.
 %% \begin{itemize}[noitemsep]
-%%   \item \url{https://www.fuzzingbook.org/html/Fuzzer.html}
 %%   \item \url{https://www.fuzzingbook.org/html/MutationFuzzer.html}
 %% \end{itemize}
-
-% TODO: modify and add content from the fuzzing book
-% https://www.fuzzingbook.org/html/Fuzzer.html
 
 
 \end{document}
