@@ -76,12 +76,13 @@ do, else, case, break},
 
 \begin{document}
 
-\lecture{15 --- March 2, 2026}{Winter 2026}{Patrick Lam}{version 1}
+\lecture{8 --- January 30, 2026}{Winter 2026}{Patrick Lam}{version 1}
 
 American Fuzzy Lop\footnote{\url{http://lcamtuf.coredump.cx/afl/}} is
 a mutation-based fuzzing tool widely used in practice. It's easy to
-use and finds real vulnerabilities. We'll talk about the basic
-principles behind it.
+use and finds real vulnerabilities. We'll talk about some of the
+principles behind it, though this lecture misses some important afl components (maybe later).
+% afl and grammars: https://lcamtuf.blogspot.com/2015/01/afl-fuzz-making-up-grammar-with.html
 
 \section*{Mutation-based fuzzing}
 In mutation-based fuzzing (confusingly named, but not at all the same as mutation analysis), you use/develop a tool that randomly modifies existing
@@ -136,11 +137,12 @@ This function tries to parse its input and enforce the \texttt{scheme} being
 either \texttt{http} or \texttt{https}. If it's a valid URL with allowed scheme,
 it returns \texttt{True}. Otherwise it raises an error.
 
-Let's see what happens if we run this 1000 times with random inputs, using the \texttt{fuzzer()} from last time to generate these inputs, rather than mutating existing inputs:
+Let's see what happens if we run this 1000 times with random inputs, using the \texttt{fuzzer()} from last time to generate these inputs, rather than mutating existing inputs (in \texttt{code/L08/random_inputs.py}):
 \begin{lstlisting}[language=Python]
   for i in range(1000):
     try:
-        url = fuzzer()
+        fuzzer = Fuzzer()
+        url = fuzzer.fuzzer()
         result = url_consumer(url)
         print("Success!")
     except ValueError:
@@ -157,7 +159,7 @@ If we do want a more dense set of valid inputs, there are basically two things w
 inputs, or use a grammar to generate inputs. (As a variant of generating with a grammar, one can also parse an input with the grammar, mutate the parse tree, and unparse.)
 We'll talk about mutating inputs, or mutational fuzzing.
 
-Today's code is in the repo in the \texttt{L15/mutation\_fuzzer.py} file.
+Today's code is in the repo in the \texttt{L08/mutation\_fuzzer.py} file.
 
 When our input is a string, then we can insert a random character, delete a character, or change an existing
 character.
@@ -245,13 +247,16 @@ seed_input = "http://www.google.com/search?q=fuzzing"
 valid_inputs = set()
 trials = 20
 
+mutation_fuzzer = MutationFuzzer([])
 for i in range(trials):
-    inp = mutate(seed_input)
+    inp = mutation_fuzzer.mutate(seed_input)
     if is_valid_url(inp):
         valid_inputs.add(inp)
+
+print (len(valid_inputs)/trials)
 \end{lstlisting}
 and if you evaluate \texttt{len(valid\_inputs)/trials}, you can see the
-proportion of your mutations that are valid inputs.
+proportion of your mutations that are valid URLs.
 
 The \emph{Fuzzing Book} talks about the probability of randomly mutating from
 \texttt{http} to \texttt{https} in an input, and works out that it's actually
@@ -279,7 +284,7 @@ the original string:
 \end{verbatim}
 \end{center}
 
-\paragraph{Implementation of a mutation fuzzer.} In the \texttt{code/L15} directory, you'll find a \texttt{MutationFuzzer} class
+\paragraph{Implementation of a mutation fuzzer.} In the \texttt{code/L08} directory, you'll find a \texttt{MutationFuzzer} class
 along with its dependencies. This class's constructor takes a seed
 and a minimum and maximum number of mutations to apply.
 Here is a base \texttt{Fuzzer} class, along with a \texttt{MutationFuzzer} class.
@@ -318,7 +323,7 @@ class MutationFuzzer(Fuzzer):
 \end{lstlisting}
 Basically, the important method here, \texttt{fuzz()}, returns the seeds
 the first few times it's called, and then calls \texttt{create\_candidate} to obtain
-a randomlmy-chosen population member, mutated the appropriatet number of times.
+a randomly-chosen population member, mutated the appropriate number of times.
 The population is currently populated with the seeds.
 
 We can try it:
