@@ -85,17 +85,10 @@ principles behind it.
 
 \section*{Mutation-based fuzzing}
 In mutation-based fuzzing (confusingly named, but not at all the same as mutation analysis), you use/develop a tool that randomly modifies existing
-inputs. You could do this totally randomly by flipping bytes in the input,
+inputs. The Fuzzinator experience report we mentioned last time was mutation-based fuzzing. You could do this totally randomly by flipping bytes in the input,
 or you could parse the input and then change some of the nonterminals.
 If you flip bytes, you also need to update any applicable
 checksums if you want to see anything interesting.
-
-Here's a description of a mutation-based fuzzing workflow by the author of Fuzzinator\footnote{\url{https://github.com/renatahodovan/fuzzinator}}.
-{\small
-\begin{quote}
-  More than a year ago, when I started fuzzing, I was mostly focusing on mutation-based fuzzer technologies since they were easy to build and pretty effective. Having a nice error-prone test suite (e.g. LayoutTests) was the warrant for fresh new bugs. At least for a while. As expected, the test generator based on the knowledge extracted from a finite set of test cases reached the edge of its possibilities after some time and didn't generate essentially new test cases anymore. At this point, a fuzzer girl can reload her gun with new input test sets and will probably find new bugs. This works a few times but she will soon find herself in a loop testing the common code paths and running into the same bugs again and again.\footnote{\url{http://webkit.sed.hu/blog/20141023/fuzzinator-reloaded}}
-\end{quote}
-}
 
 \paragraph{Generating random inputs: not very successful.}
 Let's work through an example of fuzzing a URL parser\footnote{Much of today's lecture is based on \url{https://www.fuzzingbook.org/html/MutationFuzzer.html}}.
@@ -348,7 +341,7 @@ I've alluded to this above, but we are going to say a bit more now.
 Say that we're trying to
 generate C programs rather than URLs. They have a lot more structure!
 One could propose the following hierarchy of inputs\footnote{\url{http://www.cs.dartmouth.edu/~mckeeman/references/DifferentialTestingForSoftware.pdf}}:
-\begin{enumerate}
+\begin{enumerate}[noitemsep]
 \item sequence of ASCII characters;
 \item sequence of words, separators, and white space (gets past the lexer);
 \item syntactically correct C program (gets past the parser);
@@ -464,6 +457,7 @@ After running this fuzzer for a number of trials, we can look
 at the population and see how it consists of a number of
 valid inputs.
 
+{\scriptsize
 \begin{verbatim}
 ['http://www.google.com/search?q=fuzzing', 'http://wwwgo\x7fgie.c*om/{earchq=fuzzing',
 'http://\\www=go\x7fgie.c*nm{erchq=fuzzig', 'http://www.google.com/ear#h?q=fuzzing',
@@ -471,6 +465,7 @@ valid inputs.
 'http://\\www=g/\x7fgienC*nKmer;#hq=nuzzig', 'http://\\www=g/\x7fgiec*n(ier;c/hq=nuZrig.',
 'http://\\wwiw=ag/\x7fgienC*nKmer;iq=nuzzi?g']
 \end{verbatim}
+}
 
 We need additional machinery to see how coverage over time
 increases using this strategy, and there's a plot of that
