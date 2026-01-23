@@ -137,7 +137,7 @@ This function tries to parse its input and enforce the \texttt{scheme} being
 either \texttt{http} or \texttt{https}. If it's a valid URL with allowed scheme,
 it returns \texttt{True}. Otherwise it raises an error.
 
-Let's see what happens if we run this 1000 times with random inputs, using the \texttt{fuzzer()} from last time to generate these inputs, rather than mutating existing inputs (in \texttt{code/L08/random_inputs.py}):
+Let's see what happens if we run this 1000 times with random inputs, using the \texttt{fuzzer()} from last time to generate these inputs, rather than mutating existing inputs (in \texttt{code/L08/random\_inputs.py}):
 \begin{lstlisting}[language=Python]
   for i in range(1000):
     try:
@@ -382,7 +382,7 @@ Time to introduce a new idea---one that has been made popular in practice by AFL
 We've previously talked about coverage in terms of evaluating how good a test suite is.
 Now, we're going to use coverage to guide test generation.
 
-Let's build some infrastructure first. We have an abstract \texttt{Runner} class with a \texttt{run()} function. By default, the abstract class just says everything is ``unresolved''. Here is a subclass that runs a function it is given during instantiation, and returns \texttt{PASS} if the function returns sucessfully and \texttt{FAIL} if the function raises an exception.
+Let's build some infrastructure first. We introduce an abstract \texttt{Runner} class with a \texttt{run()} function (\texttt{code/L08/fuzzer.py}). By default, the abstract class just says everything is ``unresolved''. Here is a subclass that runs a function it is given during instantiation, and returns \texttt{PASS} if the function returns sucessfully and \texttt{FAIL} if the function raises an exception.
 
 \begin{lstlisting}[language=Python]
 class FunctionRunner(Runner):
@@ -407,7 +407,7 @@ class FunctionRunner(Runner):
 We can create and invoke this runner, with the original exception-raising function:
 \begin{lstlisting}[language=Python]
 http_runner = FunctionRunner(url_consumer)
-http_runner.run("https://foo.bar/")
+print(http_runner.run("https://foo.bar/"))
 \end{lstlisting}
 
 Back in Lecture 3, we talked about measuring coverage programmatically. Now we can use that to guide fuzzing. We'll also use the notation of populations. First, measuring coverage. We can create a
@@ -433,7 +433,9 @@ class FunctionCoverageRunner(FunctionRunner):
 Running it and calling getter function \texttt{coverage()}
 gives a list of program points, which are function/line tuples.
 
-Now, the idea is to add an input to the population of source inputs whenever that input adds to coverage. When the runner next asks for an input, it will mutate something that has been added to the population in a previous iteration. 
+Now, the idea is to add an input to the population of source inputs whenever that input adds to coverage.
+The mutation fuzzer mutates inputs in the population to generate new candidate inputs.
+
 \begin{lstlisting}[language=Python]
 class MutationCoverageFuzzer(MutationFuzzer):
     """Fuzz with mutated inputs based on coverage"""

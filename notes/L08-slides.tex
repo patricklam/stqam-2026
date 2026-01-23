@@ -441,9 +441,28 @@ htEtp://wwwgoogld.coi/earch?qn=fung
   \end{changemargin}
 \end{frame}
 
+\part{Intermission: Guiding by Coverage}
+\begin{frame}
+  \partpage
+\end{frame}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.3]{\includegraphics[width=\paperwidth]{L08/6367_step_pyramid_with_scaffolding.jpg}};}
+\begin{frame}
+  \frametitle{On Hierarchies}
+
+    \Large
+  \begin{changemargin}{2em}
+    We know that randomly changing bytes won't exercise much interesting functionality.\\[1em]
+    It can cause crashes, though, at least for a while.\\[1em]
+    Let's continue to use randomness, but in a more directed way.
+  \end{changemargin}
+\end{frame}
+
+
 \begin{frame}
   \frametitle{Hierarchy of inputs: C}
   \begin{changemargin}{1em}
+    C programs are way more structured than URLs.
 \begin{enumerate}
 \item sequence of ASCII characters;
 \item sequence of words, separators, and white space (gets past the lexer);
@@ -460,20 +479,227 @@ Operate at all the levels.
 \end{frame}
 
 \begin{frame}
-  \frametitle{Mutation-based Fuzzing}
+  \frametitle{Generating higher-level inputs}
 
+  \Large
   \begin{changemargin}{2em}
-    \Large
-Develop a tool that randomly modifies existing
-inputs:
-\begin{itemize}
-  \item totally randomly, by flipping bytes in the input; or,
-  \item parse the input and then change some of the nonterminals.
-\end{itemize}
-~\\
-If you flip bytes, you also need to update any applicable
-checksums if you want to see anything interesting (similar to
-level 3 above).
+    Two choices:
+    \begin{enumerate}
+    \item use grammars (context-free grammars still don't satisfy all constraints)
+    \item modify existing inputs (as seen above)
+    \end{enumerate}
+
+    ~\\[1em]
+    This is true for all generational fuzzing tools. \\
+    Need to incorporate knowledge about correct syntax.
   \end{changemargin}
 \end{frame}
+\usebackgroundtemplate{}
+
+\part{Guiding by Coverage}
+\begin{frame}
+  \partpage
+\end{frame}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.3]{\includegraphics[width=\paperwidth]{L08/00296_bunny_v1.jpg}};}
+\begin{frame}
+  \frametitle{AFL's big idea}
+
+  \Large
+  \begin{changemargin}{2em}
+    So far: use coverage to evaluate test suites.\\[1em]
+    New: use coverage to guide test generation (AFL).
+  \end{changemargin}
+\end{frame}
+\usebackgroundtemplate{}
+
+\begin{frame}[fragile]
+  \frametitle{Infrastructure}
+  \begin{changemargin}{2em}
+\begin{python}
+class Runner:
+    """Base class for testing inputs."""
+
+    # Test outcomes
+    PASS = "PASS"
+    FAIL = "FAIL"
+    UNRESOLVED = "UNRESOLVED"
+
+    def __init__(self) -> None:
+        """Initialize"""
+        pass
+
+    def run(self, inp: str) -> Any:
+        """Run the runner with the given input"""
+        return (inp, Runner.UNRESOLVED)
+\end{python}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Instantiating infrastructure}
+  \begin{changemargin}{2em}
+\begin{python}
+class FunctionRunner(Runner):
+    def __init__(self, function: Callable) -> None:
+        self.function = function
+
+    def run_function(self, inp: str) -> Any:
+        return self.function(inp)
+
+    def run(self, inp: str) -> Tuple[Any, str]:
+        try:
+            result = self.run_function(inp)
+            outcome = self.PASS
+        except Exception:
+            result = None
+            outcome = self.FAIL
+        return result, outcome
+\end{python}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Running the FunctionRunner}
+  \begin{changemargin}{2em}
+\begin{python}
+from fuzzer import Runner
+from random_inputs import url_consumer
+from urllib.parse import urlparse
+    
+if __name__ == "__main__":
+    # view output from urlconsumer_runner:
+    urlconsumer_runner = FunctionRunner(url_consumer)
+    print (urlconsumer_runner.run("https://foo.bar"))
+\end{python}
+
+Output: \texttt{(True, 'PASS')}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Measuring Coverage in the Runner}
+  \begin{changemargin}{2em}
+\begin{python}
+class FunctionCoverageRunner(FunctionRunner):
+    def run_function(self, inp: str) -> Any:
+        with Coverage() as cov:
+            try:
+                result = super().run_function(inp)
+            except Exception as exc:
+                self._coverage = cov.coverage()
+                raise exc
+
+        self._coverage = cov.coverage()
+        return result
+
+    def coverage(self) -> Set[Location]:
+        return self._coverage
+\end{python}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Running \texttt{function\_coverage\_runner.py}}
+  \begin{changemargin}{2em}
+\begin{python}
+if __name__ == "__main__":
+    from urllib.parse import urlparse
+
+    # view output from urlconsumer_runner:
+    urlconsumer_runner = FunctionCoverageRunner(url_consumer)
+    urlconsumer_runner.run("https://foo.bar")
+
+    print(list(urlconsumer_runner.coverage())[:5])
+\end{python}
+prints a slice of the coverage:
+{\small \begin{verbatim}
+  [('url_consumer', 7), ('_splitnetloc', 416),
+    ('_splitnetloc', 419), ('urlsplit', 502),
+    ('urlsplit', 499)]
+\end{verbatim} }
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Putting the AFL Idea into Practice}
+
+  \Large
+  \begin{changemargin}{2em}
+    Maintain a population of source inputs.\\[1em]
+    Add an input to the population when the input adds to coverage.\\[1em]
+    The mutation fuzzer (from Part I) mutates inputs in the population to generate new candidate inputs.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{{\texttt MutationCoverageFuzzer} implementation}
+\begin{python}
+class MutationCoverageFuzzer(MutationFuzzer):
+    def reset(self) -> None:
+        super().reset()
+        self.coverages_seen: Set[frozenset] = set()
+        self.population = []
+
+    def run(self, runner: FunctionCoverageRunner) -> Any:
+        """Run function(inp) while tracking coverage.
+           If we reach new coverage,
+           add inp to population and its coverage to population_coverage
+        """
+        result, outcome = super().run(runner)
+        new_coverage = frozenset(runner.coverage())
+        if outcome == Runner.PASS and new_coverage not in self.coverages_seen:
+            # We have new coverage
+            self.population.append(self.inp)
+            self.coverages_seen.add(new_coverage)
+
+        return result
+\end{python}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{The population}
+  \begin{python}
+if __name__ == "__main__":
+    seed_input = "http://www.google.com/search?q=fuzzing"
+    mutation_fuzzer = MutationCoverageFuzzer(seed=[seed_input])
+    urlconsumer_runner = FunctionCoverageRunner(url_consumer)
+    mutation_fuzzer.runs(urlconsumer_runner, trials=10000)
+    print (mutation_fuzzer.population)
+  \end{python}
+  We aim to increase coverage of \texttt{url\_consumer} and functions it calls.
+  The population after 10,000 trials:
+  {\scriptsize
+    \begin{verbatim}
+      ['http://www.google.com/search?q=fuzzing',
+        'http://www.google|.com/search\x7fq=fuZzing',
+        'http://ww;w.google|.com/searc\x7f=fuZzing#',
+        'http://ww;w?.gogle|com/sEarc\x7f=f,uZzig#',
+        "http://www.googla|.com'sarch\x7fq9fuZzi!ng",
+        'http://ww;wgoole|/com/sear;c\x7ffuZzing#',
+        'http://wg;wgoole|m/cnmb/suar;cwfuZzing\x03',
+        'http://wg;wgoole|m/cnmb/suar;cwfuZzing\x03',
+        'http://wgW;wgoole|m/cnmb/s}ar;cwfuZz-ing\x03/:',
+        'http://wgW;wgoole|m/cnmb/s}ar;cwfuZz?-qing\x03/:',
+        'Http://wg5W;\x7fgoorle|amcmb/S}ar;cwfuZz?-qing#\x03/:',
+        'Http://wg5W;\x7fgoOrle|!mcmb/S}ap;cwfuZj/-qing#/:']
+\end{verbatim}
+    }
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Coverage-guided fuzzing summary}
+
+  \Large
+  \begin{changemargin}{2em}
+    It is possible to plot coverage-over-time using this strategy;
+    see the \emph{Fuzzing Book} for details.\\[1em]
+    Coverage-guided fuzzing (AFL) definitely explores new parts of the program's
+    behaviour as it runs.\\[1em]
+    Eventually, it hits diminishing returns.
+  \end{changemargin}
+\end{frame}
+
+
 \end{document}
