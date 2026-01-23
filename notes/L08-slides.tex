@@ -662,9 +662,9 @@ class MutationCoverageFuzzer(MutationFuzzer):
   \begin{python}
 if __name__ == "__main__":
     seed_input = "http://www.google.com/search?q=fuzzing"
-    mutation_fuzzer = MutationCoverageFuzzer(seed=[seed_input])
+    mutation_coverage_fuzzer = MutationCoverageFuzzer(seed=[seed_input])
     urlconsumer_runner = FunctionCoverageRunner(url_consumer)
-    mutation_fuzzer.runs(urlconsumer_runner, trials=10000)
+    mutation__coverage_fuzzer.runs(urlconsumer_runner, trials=10000)
     print (mutation_fuzzer.population)
   \end{python}
   We aim to increase coverage of \texttt{url\_consumer} and functions it calls.
@@ -700,6 +700,21 @@ if __name__ == "__main__":
     \includegraphics[width=.6\textwidth]{L08/coverage-increases.png}
   \end{center}
 \end{frame}
+
+\begin{frame}
+  \frametitle{Code comprehension exercise}
+
+  \Large
+  \begin{changemargin}{2em}
+    There's a lot of inheritance in \texttt{MutationCoverageFuzzer}.\\[1em]
+
+    Exercise: How does \texttt{MutationCoverageFuzzer.runs()} work? \\
+    Trace the execution
+    and form an understanding of how the classes fit together.
+  \end{changemargin}
+\end{frame}
+
+
 \begin{frame}
   \frametitle{Coverage-guided fuzzing summary}
 

@@ -478,7 +478,23 @@ We need additional machinery to see how coverage over time
 increases using this strategy, and there's a plot of that
 in the \emph{Fuzzing Book}, but maybe you can take my word for it.
 
-In any case, coverage-guided fuzzing definitely explores new parts of the program's behaviour as it runs. Of course, as with any type of fuzzing,
+\paragraph{Exercise.} How does \texttt{MutationCoverageFuzzer.runs()} work?
+
+There is a lot of inheritance in this collection of classes. You should be able to inspect the code
+and understand it (CS247 skills), but it's a good exercise to do so in any case, both for really understanding this
+concept, and in terms of code comprehension skills.
+
+The API to \texttt{MutationCoverageFuzzer} (MCF) is the \texttt{runs()} method; you tell it to do $N$ runs.
+The inherited implementation, from \texttt{Fuzzer}, calls \texttt{self.run()} $N$ times.
+
+Then, MCF\texttt{.run()} does one superclass call to \texttt{MutationFuzzer.run()} to run on some input $i$
+that the \texttt{MutationFuzzer} generates. If $i$ leads to new coverage (not in \texttt{.coverages\_seen}), MCF adds $i$ to the \texttt{.population}.
+
+The \texttt{MutationFuzzer} uses the \texttt{.population} to generate new inputs by fuzzing something drawn randomly from there.
+But, until the seeds are used up, it starts by returning the seeds as the first inputs---on they way, the seeds would get added to the
+\texttt{.population} if they add to coverage.
+
+\paragraph{Summary.} In any case, coverage-guided fuzzing definitely explores new parts of the program's behaviour as it runs. Of course, as with any type of fuzzing,
 it will eventually hit diminishing returns.
 
 \end{document}
@@ -501,9 +517,9 @@ it will eventually hit diminishing returns.
 
 Inside the \texttt{MutationCoverageFuzzer}, there is a \texttt{population}.
 \begin{lstlisting}[language=Python]
-  >>> mutation_fuzzer = MutationCoverageFuzzer(seed=[seed_input])
->>> mutation_fuzzer.runs(http_runner, trials=10000)
->>> mutation_fuzzer.population[:5]
+  >>> mutation__coverage_fuzzer = MutationCoverageFuzzer(seed=[seed_input])
+>>> mutation_coverage_fuzzer.runs(http_runner, trials=10000)
+>>> mutation_coverage_fuzzer.population[:5]
 ['http://www.google.com/search?q=fuzzing',
  'http://www.google.com</searc?q=fzzinw',
  'http://twww.google.com/searc`pnu<zzing',
