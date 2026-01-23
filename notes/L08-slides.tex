@@ -689,12 +689,22 @@ if __name__ == "__main__":
 \end{frame}
 
 \begin{frame}
-  \frametitle{Coverage-guided fuzzing summary}
+  \frametitle{Coverage increases}
 
   \Large
   \begin{changemargin}{2em}
     It is possible to plot coverage-over-time using this strategy;
-    see the \emph{Fuzzing Book} for details.\\[1em]
+    see the \emph{Fuzzing Book} for details, but here's a picture from there.\\[1em]
+  \end{changemargin}
+  \begin{center}
+    \includegraphics[width=.6\textwidth]{L08/coverage-increases.png}
+  \end{center}
+\end{frame}
+\begin{frame}
+  \frametitle{Coverage-guided fuzzing summary}
+
+  \Large
+  \begin{changemargin}{2em}
     Coverage-guided fuzzing (AFL) definitely explores new parts of the program's
     behaviour as it runs.\\[1em]
     Eventually, it hits diminishing returns.
