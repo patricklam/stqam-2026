@@ -78,15 +78,20 @@ do, else, case, break},
 
 \begin{document}
 
-\lecture{5 --- January 19, 2026}{Winter 2026}{Patrick Lam}{version 2}
+\lecture{5 --- January 19, 2026}{Winter 2026}{Patrick Lam}{version 3}
 
 We've talked about the notion of a \emph{software failure}. Recall
 that failures are caused by a \emph{fault} in the software which is executed
 and whose effect propagates to output.
 
-But, who's to say that the output is correct or incorrect? This is the oracle problem. See~\cite{barr15:_oracl_probl_softw_testin} for an exhaustive survey of the research literature on the oracle problem as of 2015.
-
 \section*{The Oracle Problem}
+
+OK, so you're running your software, and you get some output. But, who's to say that the output is correct or incorrect?
+
+The \emph{oracle problem} is: given an input and an output for a software system, determine whether or not the output is correct.
+
+See~\cite{barr15:_oracl_probl_softw_testin} for an exhaustive survey of the research literature on the oracle problem as of 2015.
+
 One can say ``ask a human'', but let's think some more about that.
 
 It really is begging the question, in the strict sense of the term,
@@ -95,7 +100,8 @@ test cases.  If we're doing that, what we're doing boils down to regression test
 (depending on how critically we consider the output).
 
 More fundamentally, though, how should the human know what correct
-behaviour is?
+behaviour is? The human doesn't have any magic way of judging correctness.
+They are just a human, like you or me.
 
 This one seems easy:
 \begin{lstlisting}[language=Python]
@@ -111,7 +117,7 @@ As a human oracle, at a unit test level, you are using the function/class name a
 At all levels, you combine the information that you have with your human experience. Hopefully it is reflective of the user base.
 
 \section*{Helping Human Oracles}
-There's no magic here. Later today, we'll talk about some ways that we can
+Later today, we'll talk about some ways that we can
 otherwise calculate the right answer, but sometimes there is
 no alternative to a human looking at the test case and deciding
 whether it is correct or not, as discussed just above. It comes down to whether the output
@@ -136,7 +142,7 @@ from distributions.
 Concretely, it's also possible to reuse partial inputs. This makes sense
 from a testing point of view too. Change one thing at a time---it is easier
 to reason about the change in the output given a single change in the input.
-Go from input 0/1/2010 to 1/1/2010.
+Go from input 11/15/2010 to 11/16/2010.
 
 One more comment here. Sensible strings are harder to generate automatically
 than numbers, since the space of strings is bigger and the space of
@@ -149,16 +155,26 @@ mine the web for strings, or generate strings using metaheuristics
 for the right answer, but apparently it's hard.
 
 \paragraph{Reducing the volume of work for human testers.}
-There's what seems to me like the eternal dream of test suite reduction---running only the ``most important'' tests to save execution time.,
+There's what seems to me like the eternal dream of test suite
+reduction---running only the ``most important'' tests to save
+execution time, and getting a good approximation to the real answer.
 As far as I'm aware of, there are no good general-purpose solutions.
-Also test case reduction, which we'll talk about in the fuzzing module.
+Test case reduction is a related concept; we'll talk about it in the
+fuzzing module.
 
 \section*{Implicit Oracles}
 Segfaults are always bad. The easiest way to label a test execution as
 incorrect is when it exhibits a segfault during execution.  Same
 with buffer overflows, though you might need a tool to observe those.
-But, in general, you don't need to know anything about the domain or
-the specification to label such tests.
+
+An \emph{implicit oracle} is one that relies on implicit information
+about an execution's correctness. An example of implicit information
+is what we've seen above: ``segfaults are always bad''. Most implicit
+oracles declare certain executions to be bad. In general, you don't
+need to know anything about the domain or the specification when
+labelling using an implicit oracle. Unfortunately, though, these
+implicit oracles also don't give definitive evidence that the system
+under test is correctly computing a result.
 
 Other types of crashes are also most often incorrect (though an uncaught exception may be better than silently failing).  Similarly, livelock,
 deadlock, and race conditions are undesirable.  Memory leaks and
@@ -170,13 +186,12 @@ are automatically generated at high volume, there is going to be no
 way to check that the outputs are correct. We can only check that the
 outputs don't break assertions and don't crash the program.
 
-These implicit oracles don't give definitive evidence that the
-system under test is correctly computing a result.
-
 \section*{Specification-based Oracles}
 What should an implementation do? Well, one can use a
 \emph{specification} to specify what the implementation should do. A
-specification is some sort of description of a part of a system.
+specification is some sort of description of a part of a system,
+and so a \emph{specification-based oracle} is one that uses a specifcation
+to declare behaviours as correct or incorrect.
 Let's make that a bit more specific.
 
 \paragraph{Model-based specification.}
@@ -187,7 +202,7 @@ one creates a model of system state, typically using sets or relations, and then
 specifies operations that modify the modelled state.
 
 Here's an example of an action predicate written in the Alloy
-programming language\footnote{\url{https://practicalalloy.github.io/chapters/behavioral-modeling/index.html}}.
+modelling language\footnote{\url{https://practicalalloy.github.io/chapters/behavioral-modeling/index.html}}.
 \begin{lstlisting}[language=alloy]
   pred upload [f : File] {
     f not in uploaded          // guard
@@ -203,7 +218,7 @@ and that it is uploaded after completion of the action. Also,
 the trashed and shared sets remain unchanged after the action.
 (Alloy models can also express invariants.)
 
-One can then use the specification to write test cases
+One can then use the model/specification to write test cases
 which verify the specified behaviour, and test implementations using
 these test cases:
 \begin{itemize}[noitemsep]
@@ -262,7 +277,7 @@ expresses that idea.
 
 \section*{Derived Test Oracles}
 What about when there are no specifications, or the specifications are insufficient or unhelpful? (As you may have noticed, this is the most common case).
-Here are some options.
+Here are some options, which all fall under the category of \emph{derived test oracles}.
 
 \paragraph{Pseudo-oracles.} Consider a straightforward implementation
 computing Fibonacci numbers imperatively:
@@ -302,6 +317,9 @@ versions to get a ``right'' answer. It's sort of an oracle, though
 if all of the versions are programmed to the wrong specification,
 we still lose.
 
+A \emph{pseudo-oracle}, then, uses a different implementation
+(or implementations) as oracle(s) for the system under test.
+
 \paragraph{Regression testing.} As mentioned earlier, regression
 testing uses an earlier version as an oracle. A perfective change
 in the software may require the right answer to be corrected, because
@@ -309,9 +327,11 @@ the previous version was wrong. Perhaps
 the software's specifications have changed.
 
 \paragraph{Textual documentation.} Text can also serve as a source
-of truth. Usually, text requires humans to decipher it and convert
-it into specifications. Maybe you can use LLMs to read text.
-I generally trust nothing coming from an LLM.
+of truth. Usually, text requires humans to decipher it and convert it
+into specifications, and then the human can either serve as a human
+oracle, or the specification they write can serve as a
+specification-based oracle. Maybe you can use LLMs to read text.  I
+generally trust nothing coming from an LLM.
 
 \paragraph{Specification mining.} There is work on automatically
 deriving specifications from program executions, both in the form
