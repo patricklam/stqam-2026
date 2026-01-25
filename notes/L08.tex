@@ -4,6 +4,7 @@
 \usepackage[listings]{tcolorbox}
 \usepackage{tikz}
 \usepackage{url}
+\usepackage{pythonhighlight}
 
 %\usepackage{algorithm2e}
 \usetikzlibrary{arrows,automata,shapes}
@@ -76,7 +77,7 @@ do, else, case, break},
 
 \begin{document}
 
-\lecture{8 --- January 30, 2026}{Winter 2026}{Patrick Lam}{version 1}
+\lecture{8 --- January 30, 2026}{Winter 2026}{Patrick Lam}{version 2}
 
 American Fuzzy Lop\footnote{\url{http://lcamtuf.coredump.cx/afl/}} is
 a mutation-based fuzzing tool widely used in practice. It's easy to
@@ -377,10 +378,13 @@ length\footnote{\url{blog.regehr.org/archives/1039}} and concludes
 that generational fuzzing tools should operate at all levels, rather than
 restricting themselves to only some of the levels.
 
-\section*{Guiding by Coverage}
+\section*{Guiding by Coverage: basic idea}
 Time to introduce a new idea---one that has been made popular in practice by AFL.
 We've previously talked about coverage in terms of evaluating how good a test suite is.
-Now, we're going to use coverage to guide test generation.
+Now, we're going to use coverage to guide test generation. Using coverage to guide test generation
+is known as \emph{greybox} fuzzing: it uses some information about the system, but less than whitebox fuzzing.
+
+There are more technical details about AFL here: \url{https://github.com/mirrorer/afl/blob/master/docs/technical_details.txt}.
 
 Let's build some infrastructure first. We introduce an abstract \texttt{Runner} class with a \texttt{run()} function (\texttt{code/L08/fuzzer.py}). By default, the abstract class just says everything is ``unresolved''. Here is a subclass that runs a function it is given during instantiation, and returns \texttt{PASS} if the function returns sucessfully and \texttt{FAIL} if the function raises an exception.
 
@@ -435,6 +439,11 @@ gives a list of program points, which are function/line tuples.
 
 Now, the idea is to add an input to the population of source inputs whenever that input adds to coverage.
 The mutation fuzzer mutates inputs in the population to generate new candidate inputs.
+
+In Python, we can just measure coverage using built-in language features.
+From what I understand, the preferred mode of operation for AFL is to take the assembly code generated
+by the compiler and to add instrumentation to record coverage information---in particular, branch counts.
+AFL can also collect coverage information from a virtual machine (QEMU) or dynamic instrumentation (Pintools.
 
 \begin{lstlisting}[language=Python]
 class MutationCoverageFuzzer(MutationFuzzer):
@@ -494,35 +503,297 @@ The \texttt{MutationFuzzer} uses the \texttt{.population} to generate new inputs
 But, until the seeds are used up, it starts by returning the seeds as the first inputs---on they way, the seeds would get added to the
 \texttt{.population} if they add to coverage.
 
-\paragraph{Summary.} In any case, coverage-guided fuzzing definitely explores new parts of the program's behaviour as it runs. Of course, as with any type of fuzzing,
+\paragraph{Example: Guiding by Coverage for the win.}
+Here is some code that is designed to be resistant to normal fuzzing but susceptible to guided fuzzing, found in \texttt{code/L08/crashme.py}:
+\begin{python}
+def crashme(s: str) -> None:
+    if len(s) > 0 and s[0] == 'b':
+        if len(s) > 1 and s[1] == 'a':
+            if len(s) > 2 and s[2] == 'd':
+                if len(s) > 3 and s[3] == '!':
+                    raise Exception()
+\end{python}
+If we run it with input \texttt{``good''} and ask for coverage from a \texttt{FunctionCoverageRunner}, we'll see something like
+\begin{python}
+[('crashme', 4), ('run_function', 13)]
+\end{python}
+
+Let's take a step back and measure how well a (blackbox) mutation-based fuzzer works on \texttt{crashme}.
+The \emph{Fuzzing Book} includes an \texttt{AdvancedMutationFuzzer}, found in \texttt{code/L08/advanced\_mutation\_fuzzer.py}.
+I'm not going to discuss it, because it's almost exactly the same as the \texttt{MutationFuzzer} above,
+except that it does between 1 and 5 mutations when it draws a seed from the population to return a
+candidate. The \texttt{AdvancedMutationFuzzer} is blackbox because it does not, in particular, consider coverage.
+
+\begin{python}
+    import time
+
+    n = 30000
+    seed_input = "good"
+
+    blackbox_fuzzer = AdvancedMutationFuzzer([seed_input], Mutator(), PowerSchedule())
+
+    start = time.time()
+    blackbox_fuzzer.runs(FunctionCoverageRunner(crashme), trials=n)
+    end = time.time()
+
+    print ("It took the blackbox mutation-based fuzzer %0.2f seconds to generate and execute %d inputs." % (end - start, n))
+
+    _, blackbox_coverage = population_coverage(blackbox_fuzzer.inputs, crashme)
+    bb_max_coverage = max(blackbox_coverage)
+
+    print ("The blackbox mutation-based fuzzer achieved a maximum coverage of %d statements." % bb_max_coverage)
+
+    print ([seed_input] + \
+    [\
+        blackbox_fuzzer.inputs[idx] for idx in range(len(blackbox_coverage))\
+        if blackbox_coverage[idx] > blackbox_coverage[idx - 1]\
+    ])
+\end{python}
+
+I ran this and got the output:
+\begin{verbatim}
+It took the blackbox mutation-based fuzzer 0.57 seconds to generate and execute 30000 inputs.
+The blackbox mutation-based fuzzer achieved a maximum coverage of 2 statements.
+['good', 'boo']
+\end{verbatim}
+On this run, the fuzzer never gets past the second \texttt{if} statement.
+(I re-ran it a couple of times and it got past the second statement once.)
+
+There is also a \texttt{GreyboxFuzzer} which extends \texttt{AdvancedMutationFuzzer},
+but is almost entirely like the \texttt{MutationCoverageFuzzer} above.
+In file \texttt{code/L08/compare\_blackbox\_greybox.py}, we add lines to also run
+\texttt{GreyboxFuzzer}, and observe this output:
+\begin{verbatim}
+It took the blackbox mutation-based fuzzer 0.65 seconds to generate and execute 30000 inputs.
+The blackbox mutation-based fuzzer achieved a maximum coverage of 2 statements.
+['good', 'bgodI']
+It took the greybox mutation-based fuzzer 0.73 seconds to generate and execute 30000 inputs.
+Our greybox mutation-based fuzzer covers 3 more statements
+[good, bgod, bao]Cd, badS, bad!]
+\end{verbatim}
+That is, adding coverage-based feedback allows the fuzzer to reach the otherwise-unlikely
+nested branches.
+
+The \emph{Fuzzing Book} also shows graphs of coverage over time for the black-box and grey-box fuzzer.
+
+\paragraph{Summary.} Coverage-guided fuzzing definitely explores new parts of the program's behaviour as it runs. Of course, as with any type of fuzzing,
 it will eventually hit diminishing returns.
+
+\section*{Guiding by Coverage: AFL's refinements---Power Schedules}
+To date, we've just put paths that increase coverage into the population,
+and drawn seeds from the population uniformly at random.
+We can do better: some paths are more important than others,
+and we want the important paths to come up more often when generating new paths\footnote{\emph{Fuzzing Book} reference: \url{https://www.fuzzingbook.org/html/GreyboxFuzzer.html}}.  
+
+To improve this, we introduce the concept of a \emph{power schedule}.
+The power schedule assigns an energy value (floating-point) to each seed in the population, allowing the fuzzer to prioritize higher-energy and thus presumably higher-value seeds,
+and can randomly select a seed from the population consistent with the energy distribution.
+
+There is a \texttt{Seed} class in \texttt{code/L08/power\_schedule.py}, but the only important thing for our purposes is its \texttt{energy} and \texttt{data} properties.
+The power schedule is more interesting:
+
+\begin{python}
+class PowerSchedule:
+    """Define how fuzzing time should be distributed across the population."""
+
+    def __init__(self) -> None:
+        """Constructor"""
+        self.path_frequency: Dict = {}
+
+    def assignEnergy(self, population: Sequence[Seed]) -> None:
+        """Assigns each seed the same energy"""
+        for seed in population:
+            seed.energy = 1
+
+    def normalizedEnergy(self, population: Sequence[Seed]) -> List[float]:
+        """Normalize energy"""
+        energy = list(map(lambda seed: seed.energy, population))
+        sum_energy = sum(energy)  # Add up all values in energy
+        assert sum_energy != 0
+        norm_energy = list(map(lambda nrg: nrg / sum_energy, energy))
+        return norm_energy
+
+    def choose(self, population: Sequence[Seed]) -> Seed:
+        """Choose weighted by normalized energy."""
+        self.assignEnergy(population)
+        norm_energy = self.normalizedEnergy(population)
+        seed: Seed = random.choices(population, weights=norm_energy)[0]
+        return seed
+\end{python}
+both of which can be found in \texttt{code/L08/power\_schedule.py}. We can check to see that
+the default implementation chooses more or less uniformly:
+\begin{python}
+    population = [Seed("A"), Seed("B"), Seed("C")]
+    schedule = PowerSchedule()
+    hits = { "A": 0, "B": 0, "C": 0 }
+    for i in range(10000):
+        seed = schedule.choose(population)
+        hits[seed.data] += 1
+    print (repr(hits))
+\end{python}
+results in:
+\begin{python}
+{'A': 3372, 'B': 3249, 'C': 3379}
+\end{python}
+It turns out that there is one more difference in the \texttt{AdvancedMutationFuzzer}: it 
+asks the power schedule to choose the seed, presumably using probabilities weighted according to the power schedule.
+So far, we haven't assigned any energy, so all seeds have energy 1.
+\begin{python}
+    def create_candidate(self) -> str:
+        """Returns an input generated by fuzzing a seed in the population"""
+        seed = self.schedule.choose(self.population)
+
+        # Stacking: Apply multiple mutations to generate the candidate
+        candidate = seed.data
+        trials = min(len(candidate), 1 << random.randint(1, 5))
+        for i in range(trials):
+            candidate = self.mutator.mutate(candidate)
+        return candidate
+\end{python}
+
+But now, let's give unusual paths---those not exercised very often---more energy. We'll put this code
+in \texttt{code/L08/counting\_grey\_box\_fuzzer.py}. First, path IDs.
+
+\begin{python}
+import pickle   # serializes an object by producing a byte array from all the information in the object
+import hashlib  # produces a 128-bit hash value from a byte array
+
+def getPathID(coverage: Any) -> str:
+    """Returns a unique hash for the covered statements"""
+    pickled = pickle.dumps(sorted(coverage))
+    return hashlib.md5(pickled).hexdigest()
+\end{python}
+
+The original AFL assigns an energy that is constant in the number of times
+a seed has been chosen $s(i)$; {\sc AFLFast} assigns an energy exponential in $s(i)$.
+The {\sc AFLFast} paper~\cite{bohme19:_cover_based_greyb_fuzzin_markov_chain} writes:
+\begin{quote}
+  When the seed is fuzzed for the first time, very low energy is assigned.
+  Every time the seed is chosen thereafter, exponentially more inputs are
+  generated up to a certain bound. This allows to rapidly approach the minimum
+  energy required to discover a new path.
+\end{quote}
+Hence:
+\begin{python}
+class AFLFastSchedule(PowerSchedule):
+    """Exponential power schedule as implemented in AFLFast"""
+
+    def __init__(self, exponent: float) -> None:
+        self.exponent = exponent
+
+    def assignEnergy(self, population: Sequence[Seed]) -> None:
+        """Assign exponential energy inversely proportional to path frequency"""
+        for seed in population:
+            seed.energy = 1 / (self.path_frequency[getPathID(seed.coverage)] ** self.exponent)
+\end{python}
+so we can see that this power schedule assigns energy inversely proportional to frequency, exponentiated.
+The counting greybox fuzzer adds to the path frequency when paths are run.
+\begin{python}
+    def run(self, runner: FunctionCoverageRunner) -> Tuple[Any, str]:
+        """Inform scheduler about path frequency"""
+        result, outcome = super().run(runner)
+
+        path_id = getPathID(runner.coverage())
+        if path_id not in self.schedule.path_frequency:
+            self.schedule.path_frequency[path_id] = 1
+        else:
+            self.schedule.path_frequency[path_id] += 1
+
+        return(result, outcome)  
+\end{python}
+We can compare this counting greybox fuzzer to the original. Nothing special here:
+\begin{python}
+    import time
+    n = 10000
+    seed_input = "good"
+    fast_schedule = AFLFastSchedule(5)
+    fast_fuzzer = CountingGreyboxFuzzer([seed_input], Mutator(), fast_schedule)
+    start = time.time()
+    fast_fuzzer.runs(FunctionCoverageRunner(crashme), trials=n)
+    end = time.time()
+
+    print ("It took the fuzzer w/ exponential schedule %0.2f seconds to generate and execute %d inputs." % (end - start, n))
+    _, counting_greybox_coverage = population_coverage(fast_fuzzer.inputs, crashme)
+    cgb_max_coverage = max(counting_greybox_coverage)
+    print ("Our fuzzer w/exponential schedule covers %d statements." % (cgb_max_coverage))
+    print("             path id 'p'           : path frequency 'f(p)'")
+    print (fast_schedule.path_frequency)
+
+    seed_input = "good"
+    orig_schedule = PowerSchedule()
+    orig_fuzzer = CountingGreyboxFuzzer([seed_input], Mutator(), orig_schedule)
+    start = time.time()
+    orig_fuzzer.runs(FunctionCoverageRunner(crashme), trials=n)
+    end = time.time()
+
+    print ("It took the fuzzer w/ original schedule %0.2f seconds to generate and execute %d inputs." % (end - start, n))
+    print("             path id 'p'           : path frequency 'f(p)'")
+    print (orig_schedule.path_frequency)
+\end{python}
+Running this a few times, I observed that the exponential schedule is often a bit slower than the original schedule, but it also
+more consistently hits 5 statements/paths, with a decent number of hits to the fifth statement. When the original schedule hits
+the fifth statement, the count for that statement is sometimes as low as 4.
+{\small \begin{verbatim}
+It took the fuzzer w/ exponential schedule 0.46 seconds to generate and execute 10000 inputs.
+Our fuzzer w/exponential schedule covers 5 statements.
+             path id 'p'           : path frequency 'f(p)'
+{'26b4becfdd3a8aacb81607a627bd1854': 5468, 'bc2fa870f15bb877d04c81e7bef87bac': 2694,
+ '6f2492ce0367e22be7f8327c8e333853': 1119, 'f7b00fe99a9c688bbd30df9e747557a8': 452,
+ '8669eeece2269c362bfa8d147565bbb5': 267}
+It took the fuzzer w/ original schedule 0.30 seconds to generate and execute 10000 inputs.
+             path id 'p'           : path frequency 'f(p)'
+{'26b4becfdd3a8aacb81607a627bd1854': 7538, 'bc2fa870f15bb877d04c81e7bef87bac': 2121,
+ '6f2492ce0367e22be7f8327c8e333853': 327, 'f7b00fe99a9c688bbd30df9e747557a8': 14}
+\end{verbatim}
+}
+We can also examine the normalized energy assigned to the paths under both schedules (see code):
+{\scriptsize \begin{verbatim}
+fast schedule:
+'26b4becfdd3a8aacb81607a627bd1854', 0.00000, 'good'
+'bc2fa870f15bb877d04c81e7bef87bac', 0.00000, 'boodVP'
+'6f2492ce0367e22be7f8327c8e333853', 0.00003, 'baooDvP'
+'f7b00fe99a9c688bbd30df9e747557a8', 0.03650, 'badvP'
+'8669eeece2269c362bfa8d147565bbb5', 0.96347, 'bad!t8D'
+original schedule:
+'26b4becfdd3a8aacb81607a627bd1854', 0.25000, 'good'
+'bc2fa870f15bb877d04c81e7bef87bac', 0.25000, 'bgoodQ'
+'6f2492ce0367e22be7f8327c8e333853', 0.25000, 'baJ g6poodP'
+'f7b00fe99a9c688bbd30df9e747557a8', 0.25000, 'badN g6poodP'
+\end{verbatim}
+}
+We see that the unusual path gets the vast majority of the energy under the fast schedule, while all paths have the same energy under the original schedule.
+
+\paragraph{Another Example: HTMLParser.} We can also evaluate different fuzzers on the Python library's HTML parser:
+\begin{python}
+from html.parser import HTMLParser
+
+def my_parser(inp:str) -> None:
+    parser = HTMLParser()
+    parser.feed(inp)
+\end{python}
+
+Starting with $n = 5000$ and a single seed input containing one space (see \texttt{code/L08/fuzz\_htmlparser.py}):
+{\small \begin{verbatim}
+It took all three fuzzers 14.77 seconds to generate and execute 5000 inputs.
+Maximum coverages: 65, 165, 168.
+Last 10 blackbox:
+[' 0', '\x00', '', '', ' /', ' +', '', 'X ', '', '\x00']
+Last 10 greybox:
+['', '6uJ(', '&6D+G<\x1b!G(', '1&x<$<<n>', '~\x0ek\n#\\<', 'z<<`', '="8!\x01', '1:&9<[8)<?!x',
+ '\x15L:a&$T<', '<|']
+Last 10 counting greybox:
+['>W//<', 'W!<E-/~><?<V', ']\nCNL\x0eD>j<v', '\x1cZ./8\x1f5?$YIN)', 'N$<><Y1!Ie', 
+ "z|i\x0c6'}><", 'N,\x1c/?5><!I', '%V^Mo5&n<>+.j<', '>N\rP5!G>', 'PXRCnb+/']
+\end{verbatim}
+}
+We can see that the counting greybox fuzzer does a bit better than the greybox fuzzer in terms of coverage, which does a lot better than the blackbox fuzzer.
+We can also see that the blackbox fuzzer doesn't find much, while the greybox fuzzer starts to include things like brackets. The counting greybox fuzzer
+includes longer inputs.
+
+Still, even the counting greybox fuzzer doesn't have keywords like \verb+<html>+. We'll need to involve grammars to do that.
+
+\bibliographystyle{alpha}
+\bibliography{L08}
 
 \end{document}
 
-\begin{lstlisting}[language=Python]
->>> seed_input = "http://www.google.com/search?q=fuzzing"
->>> mutation_fuzzer = MutationFuzzer(seed=[seed_input])
->>> [mutation_fuzzer.fuzz() for i in range(10)]
-['http://www.google.com/search?q=fuzzing',
- ']hTtp://ww,google\x1ecom/searc?q=fuzzig',
- 'hppY://www.google.cm/seacH?q=fduzzing',
- 'http:&//www.goole.com/sear#h?q=fuzz(ingw',
- 'http://vww.googlje.om/{earch?q5fuzzing',
- 'http://www.google.com/seach?q=uzzing',
- 'hv,tp*//www.ggogle.com/seagrch/q=fuzzing',
- "h(tpy:/wGw.goo'l%.com/searc?q=fuz~ing",
- 'hp://www.gooelecom/)search?q=fuz?zing?',
- "httpv//www.goo6gl.#om'search?q=Puzzin"]
-\end{lstlisting}
-
-Inside the \texttt{MutationCoverageFuzzer}, there is a \texttt{population}.
-\begin{lstlisting}[language=Python]
-  >>> mutation__coverage_fuzzer = MutationCoverageFuzzer(seed=[seed_input])
->>> mutation_coverage_fuzzer.runs(http_runner, trials=10000)
->>> mutation_coverage_fuzzer.population[:5]
-['http://www.google.com/search?q=fuzzing',
- 'http://www.google.com</searc?q=fzzinw',
- 'http://twww.google.com/searc`pnu<zzing',
- 'http://Btwnww.gIoog|e.cnsearc`pn<zzing',
- 'http://www\x0egoogle.com</sea#r#?q=_fdz0zinw']
-\end{lstlisting}

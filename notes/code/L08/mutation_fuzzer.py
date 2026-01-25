@@ -81,9 +81,14 @@ class MutationFuzzer(Fuzzer):
             self.inp = self.create_candidate()
         return self.inp
 
-# view output from mutation fuzzer:
-# seed_input = "http://www.google.com/search?q=fuzzing"
-# mutation_fuzzer = MutationFuzzer(seed=[seed_input])
-# print(mutation_fuzzer.fuzz())
-# print(mutation_fuzzer.fuzz())
-# print(mutation_fuzzer.fuzz())
+
+def main():
+    seed_input = "http://www.google.com/search?q=fuzzing"
+    mutation_fuzzer = MutationFuzzer(seed=[seed_input])
+    print(mutation_fuzzer.fuzz())
+    print(mutation_fuzzer.fuzz())
+    print(mutation_fuzzer.fuzz())
+
+if __name__ == "__main__":
+    main()
+

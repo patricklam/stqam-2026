@@ -441,7 +441,7 @@ htEtp://wwwgoogld.coi/earch?qn=fung
   \end{changemargin}
 \end{frame}
 
-\part{Intermission: Guiding by Coverage}
+\part{Intermission: Hierarchies}
 \begin{frame}
   \partpage
 \end{frame}
@@ -508,10 +508,24 @@ Operate at all the levels.
   \Large
   \begin{changemargin}{2em}
     So far: use coverage to evaluate test suites.\\[1em]
-    New: use coverage to guide test generation (AFL).
+    New: use coverage to guide test generation (greybox fuzzing, AFL).
   \end{changemargin}
 \end{frame}
 \usebackgroundtemplate{}
+
+\begin{frame}
+  \frametitle{How AFL gathers coverage information}
+
+  \Large
+  \begin{changemargin}{2em}
+    In Python: use language features to measure coverage.\\[1em]
+
+    AFL: rewrite assembly code, adding instrumentation to collect branch counts.\\[1em]
+
+    AFL can also collect coverage information from a virtual machine (QEMU) or dynamic instrumentation (pintools).
+  \end{changemargin}
+\end{frame}
+
 
 \begin{frame}[fragile]
   \frametitle{Infrastructure}
@@ -633,7 +647,7 @@ prints a slice of the coverage:
 \end{frame}
 
 \begin{frame}[fragile]
-  \frametitle{{\texttt MutationCoverageFuzzer} implementation}
+  \frametitle{\texttt{MutationCoverageFuzzer} implementation}
 \begin{python}
 class MutationCoverageFuzzer(MutationFuzzer):
     def reset(self) -> None:
@@ -714,6 +728,83 @@ if __name__ == "__main__":
   \end{changemargin}
 \end{frame}
 
+\begin{frame}[fragile]
+  \frametitle{Guiding by Coverage for the win}
+  \begin{changemargin}{2em}
+    Consider this code to be tested:
+\begin{python}
+  def crashme(s: str) -> None:
+     if len(s) > 0 and s[0] == 'b':
+         if len(s) > 1 and s[1] == 'a':
+             if len(s) > 2 and s[2] == 'd':
+                 if len(s) > 3 and s[3] == '!':
+                     raise Exception()
+\end{python}
+   Resistant to normal mutation fuzzing.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Trying Mutation Fuzzing}
+  \begin{changemargin}{0em}
+    \small
+\begin{python}
+    n=30000
+    seed_input="good"
+    bb_fuzzer=AdvancedMutationFuzzer([seed_input], Mutator(), PowerSchedule())
+
+    start=time.time()
+    bb_fuzzer.runs(FunctionCoverageRunner(crashme), trials=n)
+    end=time.time()
+
+    print ("Blackbox mutation-based: %0.2fs for %d inputs." % (end - start, n))
+    _, blackbox_coverage = population_coverage(blackbox_fuzzer.inputs, crashme)
+    bb_max_coverage = max(blackbox_coverage)
+    print ("Blackbox mutation-based: max coverage %d." % bb_max_coverage)
+    print ([seed_input] + [\
+        blackbox_fuzzer.inputs[idx] for idx in range(len(blackbox_coverage))\
+        if blackbox_coverage[idx] > blackbox_coverage[idx-1]\
+    ])
+\end{python}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Mutation Fuzzing Results}
+  \begin{changemargin}{2em}
+    \small
+\begin{verbatim}
+Blackbox mutation-based: 0.57s for 30000 inputs.
+Blackbox mutation-based fuzzer: max coverage 2.
+['good', 'boo']
+\end{verbatim}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Adding Greybox: Results}
+  \begin{changemargin}{2em}
+    You'll find \texttt{GreyboxFuzzer} in the repo also.
+    \small
+\begin{verbatim}
+Blackbox mutation-based: 0.65s for 30000 inputs.
+Blackbox mutation-based fuzzer: max coverage 2.
+['good', 'bgodI']
+Greybox mutation-based: 0.73s for 30000 inputs.
+Greybox mutation-based fuzzer: 3 more.
+[good, bgod, bao]Cd, badS, bad!]
+\end{verbatim}
+
+That's promising: it reaches otherwise-unlikely nested branches.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Coverage over time: blackbox vs greybox \\(from Fuzzing Book)}
+  \begin{center}
+  \includegraphics[height=.8\textheight]{L08/bb-vs-greybox.png}
+  \end{center}
+\end{frame}
 
 \begin{frame}
   \frametitle{Coverage-guided fuzzing summary}
@@ -726,5 +817,281 @@ if __name__ == "__main__":
   \end{changemargin}
 \end{frame}
 
+\usebackgroundtemplate{\tikz\node[opacity=0.3]{\includegraphics[width=\paperwidth]{L08/07032_powerlines_v1.jpg}};}
+\part{Guiding by Coverage with Power}
+\begin{frame}
+  \partpage
+\end{frame}
+\usebackgroundtemplate{}
+
+\begin{frame}
+  \frametitle{AFL does a bit more still}
+
+  \Large
+  \begin{changemargin}{2em}
+    So far: draw seeds (paths) uniformly at random from population.\\[1em]
+    But: some paths more important than others.\\
+    Important paths should come up more often.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Concept: Power schedule}
+
+  \Large
+  \begin{changemargin}{2em}
+    \alert{Power schedule}: assigns energy value (floating-point) to each seed in the population.\\[1em]
+    Allows the fuzzer to prioritize higher-energy (presumably higher-value) seeds---\\
+it randomly selects a seed from the population consistent with energy distribution.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Power Schedule}
+  \begin{changemargin}{0em}
+    \small
+\begin{python}
+class PowerSchedule:
+    def __init__(self) -> None:
+        self.path_frequency: Dict = {}
+
+    def assignEnergy(self, population: Sequence[Seed]) -> None:
+        for seed in population:
+            seed.energy = 1
+
+    def normalizedEnergy(self, population: Sequence[Seed]) -> List[float]:
+        """omitted for space"""
+        pass
+
+    def choose(self, population: Sequence[Seed]) -> Seed:
+        """Choose weighted by normalized energy."""
+        self.assignEnergy(population)
+        norm_energy = self.normalizedEnergy(population)
+        seed: Seed = random.choices(population, weights=norm_energy)[0]
+        return seed
+\end{python}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Default Power Schedule}
+  \begin{changemargin}{0em}
+    \small
+\begin{python}
+    population = [Seed("A"), Seed("B"), Seed("C")]
+    schedule = PowerSchedule()
+    hits = { "A": 0, "B": 0, "C": 0 }
+    for i in range(10000):
+        seed = schedule.choose(population)
+        hits[seed.data] += 1
+    print (repr(hits))
+\end{python}
+{\Large yields:}
+\begin{python}
+{'A': 3372, 'B': 3249, 'C': 3379}
+\end{python}
+
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{\texttt{AdvancedMutationFuzzer}}
+  \begin{changemargin}{0em}
+    \small
+\begin{python}
+ def create_candidate(self) -> str:
+     """Returns an input generated by fuzzing a seed in the population"""
+     seed = self.schedule.choose(self.population) # <--!
+
+     # Stacking: Apply multiple mutations to generate the candidate
+     candidate = seed.data
+     trials = min(len(candidate), 1 << random.randint(1, 5))
+     for i in range(trials):
+         candidate = self.mutator.mutate(candidate)
+     return candidate
+\end{python}
+
+  \end{changemargin}
+
+  \begin{changemargin}{2em}
+    \Large
+We haven't assigned any energy, so all seeds have energy 1.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Path IDs}
+  \begin{changemargin}{2em}
+    \Large
+    Want to give unusual paths (those not exercised often) more energy.\\[1em]
+
+    First, define path IDs:
+    \small
+\begin{python}
+import pickle   # serializes an object by producing a byte array from all the information in the object
+import hashlib  # produces a 128-bit hash value from a byte array
+
+def getPathID(coverage: Any) -> str:
+    """Returns a unique hash for the covered statements"""
+    pickled = pickle.dumps(sorted(coverage))
+    return hashlib.md5(pickled).hexdigest()
+\end{python}
+
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{AFL vs AFLFast}
+  \begin{changemargin}{2em}
+    Original AFL: energy is constant in \# times seed chosen $s(i)$.\\[1em]
+
+    AFLFast: energy exponential in $s(i)$; from that paper:
+\begin{minipage}{.9\textwidth}
+    \begin{quote}
+  When the seed is fuzzed for the first time, very low energy is assigned.
+  Every time the seed is chosen thereafter, exponentially more inputs are
+  generated up to a certain bound. This allows to rapidly approach the minimum
+  energy required to discover a new path.
+    \end{quote}
+\end{minipage}
+    \small
+\begin{python}
+class AFLFastSchedule(PowerSchedule):
+  def assignEnergy(self, population) -> None:
+    for seed in population:
+      seed.energy = 1 / (self.path_frequency[getPathID(seed.coverage)] ** self.exponent)
+\end{python}
+
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Counting Greybox Fuzzer}
+  \begin{changemargin}{2em}
+Adds to path frequency when a path is run:    
+\begin{python}
+    def run(self, runner: FunctionCoverageRunner) -> Tuple[Any, str]:
+        result, outcome = super().run(runner)
+
+        path_id = getPathID(runner.coverage())
+        if path_id not in self.schedule.path_frequency:
+            self.schedule.path_frequency[path_id] = 1
+        else:
+            self.schedule.path_frequency[path_id] += 1
+
+        return(result, outcome)  
+\end{python}
+
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Counting Greybox Fuzzer: Results}
+  \begin{changemargin}{0em}
+{\small \begin{verbatim}
+fuzzer w/ exponential schedule 0.46s for 10000 inputs.
+Our fuzzer w/exponential schedule covers 5 statements.
+             path id 'p'           : path frequency 'f(p)'
+{'26...1854': 5468, 'bc...7bac': 2694,
+ '6f...3853': 1119, 'f7...57a8': 452,
+ '86...bbb5': 267}
+fuzzer w/ original schedule 0.30s for 10000 inputs.
+             path id 'p'           : path frequency 'f(p)'
+{'26...1854': 7538, 'bc...7bac': 2121,
+ '6f...3853': 327,  'f7...57a8': 14}
+\end{verbatim}
+}
+Exponential is a bit slower than original, but more consistently hits 5 paths.
+Original schedule has low count for 5th path.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Counting Greybox Fuzzer: Normalized Energy}
+  \begin{changemargin}{2em}
+{\scriptsize \begin{verbatim}
+fast schedule:
+'26b4becfdd3a8aacb81607a627bd1854', 0.00000, 'good'
+'bc2fa870f15bb877d04c81e7bef87bac', 0.00000, 'boodVP'
+'6f2492ce0367e22be7f8327c8e333853', 0.00003, 'baooDvP'
+'f7b00fe99a9c688bbd30df9e747557a8', 0.03650, 'badvP'
+'8669eeece2269c362bfa8d147565bbb5', 0.96347, 'bad!t8D'
+original schedule:
+'26b4becfdd3a8aacb81607a627bd1854', 0.25000, 'good'
+'bc2fa870f15bb877d04c81e7bef87bac', 0.25000, 'bgoodQ'
+'6f2492ce0367e22be7f8327c8e333853', 0.25000, 'baJ g6poodP'
+'f7b00fe99a9c688bbd30df9e747557a8', 0.25000, 'badN g6poodP'
+\end{verbatim}
+}
+Unusual path gets the vast majority of the energy under fast schedule; \\
+ all paths have same energy under the original schedule.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Another example: HTMLParser}
+  \begin{changemargin}{0em}
+\begin{python}
+from html.parser import HTMLParser
+
+def my_parser(inp:str) -> None:
+    parser = HTMLParser()
+    parser.feed(inp)
+\end{python}
+
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Results}
+  \begin{changemargin}{0em}
+    Starting with $n = 5000$; single seed with one space.
+
+{\small \begin{verbatim}
+It took all three fuzzers 14.77s for 5000 inputs.
+Maximum coverages: 65, 165, 168.
+Last 10 blackbox:
+[' 0', '\x00', '', '', ' /', ' +', '', 'X ', '', '\x00']
+Last 10 greybox:
+['', '6uJ(', '&6D+G<\x1b!G(', '1&x<$<<n>', '~\x0ek\n#\\<', 'z<<`', '="8!\x01', '1:&9<[8)<?!x',
+ '\x15L:a&$T<', '<|']
+Last 10 counting greybox:
+['>W//<', 'W!<E-/~><?<V', ']\nCNL\x0eD>j<v', '\x1cZ./8\x1f5?$YIN)', 'N$<><Y1!Ie', 
+ "z|i\x0c6'}><", 'N,\x1c/?5><!I', '%V^Mo5&n<>+.j<', '>N\rP5!G>', 'PXRCnb+/']
+\end{verbatim}
+}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Coverage over time (from Fuzzing Book)}
+
+  \Large
+  \begin{center}
+    \includegraphics[width=.6\textwidth]{L08/bg-gb-bb.png}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{HTMLParser: comments}
+  \begin{changemargin}{2em}
+    Coverage:
+\begin{itemize}
+  \item counting greybox does a bit better than the greybox;
+  \item greybox does a lot better than the blackbox;
+\end{itemize}
+~\\
+Inputs:
+\begin{itemize}
+  \item  blackbox doesn't find much;
+  \item greybox includes brackets;
+    \item counting greybox includes longer inputs.
+\end{itemize}
+~\\
+Still, even the counting greybox fuzzer \\
+doesn't have keywords like \verb+<html>+. \\
+We'll need to involve grammars to do that.
+  \end{changemargin}
+\end{frame}
 
 \end{document}

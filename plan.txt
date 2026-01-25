@@ -26,6 +26,7 @@ https://docs.gitlab.com/user/application_security/sast/evaluation_guide/
 
 ** L07 intro to fuzzing / address sanitizer
 ** L08 mutation-based fuzzing
+      but also add https://www.fuzzingbook.org/html/GreyboxFuzzer.html
 __ L09 grammar-based fuzzing
       https://www.fuzzingbook.org/html/Grammars.html
       https://lcamtuf.blogspot.com/2015/01/afl-fuzz-making-up-grammar-with.html
