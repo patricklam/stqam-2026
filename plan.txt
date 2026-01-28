@@ -28,6 +28,9 @@ https://docs.gitlab.com/user/application_security/sast/evaluation_guide/
 ** L08 mutation-based fuzzing
 __ L09 grammar-based fuzzing
       https://www.fuzzingbook.org/html/Grammars.html
+      https://www.fuzzingbook.org/html/GrammarFuzzer.html
+      https://www.fuzzingbook.org/html/GrammarCoverageFuzzer.html
+      https://www.fuzzingbook.org/html/GeneratorGrammarFuzzer.html
       https://lcamtuf.blogspot.com/2015/01/afl-fuzz-making-up-grammar-with.html
 __ L10 fuzzing APIs (https://www.fuzzingbook.org/html/APIFuzzer.html)
 __ L11 constraint-based fuzzing / property based testing / automatic test generation
