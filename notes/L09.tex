@@ -43,9 +43,6 @@ do, else, case, break},
 }
 
 
-\newtheorem{defn}{Definition}
-\newtheorem{crit}{Criterion}
-
 \newcommand{\handout}[5]{
   \noindent
   \begin{center}
@@ -497,6 +494,544 @@ grammars but starting from scratch. More about this project: \url{https://projec
 
 \section*{Efficient Grammar Fuzzing}
 Next up: some tricks to generate from grammars more efficiently, from \url{https://www.fuzzingbook.org/html/GrammarFuzzer.html}.
+
+I found the design choice in \texttt{simple\_grammar\_fuzzer} to manipulate strings directly to be\ldots interesting. I would
+have thought that one would use a tree, though there is more faffing with data structures. And indeed, we are now going to use trees,
+and introduce various controls that we can use to control what trees get generated.
+
+We had talked about a grammar for expressions earlier today. In \texttt{code/L09/ebnf.py} you'll find an EBNF grammar
+for expressions. We can convert it to BNF so that we can work with it.
+
+\begin{python}
+expr_grammar = convert_ebnf_grammar(EXPR_EBNF_GRAMMAR)
+\end{python}
+
+Because we're talking about grammar fuzzing, let's try to fuzz this grammar. I'll anticipate timeouts. You can find this
+in \texttt{code/L09/simple\_grammar\_fuzzer\_problem.py}.
+\begin{python}
+with ExpectTimeout(1):
+  simple_grammar_fuzzer(grammar=expr_grammar, max_nonterminals=3)
+\end{python}
+This does indeed raise a \texttt{TimeoutError}.
+
+You can look at the grammar, and it's a good exercise to do so. But if
+you call \texttt{simple\_grammar\_fuzzer} with \texttt{log=True} you
+can see the expansions, and the proximate reason why it times out
+should become abundantly clear: too many parens. But why?
+
+The rule for \brac{factor} has RHS:
+\begin{python}
+['<sign-1><factor>', '(<expr>)', '<integer><symbol-1>']
+\end{python}
+and our simple fuzzer throws away generated strings with more than the
+maximum allowed number of non-terminals (3 in our case).  So the only
+allowed string to be generated for \brac{factor} is
+\texttt{'(\brac{expr})'}: the other alternatives all add a
+non-terminal, and when at the limit, the fuzzer won't do that.
+
+Any grammar-based approach can create arbitrarily long strings. The problem
+with the approach as we have implemented it, though, is that the hard limit on
+non-terminals prevents it from generating some strings that we want.
+
+In general, the single \texttt{max\_nonterminals} control that \texttt{simple\_grammar\_fuzzer} provides us is insufficient.
+And, manipulating strings is less efficient than manipulating trees: the fuzzer has to do a search through the string
+for non-terminals.
+
+The \emph{Fuzzing Book} continues with a graph showing that the time required to generate an output grows quadratically
+with the output length, and also that very many outputs are tens of thousands of characters long.
+
+We want an efficient grammar fuzzer, which doesn't get stuck on bad alternatives.
+
+\subsection*{Derivation Trees}
+The obvious choice for representing derivations is \emph{derivation
+trees}. The nodes in the trees can be terminals or nonterminals;
+nonterminals may have children corresponding to a derivation, as we'll
+see.  The \emph{Fuzzing Book} says that they also known as concrete
+syntax trees or parse trees, though my definition of a concrete syntax
+tree is one where leaves are terminals.
+
+Let's look at an example of deriving a string, again using the arithmetic expression grammar. We start with the \brac{start} node.
+\begin{center}
+\begin{tikzpicture}
+  \node[bt] (s) {\brac{start}};
+\end{tikzpicture}
+\end{center}
+In general, we search the tree for a nonterminal $S$ that does not
+have children and hence is a candidate for expansion.  In this case,
+there is only \brac{start}, and its only alternative is \brac{expr},
+so we expand the tree by adding \brac{expr} as a child of
+\brac{start}.
+\begin{center}
+\begin{tikzpicture}[node distance=1.3cm]
+  \node[bt] (s)               {\brac{start}};
+  \node[bt] (e0) [below of=s] {\brac{expr}};
+
+  \path[->] (s) edge node {} (e0);
+\end{tikzpicture}
+\end{center}
+This tree can be unparsed back to the string ``\brac{expr}'' by collecting the leaves of the tree.
+
+We can continue the expansion process. Nonterminal \brac{expr} can expand to $\brac{term} + \brac{expr}$, yielding the tree:
+\begin{center}
+\begin{tikzpicture}[node distance=1.3cm]
+  \node[bt] (s)               {\brac{start}};
+  \node[bt] (e0) [below of=s] {\brac{expr}};
+  \node[bt,text width=1cm] (+) [below of=e0] {+};
+  \node[bt] (t) [left of=+,xshift=-1cm] {\brac{term}};
+  \node[bt] (e1) [right of=+,xshift=1cm] {\brac{expr}};
+
+  \path[->] (s) edge node {} (e0);
+  \path[->] (e0) edge node {} (t);
+  \path[->] (e0) edge node {} (+);
+  \path[->] (e0) edge node {} (e1);
+\end{tikzpicture}
+\end{center}
+Here we have one terminal, $+$, as well as two more nonterminals.
+
+\newpage
+We can further continue the expansion process until we get to terminals.
+\begin{center}
+\begin{tikzpicture}[node distance=1.3cm]
+  \node[bt] (s)               {\brac{start}};
+  \node[bt] (e0) [below of=s] {\brac{expr}};
+  \node[bt,text width=1cm,fill=green!20] (+) [below of=e0] {+};
+  \node[bt] (t0) [left of=+,xshift=-1cm] {\brac{term}};
+  \node[bt,text width=2cm] (f0) [below of=t0] {\brac{factor}};
+  \node[bt,text width=2cm] (i0) [below of=f0] {\brac{integer}};
+  \node[bt] (d0) [below of=i0] {\brac{digit}};
+  \node[bt,fill=green!20] (cd0) [below of=d0] {\brac{2}};
+  \node[bt] (e1) [right of=+,xshift=1cm] {\brac{expr}};
+  \node[bt] (t1) [below of=e1] {\brac{term}};
+  \node[bt,text width=2cm] (f1) [below of=t1] {\brac{factor}};
+  \node[bt,text width=2cm] (i1) [below of=f1] {\brac{integer}};
+  \node[bt] (d1) [below of=i1] {\brac{digit}};
+  \node[bt,fill=green!20] (cd1) [below of=d1] {\brac{3}};
+
+  \path[->] (s) edge node {} (e0);
+  \path[->] (e0) edge node {} (t0);
+  \path[->] (t0) edge node {} (f0);
+  \path[->] (f0) edge node {} (i0);
+  \path[->] (i0) edge node {} (d0);
+  \path[->] (d0) edge node {} (cd0);
+  \path[->] (e0) edge node {} (+);
+  \path[->] (e0) edge node {} (e1);
+  \path[->] (e1) edge node {} (t1);
+  \path[->] (t1) edge node {} (f1);
+  \path[->] (f1) edge node {} (i1);
+  \path[->] (i1) edge node {} (d1);
+  \path[->] (d1) edge node {} (cd1);
+\end{tikzpicture}
+\end{center}
+A derivation tree can yield the strings that we've seen before. But it
+also records the nonterminals that were expanded to yield a given
+final string. And, being a tree, it doesn't require string searches
+and replacements; it's far more efficient to manipulate the tree.
+
+\subsection*{Derivation Trees in Python}
+Here's the way we represent derivation trees in Python. A node is a pair
+\begin{python}
+  (SYMBOL_NAME, CHILDREN)
+\end{python}
+where \texttt{SYMBOL\_NAME} is a string representing the node (e.g.
+"\brac{start}" or "+") and \texttt{CHILDREN} generally represents the children.
+So the node also contains the subtree starting at that node.
+
+We also allow \texttt{CHILDREN} to be \texttt{None}, which means that this node is
+a nonterminal still to be expanded; or, \texttt{CHIDLREN} can be \texttt{[]}, meaning
+that this node is a terminal. There is an invariant that \texttt{SYMBOL\_NAME} is \brac{bracketed}
+iff the node is a nonterminal.
+
+We can thus state a Python type:
+\begin{python}
+DerivationTree = Tuple[str, Optional[List[Any]]]
+\end{python}
+which could actually be a recursive type using \texttt{DerivationTree} instead of \texttt{Any},
+but the \emph{Fuzzing Book} says the Python type checker can't handle that, which I've confirmed.
+
+Here is an example derivation tree for \texttt{\brac{expr} + \brac{term}}.
+\begin{python}
+derivation_tree: DerivationTree = ("<start>",
+                   [("<expr>",
+                     [("<expr>", None),
+                      (" + ", []),
+                         ("<term>", None)]
+                     )])
+\end{python}
+
+There is a lot of implementation talk next in the \emph{Fuzzing Book}. I'll skip most of it, but include it
+in \texttt{code/L09/derivation\_tree.py} and \texttt{code/L09/grammar\_fuzzer.py}.
+
+I will say that there is a \texttt{GrammarFuzzer} class, which will take the following parameters:
+\begin{python}
+class GrammarFuzzer(Fuzzer):
+    """Produce strings from grammars efficiently, using derivation trees."""
+
+    def __init__(self,
+                 grammar: Grammar,
+                 start_symbol: str = START_SYMBOL,
+                 min_nonterminals: int = 0,
+                 max_nonterminals: int = 10,
+                 disp: bool = False,
+                 log: Union[bool, int] = False) -> None:
+        # ...
+\end{python}
+Right now, we are only going to use the grammar and start symbol. There are also diagnostics
+in the form of \texttt{disp} and \texttt{log}. The constructor calls \texttt{check\_grammar()},
+which ensures some validity properties:
+\begin{python}
+      def check_grammar(self) -> None:
+        """Check the grammar passed"""
+        assert self.start_symbol in self.grammar
+        assert is_valid_grammar(
+            self.grammar,
+            start_symbol=self.start_symbol,
+            supported_opts=self.supported_opts())
+\end{python}
+We didn't talk about \texttt{is\_valid\_grammar}, but it checks that all nonterminals are reachable
+from either \brac{start} or the start symbol that it is given.
+
+\paragraph{Tree manipulation: expanding a node.} One of the central operations that we need to be able to perform
+on a derivation tree is to randomly expand a nonterminal into one of its alternatives; for instance, an \brac{expr}
+can be an addition, subtraction, or just a term, and we need to replace the \brac{expr} with, for instance,
+$\brac{term} + \brac{expr}$.
+
+Which alternative? We'll start by randomly choosing an alternative. But we'll want to use different strategies in the future.
+\begin{python}
+    def choose_node_expansion(self, node: DerivationTree,
+                              children_alternatives: List[List[DerivationTree]]) -> int:
+        """Return index of expansion in `children_alternatives` to be selected.
+           'children_alternatives`: a list of possible children for `node`.
+           Defaults to random. To be overloaded in subclasses."""
+        return random.randrange(0, len(children_alternatives))
+\end{python}
+
+Despite moving to derivation trees, we still express our alternatives as strings. (Indeed, that's more user-friendly
+than the alternative). We need to convert alternatives into something derivation-tree-friendly.
+As an example, our grammar contains the alternative $\brac{term} + \brac{expr}$ for \brac{expr}.
+We want to convert it to the list of nodes
+\begin{python}
+  [('<term>', None), (' + ', []), ('<expr>', None)]
+\end{python}
+and we do so using function \texttt{expansion\_to\_children}, which can be overridden:
+\begin{python}
+def expansion_to_children(expansion: Expansion) -> List[DerivationTree]:
+    # print("Converting " + repr(expansion))
+    # strings contains all substrings -- both terminals and nonterminals such
+    # that ''.join(strings) == expansion
+
+    expansion = exp_string(expansion)
+    assert isinstance(expansion, str)
+
+    if expansion == "":  # Special case: epsilon expansion
+        return [("", [])]
+
+    strings = re.split(RE_NONTERMINAL, expansion)
+    return [(s, None) if is_nonterminal(s) else (s, [])
+            for s in strings if len(s) > 0]
+\end{python}
+So, given a subtree with a non-expanded non-terminal at its root, we can expand this non-terminal into one of its
+alternatives, per the grammar, and return the new tree. Recall that being non-expanded is represented by
+having \texttt{children} be \texttt{None}.
+\begin{python}
+    def expand_node_randomly(self, node: DerivationTree) -> DerivationTree:
+        """Choose a random expansion for `node` and return it"""
+        (symbol, children) = node
+        assert children is None
+
+        if self.log:
+            print("Expanding", all_terminals(node), "randomly")
+
+        # Fetch & parse the possible expansions from grammar...
+        expansions = self.grammar[symbol]
+        children_alternatives: List[List[DerivationTree]] = [
+            self.expansion_to_children(expansion) for expansion in expansions
+        ]
+
+        # ... and select a random expansion
+        index = self.choose_node_expansion(node, children_alternatives)
+        chosen_children = children_alternatives[index]
+
+        # Process children (for subclasses) [do nothing for now]
+        chosen_children = self.process_chosen_children(chosen_children,
+                                                       expansions[index])
+
+        # Return with new children
+        return (symbol, chosen_children)
+\end{python}
+Randomly is one strategy, and for now our only strategy, though we will redefine \texttt{expand\_node} as needed
+to use other strategies.
+\begin{python}
+    def expand_node(self, node: DerivationTree) -> DerivationTree:
+        return self.expand_node_randomly(node)
+\end{python}
+Note that \texttt{expand\_node} does not modify the input \texttt{node} but indeed returns a fresh \texttt{DerivationTree},
+which is consistent with functional programming style.
+
+We can try out \texttt{expand\_node}:
+\begin{python}
+    f = GrammarFuzzer(EXPR_GRAMMAR, log=True)
+
+    print("Before expand_node_randomly():")
+    expr_tree = ("<integer>", None)
+    print (display_tree(expr_tree))
+
+    expr_tree = f.expand_node_randomly(expr_tree)
+    print("After expand_node_randomly():")
+\end{python}
+which starts with the tree with unexpanded single node (\brac{integer}, \texttt{None}), and can finish with
+either the tree
+\begin{python}
+  ('<integer>', [('<digit>', None), ('<integer>', None)])
+\end{python}
+or the tree
+\begin{python}
+  ('<integer>', [('<digit>', None)])
+\end{python}
+as randomly chosen.
+
+\paragraph{Tree manipulation: expanding the tree.}
+We don't just want to be able to expand the root of the tree. We need to be able to find some unexpanded
+nonterminal in the tree and expand that. Method \texttt{expand\_tree\_once()} expands the root if it is
+unexpanded. Otherwise, it looks for any (transitive) children which are unexpanded. We do not need
+to look at this implementation, but \texttt{expand\_tree\_once} and \texttt{any\_possible\_expansions}
+are in the repo.
+
+Note that unlike \texttt{expand\_node\_randomly()}, this method \texttt{expand\_tree\_once()}
+modifies the tree in-place, which is more efficient.
+
+This method also hardcodes calls to the method \texttt{expand\_node()},
+but it's Python, so you can, and we do, redefine that method several times to use different strategies; in the example below, it is
+set to \texttt{expand\_node\_randomly()}.
+
+For instance, we can apply \texttt{expand\_tree\_once()} twice:
+\begin{python}
+derivation_tree = ("<start>",
+                   [("<expr>",
+                     [("<expr>", None), (" + ", []), ("<term>", None)])])
+print (derivation_tree)
+f.expand_tree_once(derivation_tree)
+f.expand_tree_once(derivation_tree)
+print (derivation_tree)
+\end{python}
+
+\paragraph{Tree manipulation: closing the expansion.}
+If we continue randomly choosing nonterminals, we will probably get
+derivation trees that are bigger than we'd like.  I think that random
+expansion has finite expected termination time if there is a path to
+termination, but we would like smaller trees.
+
+The insight that we'll apply, from \cite{luke00:_two}, is that, after inflating the
+tree up to a size bound, we then choose expansions that increase the tree size least.
+The \brac{factor} production, for instance, has alternative $\brac{integer}(.\brac{integer})?$,
+which could be \brac{integer}, and \brac{integer} could be a single \brac{digit}.
+Other alternatives are higher-cost.
+
+We can compute the minimum cost by doing a tree traversal and summing the minima for each
+production.
+\begin{python}
+    def symbol_cost(self, symbol: str, seen: Set[str] = set()) \
+            -> Union[int, float]:
+        expansions = self.grammar[symbol]
+        return min(self.expansion_cost(e, seen | {symbol}) for e in expansions)
+
+    def expansion_cost(self, expansion: Expansion,
+                       seen: Set[str] = set()) -> Union[int, float]:
+        symbols = nonterminals(expansion)
+        if len(symbols) == 0:
+            return 1  # no symbol
+
+        if any(s in seen for s in symbols):
+            return float('inf')
+
+        # the value of a expansion is the sum of all expandable variables
+        # inside + 1
+        return sum(self.symbol_cost(s, seen) for s in symbols) + 1
+\end{python}
+
+At a symbol, the symbol cost is the minimum of its children (1 for terminals and
+recursively calculated for nonterminals). Given an alternative (aka expansion),
+its minimum expansion cost is 1 if there are no nonterminals in that alternative, or 1 plus the sum of the nonterminals otherwise.
+But, this loops infinitely if there is a cycle involving a nonterminal, and so we use \texttt{float('inf')} in that case,
+which works properly with the Python \texttt{min} function.
+
+We can check that the minimum cost of expanding \brac{digit} is 1:
+\begin{python}
+f = GrammarFuzzer(EXPR_GRAMMAR)
+assert f.symbol_cost("<digit>") == 1
+\end{python}
+while the minimum cost of expanding \brac{expr} is 5, through \brac{term}, \brac{factor}, \brac{integer}, \brac{digit}, and 1.
+\begin{python}
+assert f.symbol_cost("<expr>") == 5
+\end{python}
+
+Previously, we chose a node to expand randomly (and limited the number of nonterminals). We now parametrize
+by choice algorithm, \texttt{choose}:
+\begin{python}
+    def expand_node_by_cost(self, node: DerivationTree, 
+                            choose: Callable = min) -> DerivationTree:
+\end{python}
+I won't show the implementation, but I'll describe it. This method
+collects (in a list) the minimum cost of all of the alternatives, asks
+function \texttt{choose} to choose one of the costs in the list, then
+goes back and collects all alternatives with that cost, and uses
+\texttt{choose\_node\_expansion()} to choose one of those alternatives
+(default: random). It calls a hook to post-process the chosen
+alternative, and returns it.  This method is functional and does not
+modify the node it is given. Again, you can find the code in
+\texttt{code/L09/grammar\_fuzzer.py}.
+
+We can use \texttt{min} as the choice algorithm:
+\begin{python}
+    def expand_node_min_cost(self, node: DerivationTree) -> DerivationTree:
+        if self.log:
+            print("Expanding", all_terminals(node), "at minimum cost")
+
+        return self.expand_node_by_cost(node, min)
+\end{python}
+and we can use that to get a sequence of expansions:
+\begin{python}
+    f.expand_node = f.expand_node_min_cost
+    while f.any_possible_expansions(derivation_tree):
+        derivation_tree = f.expand_tree_once(derivation_tree)    
+    print (derivation_tree)
+    print (all_terminals(derivation_tree))
+\end{python}
+which might print out, for instance,
+\begin{python}
+('<start>', [('<expr>', [('<expr>', [('<term>', [('<factor>', [('<integer>', [('<digit>', [('4', [])])])])])]), (' + ', []), ('<term>', [('<factor>', [('<integer>', [('<digit>', [('0', [])])])]), (' * ', []), ('<term>', [('<factor>', [('<integer>', [('<digit>', [('9', [])])])])])])])])
+4 + 0 * 9
+\end{python}
+The \emph{Fuzzing Book} points out that \texttt{expand\_node\_min\_cost()} does not increase the number of symbols, so
+that all open expansions are closed. They showed more steps than I did. You can't see it from these notes, but you can
+work through it and convince yourself that this is true, though being able to close all expansions is also a property
+of the grammar, in addition to the choice of node.
+
+\paragraph{Tree manipulation: node inflation.} We also want to have trees of at least a certain size, so that our
+programs have something to work with. We can easily look for the max-cost expansion using our machinery as well.
+\begin{python}
+    def expand_node_min_cost(self, node: DerivationTree) -> DerivationTree:
+        if self.log:
+            print("Expanding", all_terminals(node), "at maximum cost")
+
+        return self.expand_node_by_cost(node, max)
+\end{python}
+
+We can repeat a couple of times:
+\begin{python}
+    derivation_tree = ("<start>",
+                   [("<expr>",
+                     [("<expr>", None),
+                      (" + ", []),
+                         ("<term>", None)]
+                     )])
+    f = GrammarFuzzer(EXPR_GRAMMAR, log=True)
+    f.expand_node = f.expand_node_max_cost
+
+    # do this a number of times
+    if f.any_possible_expansions(derivation_tree):
+        derivation_tree = f.expand_tree_once(derivation_tree)
+    print (derivation_tree)
+    print (all_terminals(derivation_tree))
+\end{python}
+
+\paragraph{Max, random, min.} What we want is to combine all three types of tree expansion. Start by inflating the tree (max cost expansions), do
+some random expansions, and then close the tree (min cost
+expansions). The inflation step continues until there are at least
+\texttt{min\_nonterminals} nonterminals (possibly set to 0), continue
+randomly expanding until there are at least \texttt{max\_nonterminals} (or
+maybe the tree just closes itself), and then, if the grammar is
+properly designed, we get all terminals.
+
+\begin{python}
+    def expand_tree(self, tree: DerivationTree) -> DerivationTree:
+        """Expand `tree` in a three-phase strategy until all expansions are complete."""
+        self.log_tree(tree)
+        tree = self.expand_tree_with_strategy(
+            tree, self.expand_node_max_cost, self.min_nonterminals)
+        tree = self.expand_tree_with_strategy(
+            tree, self.expand_node_randomly, self.max_nonterminals)
+        tree = self.expand_tree_with_strategy(
+            tree, self.expand_node_min_cost)
+
+        assert self.possible_expansions(tree) == 0
+        return tree
+\end{python}
+We omit \texttt{expand\_tree\_with\_strategy}, but it repeatedly calls
+the given strategy's \texttt{expand\_node} until the tree has at least
+the given limit of possible expansions.
+
+We can try it again on the same initial derivation tree as before.
+\begin{python}
+# derivation tree as before
+f = GrammarFuzzer(
+    EXPR_GRAMMAR,
+    min_nonterminals=3,
+    max_nonterminals=5,
+    log=True)
+f.expand_tree(derivation_tree)
+\end{python}
+What you'll probably see is one expansion at max cost, a few randoms, and then a sequence of min cost expansions.
+I end up with the tree of terminals \verb/5 - 9 - 5 + 1 * 9/ on one run, though of course you can get others (that's
+the whole point).
+
+\paragraph{Just a fuzzer.} We can abstract everything and provide just the \texttt{fuzz()} interface.
+\begin{python}
+    def fuzz_tree(self) -> DerivationTree:
+        """Produce a derivation tree from the grammar."""
+        tree = self.init_tree()
+        # print(tree)
+
+        # Expand all nonterminals
+        tree = self.expand_tree(tree)
+        if self.log:
+            print(repr(all_terminals(tree)))
+        if self.disp:
+            display(display_tree(tree))
+        return tree
+
+    def fuzz(self) -> str:
+        """Produce a string from the grammar."""
+        self.derivation_tree = self.fuzz_tree()
+        return all_terminals(self.derivation_tree)  
+\end{python}
+and we can invoke it easily:
+\begin{python}
+    f = GrammarFuzzer(EXPR_GRAMMAR)
+    print (f.fuzz())
+\end{python}
+There are sensible defaults for \texttt{min\_nonterminals} and \texttt{max\_nonterminals},
+and we get a relatively large input from the fuzzer. You can also retrieve the derivation tree
+by reading the \texttt{.derivation\_tree} property. One output you might get is:
+\begin{python}
++-(-1 * 8 * 7 - 9 * 5 + 4) / -2 + 031.429 * 2 * +--(+(8 + 1 - 3) / +1)
+\end{python}
+but it also might be as simple as
+\begin{python}
+-49 / 901 / 4
+\end{python}
+
+We have our other grammars \texttt{URL\_GRAMMAR} and \texttt{CGI\_GRAMMAR} which we can just plug in:
+\begin{python}
+https://user:password@www.google.com:33/abc?def=9
+%11%55_%6b+
+\end{python}
+The \emph{Fuzzing Book} times how long this fuzzer takes, comparing it to the \texttt{simple\_grammar\_fuzzer}
+above, and finds that it's much faster and produces smaller inputs. It concludes that we have much better control
+over grammar production.
+
+And, yes, we work just fine with the EBNF grammar motivating all of this extra development.
+\begin{python}
+    expr_grammar = convert_ebnf_grammar(EXPR_EBNF_GRAMMAR)
+    f = GrammarFuzzer(expr_grammar, max_nonterminals=10)
+    print (f.fuzz())
+\end{python}
+yields, for instance, input
+\begin{python}
+97.01 * 5 * 7 - 8 * 9 - (9 + 0)
+\end{python}
+and not an infinite loop.
+
+We will continue with techniques for learning grammars, probably.
 
 \bibliographystyle{alpha}
 \bibliography{L09}
