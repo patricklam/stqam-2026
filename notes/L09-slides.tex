@@ -666,5 +666,140 @@ and there are functions like \texttt{opts()}, \texttt{exp\_string()}, \texttt{ex
   \end{changemargin}
 \end{frame}
 
+\usebackgroundtemplate{\tikz\node[opacity=0.2]{\includegraphics[width=\paperwidth]{L09/04643_leading_tree_v1.jpg}};}
+\part{Efficient Grammar Fuzzing}
+\begin{frame}
+  \partpage
+\end{frame}
+
+\begin{frame}[fragile]
+  \Large
+  \begin{changemargin}{2em}
+    Strings\ldots really?\\[1em]
+    Easier to specify grammars, sure, but\ldots
+  \end{changemargin}
+\end{frame}
+
+\usebackgroundtemplate{}
+
+\begin{frame}[fragile]
+  \frametitle{A Simple Problem}
+  \Large
+  \begin{changemargin}{2em}
+\begin{python}
+expr_grammar = convert_ebnf_grammar(EXPR_EBNF_GRAMMAR)
+with ExpectTimeout(1):
+  simple_grammar_fuzzer(grammar=expr_grammar, max_nonterminals=3)
+\end{python}
+does indeed raise a \texttt{TimeoutError}.\\[1em]
+
+(see: \texttt{L09/simple\_grammar\_fuzzer\_problem.py})
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{(((}
+\begin{verbatim}
+(((((((((((((((((((((((((((((((((((((((((((((((((((((((
+(((((((((((((((((((((((((((((((((((((((((((((((((((((((
+(((((((((((((((((((((((((((((((((((((((((((((((((((((((
+(((((((((((((((((((((((((((((((((((((((((((((((((((((((
+(((((((((((((((((((((((((((((((((((((((((((((((((((((((
+(((((((((((((((((((((((((((((((((((((((((((((((<factor>
+)))))))))))))))))))))))))))))))))))))))))))))))))))))))
+)))))))))))))))))))))))))))))))))))))))))))))))))))))))
+)))))))))))))))))))))))))))))))))))) + ((((((((((((((((
+(((((((((((((((((((((((((((((((((((((((((((((((((((((((
+(((((((((((((((((((((((((((((((((((((((((((((((((((((((
+(((((((((((((((((((((((((((((((((((((((((((((((((((((((
+(((((((((Traceback (most recent call last):
+  File "/home/plam/courses/stqam-2026-working-notes/notes/code/L09/simple_grammar_fuzzer_problem.py", line 14, in main
+    simple_grammar_fuzzer(grammar=expr_grammar,
+         max_nonterminals=3, log=True)
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{))) Why?}
+
+  \Large
+  \begin{changemargin}{2em}
+Rule for \brac{factor} has RHS:
+\begin{python}
+['<sign-1><factor>', '(<expr>)', '<integer><symbol-1>']
+\end{python}
+
+\texttt{simple\_grammar\_fuzzer()} throws away generated
+strings with $> 3$ nonterminals.\\[1em]
+
+Only allowed alternative for \brac{factor} is
+\texttt{'(\brac{expr})'}.\\[1em]
+
+Other alternatives add a non-terminal,
+so the fuzzer won't.
+  \end{changemargin}
+\end{frame}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.1]{\includegraphics[width=\paperwidth]{L09/20251209_051044707_cessna_caravan_instruments.jpg}};}
+
+\begin{frame}[fragile]
+  \frametitle{Not enough control surfaces}
+
+  \Large
+  \begin{changemargin}{2em}
+    Any grammar-based approach can create arbitrarily long strings.\\[1em]
+    But \texttt{simple\_grammar\_fuzzer()} is too depth-first; we want more breadth.\\[1em]
+    The \texttt{max\_nonterminals} control is too coarse.\\[1em]
+  \end{changemargin}
+\end{frame}
+\usebackgroundtemplate{}
+
+\begin{frame}[fragile]
+  \frametitle{Too slow}
+
+  \Large
+  \begin{changemargin}{2em}
+    Also, we don't want to manipulate strings.
+  \end{changemargin}
+  \begin{center}
+    \includegraphics[width=.8\textwidth]{L09/slow_generation.png}
+  \end{center}
+\end{frame}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.4]{\includegraphics[width=\paperwidth]{L09/20251209_051044707_cessna_caravan_instruments.jpg}};}
+
+\begin{frame}[fragile]
+ \hspace*{2em}
+  {\Huge \color{blue} {\bf Better controls?}}
+\end{frame}
+\usebackgroundtemplate{}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.8]{\includegraphics[width=\paperwidth]{L09/04643_leading_tree_v1.jpg}};}
+\begin{frame}[fragile]
+ \hspace*{2em}
+  {\Huge \color{blue} {\bf Trees?}}
+\end{frame}
+\usebackgroundtemplate{}
+
+\begin{frame}[fragile]
+  \frametitle{Derivation Trees!}
+
+\begin{center}
+\begin{tikzpicture}[node distance=1.3cm]
+  \node[bt] (s)               {\brac{start}};
+  \node[bt] (e0) [below of=s] {\brac{expr}};
+  \node[bt,text width=1cm] (+) [below of=e0] {+};
+  \node[bt] (t) [left of=+,xshift=-1cm] {\brac{term}};
+  \node[bt] (e1) [right of=+,xshift=1cm] {\brac{expr}};
+
+  \path[->] (s) edge node {} (e0);
+  \path[->] (e0) edge node {} (t);
+  \path[->] (e0) edge node {} (+);
+  \path[->] (e0) edge node {} (e1);
+\end{tikzpicture}
+\end{center}
+
+\end{frame}
+
 
 \end{document}
