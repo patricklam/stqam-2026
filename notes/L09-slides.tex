@@ -1387,9 +1387,217 @@ Expanding <term> at minimum cost
   \end{changemargin}
 \end{frame}
 
+\usebackgroundtemplate{\tikz\node[opacity=0.4]{\includegraphics[width=\paperwidth]{L09/6941_balloons.jpg}};}
+\begin{frame}[fragile]
+  ~\\[1em]
+ \hspace*{2em}
+         {\Huge Idea 1.5: Node Inflation}
+         \\[1em]
+         \hspace*{2em} {\large also from Sean Luke, 2000.}
+\end{frame}
+\usebackgroundtemplate{}
+
 \begin{frame}[fragile]
   \frametitle{Node Inflation}
-  To Be Continued
+
+  \Large
+  \begin{changemargin}{2cm}
+    Want to make sure that our inputs are big enough.\\[1em]
+    Instead of min-cost expansion, find the \alert{max} cost:
+  \end{changemargin}
+
+  \begin{python}
+def expand_node_max_cost(self, node: DerivationTree) -> DerivationTree:
+    return self.expand_node_by_cost(node, max)
+  \end{python}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Experiencing Inflation}
+
+  \Large
+  \begin{changemargin}{2cm}
+and we can run it:
+  \end{changemargin}
+
+  \begin{python}
+>>> derivation_tree = ("<start>",
+                [("<expr>", [("<expr>", None),
+                   (" + ", []),
+                 ("<term>", None)]
+               )])
+>>> f = GrammarFuzzer(EXPR_GRAMMAR, log=True)
+>>> f.expand_node = f.expand_node_max_cost
+
+>>> # do this a number of times
+>>> if f.any_possible_expansions(derivation_tree):
+       derivation_tree = f.expand_tree_once(derivation_tree)
+  ...
+>>> print (all_terminals(derivation_tree))
+<expr> + +<factor> / <factor> / <term>
+\end{python}
+\end{frame}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.2]{\includegraphics[width=\paperwidth]{L09/PXL_20250620_082126897.jpg}};}
+\begin{frame}[fragile]
+  ~\\[1em]
+ \hspace*{2em}
+         {\Huge Combining Ideas: \\ \qquad max, random, min}
+\end{frame}
+\usebackgroundtemplate{}
+
+\begin{frame}[fragile]
+  \frametitle{Applying a strategy}
+
+  \Large
+  \begin{python}
+def expand_tree_with_strategy(self, tree: DerivationTree,
+                              expand_node_method: Callable,
+                              limit: Optional[int] = None):
+    """Expand tree using `expand_node_method`
+    until number of possible expansions reaches `limit`."""
+    self.expand_node = expand_node_method
+    while ((limit is None
+            or self.possible_expansions(tree) < limit)
+           and self.any_possible_expansions(tree)):
+        tree = self.expand_tree_once(tree)
+    return tree
+\end{python}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{max, then random, then min}
+
+  \Large
+  \begin{python}
+def expand_tree(self, tree: DerivationTree) -> DerivationTree:
+    """Expand `tree` in a three-phase strategy until all expansions are complete."""
+    tree = self.expand_tree_with_strategy(
+        tree, self.expand_node_max_cost, self.min_nonterminals)
+    tree = self.expand_tree_with_strategy(
+        tree, self.expand_node_randomly, self.max_nonterminals)
+    tree = self.expand_tree_with_strategy(
+        tree, self.expand_node_min_cost)
+
+    assert self.possible_expansions(tree) == 0
+    return tree
+  \end{python}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Creating a tree}
+
+  \begin{python}
+>>> derivation_tree = ("<start>",
+                [("<expr>", [("<expr>", None),
+                   (" + ", []),
+                 ("<term>", None)]
+               )])
+>>> f = GrammarFuzzer(
+         EXPR_GRAMMAR,
+         min_nonterminals=3,
+         max_nonterminals=5,
+         log=True)
+>>> f.expand_tree(derivation_tree)
+... (max x1, randomly x2, minimum x20) ...
+Tree: 3 * 5 - 1 + 8 * 9
+\end{python}
+\end{frame}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.3]{\includegraphics[width=\paperwidth]{L03/09038_lots_of_moss_v1.JPG}};}
+\begin{frame}[fragile]
+  ~\\[1em]
+ \hspace*{2em}
+         {\Huge Just a fuzzer}
+\end{frame}
+\usebackgroundtemplate{}
+
+\begin{frame}[fragile]
+  \frametitle{Abstract everything}
+  \begin{python}
+class GrammarFuzzer(Fuzzer):
+    def fuzz_tree(self) -> DerivationTree:
+        """Produce a derivation tree from the grammar."""
+        tree = self.init_tree()
+
+        # Expand all nonterminals
+        tree = self.expand_tree(tree)
+        return tree
+
+    def fuzz(self) -> str:
+        """Produce a string from the grammar."""
+        self.derivation_tree = self.fuzz_tree()
+        return all_terminals(self.derivation_tree)  
+  \end{python}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Easy Interface}
+
+\begin{changemargin}{1cm}
+  Sensible defaults make it easy to use:
+\end{changemargin}
+\begin{python}
+>>> f = GrammarFuzzer(EXPR_GRAMMAR)
+>>> print (f.fuzz())
++1 / 6
+>>> print (f.fuzz())
+6.4 * (3 * 0 / 3) - -91 * 5 / 8 * 8
+>>> g = GrammarFuzzer(URL_GRAMMAR)
+>>> print (g.fuzz())
+ftps://fuzzingbook.com
+>>> h = GrammarFuzzer(CGI_GRAMMAR)
+>>> print (h.fuzz())
+%d2
+\end{python}
+\begin{changemargin}{1cm}
+  Might also look at the derivation tree returned from \texttt{fuzz\_tree()}.
+\end{changemargin}
+\begin{python}
+>>> print (h.fuzz_tree())
+('<start>', [('<string>', [('<letter>', [('<other>', [('c', [])])])])])
+\end{python}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Concluding Remarks: Efficient Grammar Fuzzing}
+
+  \Large
+\begin{changemargin}{2cm}
+  \texttt{GrammarFuzzer} much faster than \texttt{simple\_grammar\_fuzzer} and produces smaller inputs.\\[1em]
+  Better control over grammar production (min, max nonterminals.)\\[1em]
+  Three phases: max, random, min.\\[1em]
+\end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Inefficient Grammar Fuzzing Times (EXPR\_GRAMMAR)}
+
+  \Large
+  \begin{center}
+    \includegraphics[width=.8\textwidth]{L09/slow_generation.png}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Efficient Grammar Fuzzing Times (EXPR\_GRAMMAR)}
+
+  \Large
+  \begin{center}
+    \includegraphics[width=.8\textwidth]{L09/grammarfuzzer_times.png}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{And it works on EBNF, too}
+
+\begin{python}
+>>> expr_grammar = convert_ebnf_grammar(EXPR_EBNF_GRAMMAR)
+>>> f = GrammarFuzzer(expr_grammar, max_nonterminals=10)
+>>> print (f.fuzz())
+97.01 * 5 * 7 - 8 * 9 - (9 + 0)
+\end{python}
+
 \end{frame}
 
 \end{document}
