@@ -77,7 +77,7 @@ do, else, case, break},
 
 \begin{document}
 
-\lecture{8 --- January 30, 2026}{Winter 2026}{Patrick Lam}{version 2}
+\lecture{8 --- January 30, 2026}{Winter 2026}{Patrick Lam}{version 3}
 
 American Fuzzy Lop\footnote{\url{http://lcamtuf.coredump.cx/afl/}} is
 a mutation-based fuzzing tool widely used in practice. It's easy to
@@ -793,6 +793,16 @@ We can also see that the blackbox fuzzer doesn't find much, while the greybox fu
 includes longer inputs.
 
 Still, even the counting greybox fuzzer doesn't have keywords like \verb+<html>+. We'll need to involve grammars to do that.
+
+\paragraph{Bonus: AFL with dictionaries.} Although we are going to talk about grammars next, AFL implements something
+that's less fancy. Unfortunately, I can't exactly understand what it does from the blogpost description\footnote{\url{https://lcamtuf.blogspot.com/2015/01/afl-fuzz-making-up-grammar-with.html}}.
+It does, however, take a list of input tokens, and ``mindlessly clobber the tokens together''. I don't really know what that means, but I know that
+the coverage-guided approach will look for more-interesting inputs. There is mention of this working especially well on \texttt{sqlite},
+generating interesting testcases.
+
+\paragraph{AFL with a corpus.} There is a further follow-up blogpost about using existing \texttt{sqlite} test cases as seeds for AFL\footnote{\url{https://lcamtuf.blogspot.com/2015/04/finding-bugs-in-sqlite-easy-way.html}}. There is mention of using \texttt{afl-cmin} and \texttt{afl-tmin} to minimize test cases, which we'll talk about in a bit. Using the provided tests worked much better than using a single test case (which already worked OK). And these finds were on top of what had already been found through fuzzing of \texttt{sqlite} previously.
+
+
 
 \bibliographystyle{alpha}
 \bibliography{L08}

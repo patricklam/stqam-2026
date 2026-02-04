@@ -27,13 +27,13 @@ https://docs.gitlab.com/user/application_security/sast/evaluation_guide/
 ** L07 intro to fuzzing / address sanitizer -> 70 minutes
 ** L08 mutation-based fuzzing -> exactly 80 minutes
       but also add https://www.fuzzingbook.org/html/GreyboxFuzzer.html
+      https://lcamtuf.blogspot.com/2015/01/afl-fuzz-making-up-grammar-with.html
+      https://lcamtuf.blogspot.com/2015/04/finding-bugs-in-sqlite-easy-way.html
 ** L09 grammar-based fuzzing [with about 20 slides leftover]
       https://www.fuzzingbook.org/html/Grammars.html
       https://www.fuzzingbook.org/html/GrammarFuzzer.html
 __ L10
       https://www.fuzzingbook.org/html/ConfigurationFuzzer.html
-      https://lcamtuf.blogspot.com/2015/01/afl-fuzz-making-up-grammar-with.html
-      https://lcamtuf.blogspot.com/2015/04/finding-bugs-in-sqlite-easy-way.html
 
 __ L11 constraint-based fuzzing / property based testing / automatic test generation
       https://www.fuzzingbook.org/html/APIFuzzer.html
@@ -41,6 +41,7 @@ __ L11 constraint-based fuzzing / property based testing / automatic test genera
       https://increment.com/testing/in-praise-of-property-based-testing/
 __ L12 reducing failure-inducing inputs 
       https://www.fuzzingbook.org/html/Reducer.html
+      afl-cmin, afl-tmin
 
       https://www.fuzzingbook.org/html/GrammarCoverageFuzzer.html
       https://www.fuzzingbook.org/html/GeneratorGrammarFuzzer.html
