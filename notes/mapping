@@ -8,7 +8,7 @@
 07 Fuzzing-Intro-and-Address-Sanitizer
 08 Mutation-Based-Fuzzing
 09 Grammar-Based-Fuzzing
-10 Fuzzing-APIs
+10 Fuzzing-Configurations
 11 Constraint-Based-Fuzzing-and-Property-Based-Testing
 12 Reducing-Failure-Inducing-Inputs
 14 Symbolic-Execution

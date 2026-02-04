@@ -1,0 +1,626 @@
+\documentclass{beamer}
+
+% TODO: print out https://www.fuzzingbook.org/code/Intro_Testing.py
+
+\usetheme{Boadilla}
+
+%\includeonlyframes{current}
+
+\usepackage{times}
+\usefonttheme{structurebold}
+\usepackage{listings}
+
+\usepackage{pgf}
+\usepackage{tikz}
+\usepackage{alltt}
+\usepackage[normalem]{ulem}
+\usetikzlibrary{arrows}
+\usetikzlibrary{automata}
+\usetikzlibrary{shapes}
+\usepackage{amsmath,amssymb}
+\usepackage{rotating}
+\usepackage{ulem}
+\usepackage{pythonhighlight}
+
+\usetikzlibrary{arrows,automata,shapes}
+\tikzstyle{block} = [rectangle, draw, fill=blue!20, 
+    text width=5em, text centered, rounded corners, minimum height=2em]
+\tikzstyle{bt} = [rectangle, draw, fill=blue!20, 
+    text width=4em, text centered, rounded corners, minimum height=2em]
+
+\lstdefinelanguage{JavaScript}{
+  keywords={typeof, new, true, false, catch, function, return, null, catch, switch, var, if, in, while, 
+do, else, case, break},
+  keywordstyle=\color{blue}\bfseries,
+  ndkeywords={class, export, boolean, throw, implements, import, this},
+  ndkeywordstyle=\color{darkgray}\bfseries,
+  identifierstyle=\color{black},
+  sensitive=false,
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  commentstyle=\color{purple}\ttfamily,
+  stringstyle=\color{red}\ttfamily,
+  morestring=[b]',
+  morestring=[b]''
+}
+
+%\setbeamercovered{dynamic}
+\setbeamertemplate{footline}[page number]{}
+\setbeamertemplate{navigation symbols}{}
+\usefonttheme{structurebold}
+
+\title{Software Testing, Quality Assurance \& Maintenance---Lecture 10}
+\author{Patrick Lam\\University of Waterloo}
+\date{February 6, 2026}
+
+\colorlet{redshaded}{red!25!bg}
+\colorlet{shaded}{black!25!bg}
+\colorlet{shadedshaded}{black!10!bg}
+\colorlet{blackshaded}{black!40!bg}
+
+\colorlet{darkred}{red!80!black}
+\colorlet{darkblue}{blue!80!black}
+\colorlet{darkgreen}{green!80!black}
+
+\newcommand{\rot}[1]{\rotatebox{90}{\mbox{#1}}}
+\newcommand{\gray}[1]{\mbox{#1}}
+
+\newenvironment{changemargin}[1]{% 
+  \begin{list}{}{% 
+    \setlength{\topsep}{0pt}% 
+    \setlength{\leftmargin}{#1}% 
+    \setlength{\rightmargin}{1em}
+    \setlength{\listparindent}{\parindent}% 
+    \setlength{\itemindent}{\parindent}% 
+    \setlength{\parsep}{\parskip}% 
+  }% 
+  \item[]}{\end{list}}
+
+\newcommand{\brac}[1]{\texttt{\textless #1\textgreater}}
+
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.3]{\includegraphics[width=\paperwidth]{L03/09038_lots_of_moss_v1.jpg}};}
+\part{Fuzzing Configurations}
+\begin{frame}
+  \partpage
+\end{frame}
+\usebackgroundtemplate{}
+
+\begin{frame}
+  \frametitle{Not Just Inputs}
+
+  \Large
+  \begin{changemargin}{2em}
+    So far: create program inputs through fuzzing \\ \qquad (mutation, generation).\\[1em]
+    Today: instead of inputs, consider program \alert{configurations}.
+  \end{changemargin}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{Command-line Options as Configurations}
+
+\begin{verbatim}
+$ autopep8 --help
+usage: autopep8 [-h] [--version] [-v] [-d] [-i]
+                [--global-config filename]
+                [--ignore-local-config] [-r] [-j n]
+                [-p n] [-a] [--experimental]
+                [--exclude globs] [--list-fixes]
+                [--ignore errors] [--select errors]
+                [--max-line-length n]
+                [--line-range line line]
+                [--hang-closing]
+                [--exit-code] [files ...]
+  ...
+\end{verbatim}
+  \Large
+  \begin{changemargin}{2em}
+    could also fuzz config files, registries, etc.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Three Takeaways}
+
+  \Large
+  \begin{changemargin}{2em}
+    \begin{enumerate}
+    \item configurations affect program behaviour;
+    \item you can automatically construct grammars for configurations;
+      \item these grammars can be used for fuzzing.
+    \end{enumerate}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Idea 1: Configurations are Important}
+
+\begin{verbatim}
+$ autopep8 --help
+...
+  --experimental        enable experimental fixes
+...
+\end{verbatim}
+
+  \Large
+\begin{changemargin}{2em}
+  Clearly this option affects which code paths are reachable.\\[1em]
+  \alert{Some code paths are only reachable under certain configuration options.}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{argparse}
+
+
+  \Large
+\begin{changemargin}{2em}
+  Options in Python: \texttt{getopt}, \texttt{optparse}, \alert{\texttt{argparse}}, \ldots\\[1em]
+\begin{python}
+def process_numbers():
+    parser = argparse.ArgumentParser
+                (description='Process some integers.')
+    parser.add_argument('integers', metavar='N', type=int, nargs='+')
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--sum', dest='accumulate',
+                       action='store_const',
+                       const=sum)
+    group.add_argument('--min', dest='accumulate',
+                       action='store_const',
+                       const=min) # [--max omitted]
+
+    args = parser.parse_args()
+    print(args.accumulate(args.integers))
+\end{python}
+
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Processing numbers}
+
+
+  \large
+\begin{changemargin}{2em}
+\begin{verbatim}
+$ python3 process-numbers.py --sum 2 4
+6
+\end{verbatim}
+\end{changemargin}
+
+\end{frame}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.3]{\includegraphics[width=\paperwidth]{L09/20221207_043128075_auckland_grammar_school.jpg}};}
+\begin{frame}[fragile]
+  ~\\[1em]
+  \hspace*{2em}
+  \begin{center}
+    {\Huge A Grammar for Configurations}
+  \end{center}
+\end{frame}
+\usebackgroundtemplate{}
+
+\begin{frame}[fragile]
+
+\begin{python}
+PROCESS_NUMBERS_EBNF_GRAMMAR: Grammar = {
+    "<start>": ["<operator> <integers>"],
+    "<operator>": ["--sum", "--min", "--max"],
+    "<integers>": ["<integer>", "<integers> <integer>"],
+    "<integer>": ["<digit>+"],
+    "<digit>": crange('0', '9')
+}
+
+assert is_valid_grammar(PROCESS_NUMBERS_EBNF_GRAMMAR)
+PROCESS_NUMBERS_GRAMMAR = convert_ebnf_grammar(PROCESS_NUMBERS_EBNF_GRAMMAR)
+\end{python}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{On GrammarCoverageFuzzer}
+
+
+  \Large
+  \begin{changemargin}{2em}
+    We have seen \texttt{GrammarFuzzer}.\\[1em]
+    We are not talking about \texttt{GrammarCoverageFuzzer},\\
+    but it ensures that all alternatives are covered.\\[1em]
+    (it is a drop-in replacement for \texttt{GrammarFuzzer}).
+\end{changemargin}
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{Fuzzing \texttt{process\_numbers} configurations}
+\begin{python}
+>>> f = GrammarFuzzer(PROCESS_NUMBERS_GRAMMAR, min_nonterminals=10)
+>>> for i in range(3):
+        args = f.fuzz().split()
+        print(args)
+        process_numbers(args)
+['--max', '9', '8', '8', '162', '559606', '07043719933614']
+7043719933614
+['--sum', '6', '7', '4', '90', '57', '9767']
+9931
+['--max', '6', '1', '6900', '3637']
+6900
+\end{python}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Can't we automate this?}
+
+  \Large
+  \begin{changemargin}{2em}
+    We manually proposed a grammar for \texttt{process\_numbers}.\\
+    That works, but is extra work.\\[1em]
+    Is there a better way?
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Insight 2: It's Already There}
+
+  \Large
+  \begin{changemargin}{2em}
+    The program already instructs \texttt{argparse}
+    about which arguments it'll accept.\\[1em]
+
+    Idea: \alert{Construct the grammar from the program.}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{\emph{Fuzzing Book} approach: dynamic analysis}
+
+  \Large
+  \begin{changemargin}{2em}
+    Observe program's calls to \texttt{argparse} to reconstruct the grammar.\\[1em]
+    Notes:
+    \begin{enumerate}
+    \item for Python, dynamic analysis probably easier than static analysis;
+    \item our implementation only works for specifically \texttt{argparse}.
+    \end{enumerate}
+    ~\\[1em]
+    Another approach: use a domain-specific language for options,\\
+    generate code \& grammar from that.
+  \end{changemargin}
+\end{frame}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.3]{\includegraphics[width=\paperwidth]{L10/20250212_210926273_esf.jpg}};}
+\part{Mining Configurations}
+\begin{frame}
+  \partpage
+\end{frame}
+\usebackgroundtemplate{}
+
+\begin{frame}[fragile]
+  \frametitle{Key idea, again}
+
+  \Large
+  \begin{changemargin}{2em}
+    Use Python tracing infrastructure to\\
+    \alert{track calls to \texttt{argparse},\\
+      recording parameters,\\
+      to construct the grammar.}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Exploratory code}
+
+  \Large
+  \begin{changemargin}{2cm}
+    A tracing function that observes \texttt{add\_argument} calls:
+  \end{changemargin}
+\begin{python}
+def trace_options(frame, event, arg):
+  if event != "call":
+      return
+  method_name = frame.f_code.co_name
+  if method_name != "add_argument":
+      return
+  locals = frame.f_locals
+  print(locals['args'])
+\end{python}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Exploring}
+
+  \Large
+  \begin{changemargin}{2cm}
+Let's exercise our code.
+  \end{changemargin}
+\begin{python}
+>>> sys.settrace(trace_options)
+>>> process_numbers(["--sum", "1", "2", "3"])
+('-h', '--help')
+('integers',)
+('--sum',)
+('--min',)
+('--max',)
+6
+>>> sys.settrace(None)
+\end{python}
+We can indeed see the arguments being added.
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Implementation highlights}
+
+  \Large
+  \begin{changemargin}{2cm}
+    The \emph{Fuzzing Book} exhaustively presents \texttt{OptionGrammarMiner}'s implementation. We won't.
+  \end{changemargin}
+  \begin{python}
+class OptionGrammarMiner:
+    def __init__(self, function: Callable, log: bool = False):
+        self.function = function
+        self.log = log
+
+    def mine_ebnf_grammar(self):
+        # ...
+  \end{python}
+  \begin{changemargin}{2cm}
+  Usage:
+  \begin{enumerate}
+    \item create an \texttt{OptionGrammarMiner} with the function that calls \texttt{argparse},
+    \item trigger it by calling its \texttt{mine\_ebnf\_grammar()} method.
+  \end{enumerate}
+
+  \end{changemargin}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{\texttt{mine\_ebnf\_grammar} highlights}
+
+  \Large
+  \begin{changemargin}{2cm}
+    \texttt{mine\_ebnf\_grammar()} enables tracing \& calls provided \texttt{function}.\\[1em]
+    \texttt{function} runs until \texttt{parse\_args()} called.\\[1em]
+    
+  \end{changemargin}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{\texttt{mine\_ebnf\_grammar}'s tracer}
+
+  \Large
+  \begin{changemargin}{2cm}
+    Tracer watches calls to \texttt{add\_argument}, \texttt{add\_mutually\_exclusive}, and \texttt{add\_argument\_group}.\\[1em]
+    For instance, \texttt{add\_argument} may call
+\begin{python}
+    def add_str_rule(self):
+        self.grammar["<str>"] = ["<char>+"]
+        self.grammar["<char>"] = srange(
+            string.digits
+            + string.ascii_letters
+            + string.punctuation)
+\end{python}
+    
+  \end{changemargin}
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{\texttt{mine\_ebnf\_grammar} in action}
+
+\begin{python}
+>>> miner = OptionGrammarMiner(process_numbers, log=True)
+>>> process_numbers_grammar = miner.mine_ebnf_grammar()
+>>> print (process_numbers_grammar)
+...
+{'<start>': ['<group>(<option>)*<arguments>'],
+ '<option>': [' -h', ' --help'],
+ '<arguments>': ['( <integers>)+'],
+ '<int>': ['(-)?<digit>+'],
+ '<digit>': ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
+ '<integers>': ['<int>'],
+ '<group>': [' --sum', ' --min', ' --max']}
+\end{python}
+    
+
+\end{frame}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.3]{\includegraphics[width=\paperwidth]{L03/09038_lots_of_moss_v1.jpg}};}
+\part{Fuzzing Mined Grammars}
+\begin{frame}
+  \partpage
+\end{frame}
+\usebackgroundtemplate{}
+
+\begin{frame}[fragile]
+  \frametitle{Yes, we can\ldots}
+
+  \Large
+  \begin{changemargin}{2cm}
+    \ldots fuzz mined options grammars.
+  \end{changemargin}
+\begin{python}
+>>> grammar = convert_ebnf_grammar(process_numbers_grammar)
+>>> assert is_valid_grammar(grammar)
+>>> f = GrammarFuzzer(grammar)
+>>> for i in range(10):
+>>>     print(f.fuzz())
+ --sum -h 19
+ --max -09 4
+ --min -685 -8
+ --max 73 4731240
+ --max --help --help -h 0 0 -34
+ --min --help 57
+ --max -6820 8
+ --sum 96
+ --min 7 -76 -61
+ --max --help 56
+\end{python}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Another example: \texttt{autopep8}}
+
+\begin{python}
+>>> autopep8_miner = OptionGrammarMiner(autopep8)
+>>> autopep8_ebnf_grammar = autopep8_miner.mine_ebnf_grammar()
+>>> print (autopep8_ebnf_grammar["<option>"])
+[' -h', ' --help', ' --version', ' -v', ' --verbose', ' -d', ' --diff', ' -i', ' --in-place', ' --global-config <filename>', ' --ignore-local-config', ' -r', ' --recursive', ' -j <n>', ' --jobs <n>', ' -p <n>', ' --pep8-passes <n>', ' -a', ' --aggressive', ' --experimental', ' --exclude <globs>', ' --list-fixes', ' --ignore <errors>', ' --select <errors>', ' --max-line-length <n>', ' --line-range <line> <line>', ' --range <line> <line>', ' --indent-size <int>', ' --hang-closing', ' --exit-code']
+\end{python}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{\texttt{autopep8} extracted grammar}
+
+Extracts correct types for lines and files:
+\begin{python}
+>>> print (autopep8_ebnf_grammar["<line>"])
+['<int>']
+>>> print (autopep8_ebnf_grammar["<arguments>"])
+['( <files>)*']
+>>> print (autopep8_ebnf_grammar["<files>"])
+['<str>']
+\end{python}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Fuzzing extracted \texttt{autopep8} grammar}
+
+\begin{python}
+>>> autopep8_grammar = convert_ebnf_grammar(autopep8_ebnf_grammar)
+>>> assert is_valid_grammar(autopep8_grammar)
+>>> f = GrammarFuzzer(autopep8_grammar, max_nonterminals=4)
+>>> for i in range(10):
+>>>     print(f.fuzz())
+ foo.py
+ --range 9 9 foo.py
+ --diff --help foo.py
+ foo.py
+ --jobs -64621 foo.py
+ foo.py
+ foo.py
+ --indent-size -8 --list-fixes foo.py
+ foo.py
+ foo.py
+\end{python}
+\texttt{GrammarCoverageFuzzer} would be much better, oh well.\\[1em]
+Could run \texttt{autopep8} with these inputs.
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Not shown: yet more examples}
+
+  \Large
+  \begin{changemargin}{2cm}
+    With some machinery to run arbitrary Python programs (that use \texttt{argparse}),
+    carry out configuration fuzzing for:
+    \begin{itemize}
+      \item  \texttt{mypy} static type checker
+      \item \texttt{notedown} Notebook to Markdown converter.
+    \end{itemize}
+  \end{changemargin}
+\end{frame}
+
+
+
+\usebackgroundtemplate{\tikz\node[opacity=0.3]{\includegraphics[width=\paperwidth]{L10/0088_pears.JPG}};}
+\part{Combinatorial Testing}
+\begin{frame}
+  \partpage
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Option interaction}
+
+  \Large
+  \begin{changemargin}{2cm}
+    \texttt{GrammarCoverageFuzzer} would cover all options.\\[1em]
+    But, options also interact.\\
+    Would be prudent to test pairs of options together.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{All pairs}
+  \begin{python}
+>>> autopep8_miner = OptionGrammarMiner(autopep8)
+>>> autopep8_ebnf_grammar = autopep8_miner.mine_ebnf_grammar()
+>>> option_list = autopep8_ebnf_grammar["<option>"]
+>>> pairs = list(combinations(option_list, 2))
+>>> print (len(pairs))
+435
+>>> print (pairs[:20])
+[(' -h', ' --help'), (' -h', ' --version'), (' -h', ' -v'), (' -h', ' --verbose'), (' -h', ' -d'), (' -h', ' --diff'), (' -h', ' -i'), (' -h', ' --in-place'), (' -h', ' --global-config <filename>'), (' -h', ' --ignore-local-config'), (' -h', ' -r'), (' -h', ' --recursive'), (' -h', ' -j <n>'), (' -h', ' --jobs <n>'), (' -h', ' -p <n>'), (' -h', ' --pep8-passes <n>'), (' -h', ' -a'), (' -h', ' --aggressive'), (' -h', ' --experimental'), (' -h', ' --exclude <globs>')]
+  \end{python}
+  \begin{changemargin}{2cm}
+    Per \emph{Fuzzing Book}: pairs is usually enough, don't need triples or more.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Pairs grammar}
+  \begin{python}
+>>> def pairwise(option_list):
+       return [option_1 + option_2
+               for (option_1, option_2) in combinations(option_list, 2)]
+
+>>> pairwise_autopep8_grammar=extend_grammar(autopep8_grammar)
+>>> pairwise_autopep8_grammar["<option>"] = pairwise(autopep8_grammar["<option>"])
+>>> assert is_valid_grammar(pairwise_autopep8_grammar)
+
+>>> pairwise_autopep8_fuzzer = GrammarFuzzer(pairwise_autopep8_grammar, max_nonterminals=4)
+>>> for i in range(10):
+       print (pairwise_autopep8_fuzzer.fuzz())
+
+ FYZcX s
+ Y u C
+ =kD
+ -h --in-place }
+
+ C ap
+ -j -5 --list-fixes
+ q ?
+ --global-config w --ignore-local-config 0 L
+
+  \end{python}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Counting}
+
+  \Large
+  \begin{changemargin}{2cm}
+    For \texttt{autopep8}, there are 870 pairs.\\[1em]
+    \texttt{GrammarCoverageFuzzer} would be quite useful to reach all 870.\\[2em]
+    For \texttt{mypy}, there are 140 options and 28,000 options.\\
+    But this takes less than 3 hours at 1 run per second.
+  \end{changemargin}
+\end{frame}
+\usebackgroundtemplate{}
+
+\begin{frame}[fragile]
+  \frametitle{Generalization to Inputs}
+
+  \Large
+  \begin{changemargin}{2cm}
+    We've seen grammar inference and fuzzing for configurations.\\[1em]
+    Can do something similar for some inputs as well.\\[1em]
+    See \emph{Fuzzing Book} under ``Mining Input Grammars'',
+    and also the paper by Bettscheider \& Zeller.
+  \end{changemargin}
+\end{frame}
+
+
+\usebackgroundtemplate{}
+
+\end{document}
