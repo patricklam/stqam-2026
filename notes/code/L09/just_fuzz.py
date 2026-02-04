@@ -1,3 +1,5 @@
+# Code from The Fuzzing Book, https://www.fuzzingbook.org
+
 from typing import Dict, List, Tuple, Optional, Set, Callable, Any, Union
 from fuzzer import Fuzzer
 from grammars import *

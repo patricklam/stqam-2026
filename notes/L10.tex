@@ -1,0 +1,397 @@
+\documentclass[11pt]{article}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage[listings]{tcolorbox}
+\usepackage{tikz}
+\usepackage{url}
+\usepackage{inconsolata}
+\usepackage{pythonhighlight}
+
+%\usepackage{algorithm2e}
+\usetikzlibrary{arrows,automata,shapes}
+\tikzstyle{block} = [rectangle, draw, fill=blue!20, 
+    text width=5em, text centered, rounded corners, minimum height=2em]
+\tikzstyle{bt} = [rectangle, draw, fill=blue!20, 
+    text width=4em, text centered, rounded corners, minimum height=2em]
+
+\lstset{ %
+language=Java,
+basicstyle=\ttfamily,commentstyle=\scriptsize\itshape,showstringspaces=false,breaklines=true,numbers=left}
+\newtcbinputlisting{\codelisting}[3][]{
+    extrude left by=1em,
+    extrude right by=2em,
+    listing file={#3},
+    fonttitle=\bfseries,
+    listing options={basicstyle=\ttfamily\footnotesize,numbers=left,language=Java,#1},
+    listing only,
+    hbox,
+}
+\lstdefinelanguage{JavaScript}{
+  keywords={typeof, new, true, false, catch, function, return, null, catch, switch, var, if, in, while, 
+do, else, case, break},
+  keywordstyle=\color{blue}\bfseries,
+  ndkeywords={class, export, boolean, throw, implements, import, this},
+  ndkeywordstyle=\color{darkgray}\bfseries,
+  identifierstyle=\color{black},
+  sensitive=false,
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  commentstyle=\color{purple}\ttfamily,
+  stringstyle=\color{red}\ttfamily,
+  morestring=[b]',
+  morestring=[b]''
+}
+
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf Software Testing, Quality Assurance and Maintenance } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{#4}{Lecture #1}}
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+\newcommand{\brac}[1]{\texttt{\textless #1\textgreater}}
+
+\begin{document}
+
+\lecture{10 --- February 6, 2026}{Winter 2026}{Patrick Lam}{version 1}
+
+We've talked about fuzzing using mutation and using grammars. So far, we've
+been fuzzing program inputs. But we can also fuzz, for instance, configurations,
+and that's what we'll talk about today, following \url{https://www.fuzzingbook.org/html/ConfigurationFuzzer.html}.
+
+There are three main takeaways from this lecture. (1) things
+influencing program execution isn't just inputs, it's also information
+from other sources, like configurations; (2) you can observe
+dynamically program behaviour to automatically construct grammars for
+configurations; (3) these grammars can be used for grammar fuzzing.
+
+To expand on that: in the previous lecture, we showed that if we have
+a grammar, we can produce inputs based on that grammar. But, where do grammars
+come from? It is sometimes possible to mine grammars for inputs,
+but I don't think we'll go there this term. It is easier to mine configurations than inputs,
+and we'll do that.
+
+\section*{Configuration Options}
+Command-line programs take configuration options. \texttt{autopep8} is a code reformatter
+and takes these options:
+\begin{verbatim}
+$ autopep8 --help
+usage: autopep8 [-h] [--version] [-v] [-d] [-i] [--global-config filename]
+                [--ignore-local-config] [-r] [-j n] [-p n] [-a] [--experimental]
+                [--exclude globs] [--list-fixes] [--ignore errors] [--select errors]
+                [--max-line-length n] [--line-range line line] [--hang-closing]
+                [--exit-code] [files ...]
+\end{verbatim}
+The first idea in this lecture is that \emph{because some code paths are only reachable under certain configuration
+options, it is important to also cover the program's configuration options when testing it}. We are going to
+consider command-line configuration options, though configuration
+information might also come from configuration files. Configuration
+languages can be notoriously complicated, e.g. \texttt{sendmail}, a
+UNIX mail transfer agent, has book-length descriptions of its configuration.
+
+\section*{argparse in Python}
+There are many command-line parsing libraries. Python has at least \texttt{getopt},
+\texttt{optparse}, and \texttt{argparse}. We'll talk about \texttt{argparse}, which is
+higher-level than the others that I mention.
+
+In \texttt{code/L10/process-numbers.py} you can find this code:
+\begin{python}
+def process_numbers():
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('integers', metavar='N', type=int, nargs='+',
+                        help='an integer for the accumulator')
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--sum', dest='accumulate', action='store_const',
+                       const=sum,
+                       help='sum the integers')
+    group.add_argument('--min', dest='accumulate', action='store_const',
+                       const=min,
+                       help='compute the minimum')
+    group.add_argument('--max', dest='accumulate', action='store_const',
+                       const=max,
+                       help='compute the maximum')
+
+    if args is not None:
+        args = parser.parse_args(args)
+    else:
+        args = parser.parse_args()
+    print(args.accumulate(args.integers))
+\end{python}
+This takes a accumulator command, which can be \texttt{-{}-sum}, \texttt{-{}-min}, or \texttt{-{}-max}.
+It also takes a list of integers, and applies the accumulator to the integers. So, for instance:
+
+\begin{verbatim}
+$ python3 process-numbers.py --sum 2 4
+6
+\end{verbatim}
+
+\section*{A Grammar for Configurations}
+Before we go and infer grammars, let's write a grammar for this program.
+\begin{python}
+PROCESS_NUMBERS_EBNF_GRAMMAR: Grammar = {
+    "<start>": ["<operator> <integers>"],
+    "<operator>": ["--sum", "--min", "--max"],
+    "<integers>": ["<integer>", "<integers> <integer>"],
+    "<integer>": ["<digit>+"],
+    "<digit>": crange('0', '9')
+}
+
+assert is_valid_grammar(PROCESS_NUMBERS_EBNF_GRAMMAR)
+PROCESS_NUMBERS_GRAMMAR = convert_ebnf_grammar(PROCESS_NUMBERS_EBNF_GRAMMAR)
+\end{python}
+We can print \texttt{PROCESS\_NUMBERS\_GRAMMAR} and get what we would expect.
+
+I've chosen to not talk about the \texttt{GrammarCoverageFuzzer} from the \emph{Fuzzing Book}, which
+ensures (on subsequent runs) that all productions are covered. We can use the
+\texttt{GrammarFuzzer} from last time, though.
+
+\begin{python}
+f = GrammarFuzzer(PROCESS_NUMBERS_GRAMMAR, min_nonterminals=10)
+for i in range(3):
+    args = f.fuzz().split()
+    print(args)
+    process_numbers(args)
+\end{python}
+produces the following output:
+\begin{python}
+['--max', '9', '8', '8', '162', '559606', '07043719933614']
+7043719933614
+['--sum', '6', '7', '4', '90', '57', '9767']
+9931
+['--max', '6', '1', '6900', '3637']
+6900
+\end{python}
+Sure, this works, but can't we just extract the grammar from the program?
+The program already instructs \texttt{argparse} about the arguments it will accept,
+after all.
+
+The \emph{Fuzzing Book} uses a dynamic analysis approach: it observes the program's calls
+to \texttt{argparse} to reconstruct the grammar. Two comments about that.
+\begin{itemize}[noitemsep]
+  \item For Python, dynamic analysis is probably easier
+than static analysis, since Python has pretty complete built-in introspection
+abilities. Sometimes, static analysis can be easier than dynamic analysis, especially
+when actually running the full software is difficult.
+\item The approach here is tied to the use of \texttt{argparse}, and different argument
+  parsing libraries would require different grammar mining techniques.
+\end{itemize}
+Another approach that I've seen is to autogenerate the calls to the argument parsing library
+from a declarative definition of the program's arguments. This complicates the build
+process, but it simplifies building a grammar for the arguments.
+
+\section*{Mining Configuration Options}
+As I wrote above, the second idea is that \emph{we can track calls to \texttt{argparse} and record the parameters to construct the grammar}.
+Recording continues until the call to \texttt{argparse.parse\_args()} and construction happens after that.
+
+We used Python's tracing infrastructure to collect coverage information before.
+We now use it to track calls to \texttt{add\_argument} in \texttt{argparse}:
+\begin{python}
+def trace_options(frame, event, arg):
+  if event != "call":
+      return
+  method_name = frame.f_code.co_name
+  if method_name != "add_argument":
+      return
+  locals = frame.f_locals
+  print(locals['args'])
+\end{python}
+and we try it out:
+\begin{python}
+>>> sys.settrace(trace_options)
+>>> process_numbers(["--sum", "1", "2", "3"])
+('-h', '--help')
+('integers',)
+('--sum',)
+('--min',)
+('--max',)
+6
+>>> sys.settrace(None)
+\end{python}
+We can observe the calls to \texttt{argparse.add\_argument}, as well as the output to our call (6).
+These are the calls that are in our \texttt{process\_numbers} implementation and consistent
+with the API documentation for \texttt{add\_argument()}.
+
+There is a lot of infrastructure from the \emph{Fuzzing Book} which I
+won't include in the notes; once again, I'll try to include only the
+most important points. I've put all the code in \texttt{code/L10/option\_grammar\_miner.py}.
+
+We define a \texttt{OptionGrammarMiner} class which takes a function to mine. This is the
+function that transitively constructs the \texttt{ArgumentParser} object; in our example,
+we would mine \texttt{process\_numbers()}.
+
+The key method on the miner is \texttt{mine\_ebnf\_grammar()}, which returns a mined grammar
+containing some number of options and some number of arguments:
+\begin{verbatim}
+<start> ::= <option>* <arguments>
+<option> ::= <empty>
+<arguments> ::= <empty>
+\end{verbatim}
+The mining function enables tracing and calls the provided \texttt{function}, running it until a
+\texttt{ParseInterrupt} is thrown.
+
+The tracer function throws a \texttt{ParseInterrupt}
+when \texttt{function} calls \texttt{parse\_args()}, indicating that there are no more
+arguments to be added.
+
+The tracer function also acts on calls to \texttt{argparse}'s \texttt{add\_argument},
+\texttt{add\_mutually\_exclusive\_group}, and \texttt{add\_argument\_group} methods.
+There's a lot of implementation detail, which I don't think is productive to explain here.
+But I'll show one of the ways that the code adds something to the grammar,
+in the event that it observes a argument marked to be a string type (as specified
+in the call to \texttt{add\_argument}).
+\begin{python}
+    def add_str_rule(self):
+        self.grammar["<str>"] = ["<char>+"]
+        self.grammar["<char>"] = srange(
+            string.digits
+            + string.ascii_letters
+            + string.punctuation)
+\end{python}
+We can run the code that I haven't shown you and, indeed, extract a grammar:
+\begin{python}
+>>> miner = OptionGrammarMiner(process_numbers, log=True)
+>>> process_numbers_grammar = miner.mine_ebnf_grammar()
+>>> print (process_numbers_grammar)
+...
+{'<start>': ['<group>(<option>)*<arguments>'],
+ '<option>': [' -h', ' --help'],
+ '<arguments>': ['( <integers>)+'],
+ '<int>': ['(-)?<digit>+'],
+ '<digit>': ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
+ '<integers>': ['<int>'],
+ '<group>': [' --sum', ' --min', ' --max']}
+\end{python}
+And, we can apply the third observation---that \emph{this grammar can be used for fuzzing}:
+\begin{python}
+>>> grammar = convert_ebnf_grammar(process_numbers_grammar)
+>>> assert is_valid_grammar(grammar)
+>>> f = GrammarFuzzer(grammar)
+>>> for i in range(10):
+>>>     print(f.fuzz())
+ --sum -h 19
+ --max -09 4
+ --min -685 -8
+ --max 73 4731240
+ --max --help --help -h 0 0 -34
+ --min --help 57
+ --max -6820 8
+ --sum 96
+ --min 7 -76 -61
+ --max --help 56
+\end{python}
+
+\section*{Example: autopep8}
+The \emph{Fuzzing Book} shows that we can apply our machinery on real Python applications,
+including \texttt{autopep8}, which re-styles Python code.
+
+\begin{python}
+>>> autopep8_miner = OptionGrammarMiner(autopep8)
+>>> autopep8_ebnf_grammar = autopep8_miner.mine_ebnf_grammar()
+>>> print (autopep8_ebnf_grammar["<option>"])
+[' -h', ' --help', ' --version', ' -v', ' --verbose', ' -d', ' --diff', ' -i', ' --in-place', ' --global-config <filename>', ' --ignore-local-config', ' -r', ' --recursive', ' -j <n>', ' --jobs <n>', ' -p <n>', ' --pep8-passes <n>', ' -a', ' --aggressive', ' --experimental', ' --exclude <globs>', ' --list-fixes', ' --ignore <errors>', ' --select <errors>', ' --max-line-length <n>', ' --line-range <line> <line>', ' --range <line> <line>', ' --indent-size <int>', ' --hang-closing', ' --exit-code']
+>>> print (autopep8_ebnf_grammar["<line>"])
+['<int>']
+>>> print (autopep8_ebnf_grammar["<arguments>"])
+['( <files>)*']
+>>> print (autopep8_ebnf_grammar["<files>"])
+['<str>']
+\end{python}
+We can observe that our miner extracts the correct types for lines and files. And, of course,
+we can fuzz with this grammar. We set the arguments to a single file \texttt{foo.py}.
+\begin{python}
+>>> autopep8_grammar = convert_ebnf_grammar(autopep8_ebnf_grammar)
+>>> assert is_valid_grammar(autopep8_grammar)
+>>> f = GrammarFuzzer(autopep8_grammar, max_nonterminals=4)
+>>> for i in range(10):
+>>>     print(f.fuzz())
+ foo.py
+ --range 9 9 foo.py
+ --diff --help foo.py
+ foo.py
+ --jobs -64621 foo.py
+ foo.py
+ foo.py
+ --indent-size -8 --list-fixes foo.py
+ foo.py
+ foo.py
+\end{python}
+Using a \texttt{GrammarCoverageFuzzer} would be better, but we didn't explain that, and
+there is also a lot of implementation for that class.
+
+You can actually run \texttt{autopep8} with the provided inputs as well, but we won't show that.
+
+The \emph{Fuzzing Book} also shows configuration fuzzing for the \texttt{mypy} static type checker
+and the \texttt{notedown} Notebook to Markdown converter.
+
+\section*{Combinatorial Testing}
+Had we used a \texttt{GrammarCoverageFuzzer}, we'd visit each option at least once. But options
+also interact, and it would be prudent to test pairs of options together. There should be some
+memories of MATH 239 here.
+
+We can import \texttt{combinations} from the Python \texttt{itertools} and then get all
+pairs of options:
+\begin{python}
+>>> autopep8_miner = OptionGrammarMiner(autopep8)
+>>> autopep8_ebnf_grammar = autopep8_miner.mine_ebnf_grammar()
+>>> option_list = autopep8_ebnf_grammar["<option>"]
+>>> pairs = list(combinations(option_list, 2))
+>>> print (len(pairs))
+435
+>>> print (pairs[:20])
+[(' -h', ' --help'), (' -h', ' --version'), (' -h', ' -v'), (' -h', ' --verbose'), (' -h', ' -d'), (' -h', ' --diff'), (' -h', ' -i'), (' -h', ' --in-place'), (' -h', ' --global-config <filename>'), (' -h', ' --ignore-local-config'), (' -h', ' -r'), (' -h', ' --recursive'), (' -h', ' -j <n>'), (' -h', ' --jobs <n>'), (' -h', ' -p <n>'), (' -h', ' --pep8-passes <n>'), (' -h', ' -a'), (' -h', ' --aggressive'), (' -h', ' --experimental'), (' -h', ' --exclude <globs>')]
+\end{python}
+The \emph{Fuzzing Book} asserts that pairs is usually enough to cover all interferences between
+options; three-option interactions are rare.
+
+We can create a new grammar with pairs of options.
+\begin{python}
+>>> def pairwise(option_list):
+       return [option_1 + option_2
+               for (option_1, option_2) in combinations(option_list, 2)]
+
+>>> pairwise_autopep8_grammar = extend_grammar(autopep8_grammar)
+>>> pairwise_autopep8_grammar["<option>"] = pairwise(autopep8_grammar["<option>"])
+>>> assert is_valid_grammar(pairwise_autopep8_grammar)
+
+>>> pairwise_autopep8_fuzzer = GrammarFuzzer(pairwise_autopep8_grammar, max_nonterminals=4)
+>>> for i in range(10):
+       print (pairwise_autopep8_fuzzer.fuzz())
+
+ FYZcX s
+ Y u C
+ =kD
+ -h --in-place }
+
+ C ap
+ -j -5 --list-fixes
+ q ?
+ --global-config w --ignore-local-config 0 L
+
+\end{python}
+There are 870 pairs to cover. The \texttt{GrammarCoverageFuzzer} would be quite useful here.
+Even if there are 140 options, as for \texttt{mypy}, then we would have 28,000 pairs of options,
+which is still less than three hours of testing if a run takes 1 second.
+
+\end{document}
