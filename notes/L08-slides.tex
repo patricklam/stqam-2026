@@ -1115,4 +1115,41 @@ We'll need to involve grammars to do that.
   \end{changemargin}
 \end{frame}
 
+
+\usebackgroundtemplate{\tikz\node[opacity=0.3]{\includegraphics[width=\paperwidth]{L08/00296_bunny_v1.jpg}};}
+\part{Bonus: more AFL content}
+\begin{frame}
+  \partpage
+\end{frame}
+\usebackgroundtemplate{}
+
+
+\begin{frame}[fragile]
+  \frametitle{AFL with Dictionaries}
+  \begin{changemargin}{2em}
+    Next topic is grammars, but dictionaries of tokens are easier.\\[1em]
+
+    From what I understand:
+\begin{itemize}
+  \item accept a list of input tokens;
+  \item ``mindlessly clobber the tokens together''.
+\end{itemize}
+Combined with coverage-guided approach: finds more-interesting inputs.\\[1em]
+Application: worked on \texttt{sqlite}.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{AFL with a corpus}
+  \begin{changemargin}{2em}
+    Further followup: using \texttt{sqlite} test cases as seeds for AFL.\\[1em]
+    Also: use \texttt{afl-cmin} and \texttt{afl-tmin} to minimize test cases (we'll see minimization soon).\\[1em]
+    Using provided test suites works much better than using a single test case as seed.\\[1em]
+    This improvement is for \texttt{sqlite}, which had previously been fuzzed, too.
+    
+  \end{changemargin}
+\end{frame}
+
+
+
 \end{document}

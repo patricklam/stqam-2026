@@ -394,4 +394,11 @@ There are 870 pairs to cover. The \texttt{GrammarCoverageFuzzer} would be quite 
 Even if there are 140 options, as for \texttt{mypy}, then we would have 28,000 pairs of options,
 which is still less than three hours of testing if a run takes 1 second.
 
+\section*{Generalization to Inputs}
+It is possible to use similar techniques to automatically derive input grammars based on input handling code.
+We don't do that, but you can find a description in the Fuzzing Book: \url{https://www.fuzzingbook.org/html/GrammarMiner.html}.
+There is also \cite{bettscheider25:_infer_input_gramm_code_symbol_parsin}, where Bettscheider and Zeller describe how they infer a grammar from recursive descent parser implementation code.
+\bibliographystyle{alpha}
+\bibliography{L09}
+
 \end{document}
