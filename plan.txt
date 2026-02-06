@@ -34,18 +34,28 @@ https://docs.gitlab.com/user/application_security/sast/evaluation_guide/
       https://www.fuzzingbook.org/html/GrammarFuzzer.html
 ** L10 configuration fuzzing
       https://www.fuzzingbook.org/html/ConfigurationFuzzer.html
-__ L11 constraint-based fuzzing / property based testing / automatic test generation
-      https://increment.com/testing/in-praise-of-property-based-testing/
 
-      https://www.fuzzingbook.org/html/APIFuzzer.html
-      https://www.fuzzingbook.org/html/FuzzingWithConstraints.html
-__ L12 reducing failure-inducing inputs 
+__ L11 reducing failure-inducing inputs 
       https://www.fuzzingbook.org/html/Reducer.html
       afl-cmin, afl-tmin
 
-      too long:
+if time permits:
+      https://www.fuzzingbook.org/html/APIFuzzer.html
+
+__ L12 property based testing  ... ( automatic test generation )
+      https://increment.com/testing/in-praise-of-property-based-testing/
+
+      https://www.tedinski.com/2018/12/11/fuzzing-and-property-testing.html
+      https://www.tedinski.com/2018/05/01/designing-imperative-code-with-properties-in-mind.html
+      https://hypothesis.works/articles/what-is-property-based-testing/
+      https://hypothesis.readthedocs.io/en/latest/tutorial/introduction.html
+      https://fsharpforfunandprofit.com/posts/property-based-testing-2/
+
+
+      too long/no time
       https://www.fuzzingbook.org/html/GrammarCoverageFuzzer.html
       https://www.fuzzingbook.org/html/GeneratorGrammarFuzzer.html
+      https://www.fuzzingbook.org/html/FuzzingWithConstraints.html
 
 - test generation / assertions 
 - invariant inference: https://www.fuzzingbook.org/html/DynamicInvariants.html
