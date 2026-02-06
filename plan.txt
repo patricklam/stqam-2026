@@ -32,9 +32,9 @@ https://docs.gitlab.com/user/application_security/sast/evaluation_guide/
 ** L09 grammar-based fuzzing [with about 20 slides leftover]
       https://www.fuzzingbook.org/html/Grammars.html
       https://www.fuzzingbook.org/html/GrammarFuzzer.html
-** L10
+** L10 configuration fuzzing
       https://www.fuzzingbook.org/html/ConfigurationFuzzer.html
-__ L11 tokens / constraint-based fuzzing / property based testing / automatic test generation
+__ L11 constraint-based fuzzing / property based testing / automatic test generation
       https://increment.com/testing/in-praise-of-property-based-testing/
 
       https://www.fuzzingbook.org/html/APIFuzzer.html
@@ -78,20 +78,21 @@ https://opencourse.inf.ed.ac.uk/sites/default/files/https/opencourse.inf.ed.ac.u
 https://etaps.org/blog/040-totta-2025/
 https://aws.amazon.com/blogs/opensource/how-open-source-projects-are-using-kani-to-write-better-software-in-rust/
 
-* L14 L07 from W25
+* L14 L07 from W25: symbolic execution (need for BMC/Dafny)
+
 * L15 CBMC/CPROVER, bounded model checking for C, and loop unwinding; verifying Rust with Kani: proof harnesses, contracts, and unsafe Rust
 could also talk about this: https://model-checking.github.io/kani-verifier-blog/2023/08/31/using-kani-to-validate-security-boundaries-in-aws-firecracker.html
       https://model-checking.github.io/kani-verifier-blog/2022/10/27/using-kani-with-the-bolero-property-testing-framework.html
       https://crates.io/crates/proptest
+_ L16 more on bounded model checking
 
 assignment questions: https://doina.net/AR15/AR15-L6.pdf
 
-(A2 due here, Feb 27, will be mostly fuzzing)
 
 * 3 weeks Dafny 
-* L16 Dafny application: Cedar (might be a bit short)
   (January 26)
-* L17 Dafny
+* L17 Dafny application: Cedar / Dafny
+(A2 due here, Mar 6, will be mostly fuzzing)
 _ L18 Kani vs Dafny
       TODO loop invariants
 * L19 More Dafny, including VC and lemmas
