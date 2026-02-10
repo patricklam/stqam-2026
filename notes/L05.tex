@@ -292,8 +292,8 @@ Here are some options, which all fall under the category of \emph{derived test o
 \paragraph{Pseudo-oracles.} Consider a straightforward implementation
 computing Fibonacci numbers imperatively:
 
-\begin{lstlisting}[language=Python]
-def fib\_imperative(n):
+\begin{python}
+def fib_imperative(n):
     a = 1
     b = 1
     next = b  
@@ -306,18 +306,18 @@ def fib\_imperative(n):
         next = a + b
         seq.append(next)
     return seq
-\end{lstlisting}
+\end{python}
 
 Of course, we can also implement Fibonacci recursively, though
 it's inefficient.
-\begin{lstlisting}[language=Python]
-def fib\_recursive(n):
+\begin{python}
+def fib_recursive(n):
     if n == 0:
         return 0
     elif n == 1 or n == 2:
         return 1
     return fib(n-1) + fib(n-2)
-\end{lstlisting}
+\end{python}
 This is two versions. (OK, they don't provide exactly the same API.)
 If they don't match, then at least one of them is wrong.
 
