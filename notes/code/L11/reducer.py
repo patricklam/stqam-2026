@@ -1,3 +1,7 @@
+from typing import *
+from grammars import *
+from derivation_tree import *
+from parser import *
 from fuzzer import RandomFuzzer, Runner, Outcome
 
 class Reducer:
@@ -79,3 +83,208 @@ class DeltaDebuggingReducer(CachingReducer):
                 n = min(n * 2, len(inp))
 
         return inp
+
+def tree_list_to_string(q: List[DerivationTree]) -> str:
+    return "[" + ", ".join([all_terminals(tree) for tree in q]) + "]"
+
+def possible_combinations(list_of_lists: List[List[Any]]) -> List[List[Any]]:
+    if len(list_of_lists) == 0:
+        return []
+
+    ret = []
+    for e in list_of_lists[0]:
+        if len(list_of_lists) == 1:
+            ret.append([e])
+        else:
+            for c in possible_combinations(list_of_lists[1:]):
+                new_combo = [e] + c
+                ret.append(new_combo)
+
+    return ret
+
+def number_of_nodes(tree: DerivationTree) -> int:
+    (symbol, children) = tree
+    if children is None:
+        return 1
+
+    return 1 + sum([number_of_nodes(c) for c in children])
+
+def max_height(tree: DerivationTree) -> int:
+    (symbol, children) = tree
+    if children is None or len(children) == 0:
+        return 1
+
+    return 1 + max([max_height(c) for c in children])
+
+class GrammarReducer(CachingReducer):
+    """Reduce inputs using grammars"""
+
+    def __init__(self, runner: Runner, parser: Parser, *,
+                 log_test: bool = False, log_reduce: bool = False):
+        """Constructor.
+        `runner` is the runner to be used.
+        `parser` is the parser to be used.
+        `log_test` - if set, show tests and results.
+        `log_reduce` - if set, show reduction steps.
+        """
+
+        super().__init__(runner, log_test=log_test)
+        self.parser = parser
+        self.grammar = parser.grammar()
+        self.start_symbol = parser.start_symbol()
+        self.log_reduce = log_reduce
+        self.try_all_combinations = False
+
+    def subtrees_with_symbol(self, tree: DerivationTree,
+                             symbol: str, depth: int = -1,
+                             ignore_root: bool = True) -> List[DerivationTree]:
+        """Find all subtrees in `tree` whose root is `symbol`.
+        If `ignore_root` is true, ignore the root note of `tree`."""
+
+        ret = []
+        (child_symbol, children) = tree
+        if depth <= 0 and not ignore_root and child_symbol == symbol:
+            ret.append(tree)
+
+        # Search across all children
+        if depth != 0 and children is not None:
+            for c in children:
+                ret += self.subtrees_with_symbol(c,
+                                                 symbol,
+                                                 depth=depth - 1,
+                                                 ignore_root=False)
+
+        return ret
+
+    def alternate_reductions(self, tree: DerivationTree, symbol: str, 
+                             depth: int = -1):
+        reductions = []
+
+        expansions = self.grammar.get(symbol, [])
+        expansions.sort(
+            key=lambda expansion: len(
+                expansion_to_children(expansion)))
+
+        for expansion in expansions:
+            expansion_children = expansion_to_children(expansion)
+
+            match = True
+            new_children_reductions = []
+            for (alt_symbol, _) in expansion_children:
+                child_reductions = self.subtrees_with_symbol(
+                    tree, alt_symbol, depth=depth)
+                if len(child_reductions) == 0:
+                    match = False   # Child not found; cannot apply rule
+                    break
+
+                new_children_reductions.append(child_reductions)
+
+            if not match:
+                continue  # Try next alternative
+
+            # Use the first suitable combination
+            for new_children in possible_combinations(new_children_reductions):
+                new_tree = (symbol, new_children)
+                if number_of_nodes(new_tree) < number_of_nodes(tree):
+                    reductions.append(new_tree)
+                    if not self.try_all_combinations:
+                        break
+
+        # Sort by number of nodes
+        reductions.sort(key=number_of_nodes)
+
+        return reductions
+
+    def symbol_reductions(self, tree: DerivationTree, symbol: str, 
+                          depth: int = -1):
+        """Find all expansion alternatives for the given symbol"""
+        reductions = (self.subtrees_with_symbol(tree, symbol, depth=depth)
+                      + self.alternate_reductions(tree, symbol, depth=depth))
+
+        # Filter duplicates
+        unique_reductions = []
+        for r in reductions:
+            if r not in unique_reductions:
+                unique_reductions.append(r)
+
+        return unique_reductions
+
+    def reduce_subtree(self, tree: DerivationTree,
+                       subtree: DerivationTree, depth: int = -1):
+        symbol, children = subtree
+        if children is None or len(children) == 0:
+            return False
+
+        if self.log_reduce:
+            print("Reducing", all_terminals(subtree), "with depth", depth)
+
+        reduced = False
+        while True:
+            reduced_child = False
+            for i, child in enumerate(children):
+                if child is None:
+                    continue
+
+                (child_symbol, _) = child
+                for reduction in self.symbol_reductions(
+                        child, child_symbol, depth):
+                    if number_of_nodes(reduction) >= number_of_nodes(child):
+                        continue
+
+                    # Try this reduction
+                    if self.log_reduce:
+                        print(
+                            "Replacing",
+                            all_terminals(
+                                children[i]),
+                            "by",
+                            all_terminals(reduction))
+                    children[i] = reduction
+                    if self.test(all_terminals(tree)) == Runner.FAIL:
+                        # Success
+                        if self.log_reduce:
+                            print("New tree:", all_terminals(tree))
+                        reduced = reduced_child = True
+                        break
+                    else:
+                        # Didn't work out - restore
+                        children[i] = child
+
+            if not reduced_child:
+                if self.log_reduce:
+                    print("Tried all alternatives for", all_terminals(subtree))
+                break
+
+        # Run recursively
+        for c in children:
+            if self.reduce_subtree(tree, c, depth):
+                reduced = True
+
+        return reduced
+
+    def reduce_tree_no_depth(self, tree):
+        return self.reduce_subtree(tree, tree)
+
+    def reduce_tree_with_depth(self, tree):
+        depth = 0
+        while depth < max_height(tree):
+            reduced = self.reduce_subtree(tree, tree, depth)
+            if reduced:
+                depth = 0    # Start with new tree
+            else:
+                depth += 1   # Extend search for subtrees
+        return tree
+
+    def reduce_tree(self, tree):
+        return self.reduce_tree_with_depth(tree)
+
+    def parse(self, inp):
+        tree, *_ = self.parser.parse(inp)
+        if self.log_reduce:
+            print(all_terminals(tree))
+        return tree
+
+    def reduce(self, inp):
+        tree = self.parse(inp)
+        self.reduce_tree(tree)
+        return all_terminals(tree)

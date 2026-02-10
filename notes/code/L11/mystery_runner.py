@@ -16,12 +16,15 @@ class MysteryRunner(Runner):
 def fuzz_mystery_runner():
     mystery = MysteryRunner()
     random_fuzzer = RandomFuzzer()
+    count = 0
     while True:
+        count = count + 1
         inp = random_fuzzer.fuzz()
         result, outcome = mystery.run(inp)
         if outcome == mystery.FAIL:
             break
     print (result)
+    print (count)
 
 if __name__ == "__main__":
     fuzz_mystery_runner()
