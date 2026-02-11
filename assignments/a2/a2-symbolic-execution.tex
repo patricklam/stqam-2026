@@ -1,0 +1,49 @@
+
+% (based on a question by Marsha Chechik)
+
+Consider the following program \texttt{Prog1}:
+
+\begin{lstlisting}[numbers=left,language=While]
+havoc x, y;
+if x + y > 15 then {
+  x = x + 7;
+  y = y - 12 }
+else {
+  y = y + 10;
+  x = x - 2 };
+
+x = x + 2;
+
+if 2 * (x + y) > 21 then {
+  x = x * 3;
+  y = y * 2 }
+else {
+  x = x * 4;
+  y = y * 3 + x };
+skip
+\end{lstlisting}
+\begin{enumerate}[label=(\alph*)]
+  \item (3) How many execution paths does \texttt{Prog1} have? List
+    all the paths as a sequence of line numbers taken on the path.
+
+  \item (4) Symbolically execute each path and provide the resulting
+    path condition. Show the steps of symbolic execution as
+    a table. An example of executing the first line is given below:\\
+    \begin{center}
+    \begin{tabular}{l|l|l}
+      \textbf{Edge} & \textbf{Symbolic State} & \textbf{Path
+                                                       Condition ($PC$)}\\
+      \hline\hline
+      $1 \to 2$ & x $\mapsto X_0, y \mapsto Y_0$ & true\\
+      \hline
+      \ldots & \ldots & \ldots \\ 
+
+    \end{tabular}
+    \end{center}
+
+
+  \item (3) For each path in part (b), indicate whether it is
+    feasible or not. For each feasible path, give values for $X_0$ and
+    $Y_0$ that satisfy the path condition.
+
+\end{enumerate}

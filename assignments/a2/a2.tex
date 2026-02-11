@@ -1,0 +1,82 @@
+\documentclass[10pt,hidelinks]{article}
+\usepackage[letterpaper, hmargin=0.75in, vmargin=0.75in]{geometry}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage[hyphens]{url}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{pgf}
+\usepackage{courier}
+\usepackage{inconsolata}
+
+\parindent 0in
+\parskip 1.5ex
+
+
+\lstset{ %
+language=Java,
+basicstyle=\ttfamily\scriptsize,commentstyle=\scriptsize\itshape,showstringspaces=false,breaklines=true}
+
+
+\begin{document}
+
+\title{
+SE465 \\
+Software Testing and Quality Assurance\\
+Assignment 2, version 1\footnote{version 1: initial release}}
+\author{Patrick Lam \\
+{Release Date:  January 9, 2026} \\
+}
+\renewcommand{\today}{}
+\maketitle
+
+\begin{center}
+
+{\bf Due:  11:59 PM, Friday, March 6, 2026} \\
+{\bf Submit: via git.uwaterloo.ca }\\
+\end{center}
+
+\section*{Getting set up}
+We will create a copy of the starter repo for you in your {\tt git.uwaterloo.ca} account. You need to log in to {\tt git.uwaterloo.ca} for that to work.
+
+%% An account on {\tt ecelinux.uwaterloo.ca} is available to you.
+%% Several of the resources required for this assignment are already installed on these servers. If you are attempting to connect to a server from off campus, remember you will need to connect to the University's VPN first: \url{https://uwaterloo.ca/information-systems-technology/services/virtual-private-network-vpn/about-virtual-private-network-vpn}
+
+%% However, probably the Vagrant image is easiest to work with in terms of having software installed. How you choose to install your software stack is up to you. I think that there is an ample supply of options. The file {\tt a1-technotes.pdf} contains hints on getting Vagrant working.
+
+I expect each of you to do the assignment independently. As stated in the course outline, you can ask questions of generative AI, but you cannot submit text or code that comes from GenAI. I will follow UW's Policy 71 for all cases of plagiarism.
+ 
+ \section*{Submission instructions:} 
+Commit {\bf and push} your modifications back to your fork on {\tt
+  git.uwaterloo.ca}.  It's git, so you can submit multiple times. After
+submission, {\bf please make a fresh clone of your submission to make sure you
+  have uploaded all necessary files}.
+ 
+\section*{Submission summary}
+Here's what you need to submit in your fork of the repo. Be sure to commit
+and {\bf push} your changes back to {\tt git.uwaterloo.ca}.
+
+\begin{itemize}
+\end{itemize}
+  
+\newpage
+\section*{Question 1: Mutation Fuzzing}
+\input{a2-mutation-fuzzing}
+
+\newpage
+\section*{Question 2: Grammar Fuzzing}
+\input{a2-grammar-fuzzing}
+
+\newpage
+\section*{Question 3: Reducing Inputs} % maybe related to midterm question, but also grammar-based
+\input{a2-reducing-inputs}
+
+\newpage
+\section*{Question 4: Property-Based Fuzzing} % need a new question
+\input{a2-property-based-testing}
+
+\newpage
+\section*{Question 5: Symbolic Execution (10 points)} % done; reused from last year
+\input{a2-symbolic-execution}
+
+\end{document}

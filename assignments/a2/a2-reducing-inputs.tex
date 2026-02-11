@@ -1,0 +1,23 @@
+put a delta debugging question
+
+From the \emph{Fuzzing Book}:
+
+\begin{quote}
+Grammar-based input reduction, as sketched above, might be a good algorithm, but is by no means the only alternative. One interesting question is whether "reduction" should only be limited to elements already present, or whether one would be allowed to also create new elements. These would not be present in the original input, yet still allow producing a much smaller input that would still reproduce the original failure.
+
+As an example, consider the following grammar:
+\end{quote}
+
+\begin{verbatim}
+<number> ::= <float> | <integer> | <not-a-number>
+<float> ::= <digits>.<digits>
+<integer> ::= <digits>
+<not-a-number> ::= NaN
+<digits> ::= [0-9]+
+\end{verbatim}
+
+\begin{quote}
+Assume the input 100.99 fails. We might be able to reduce it to a minimum of, say, 1.9. However, we cannot reduce it to an <integer> or to <not-a-number>, as these symbols do not occur in the original input. By allowing to create alternatives for these symbols, we could also test inputs such as 1 or NaN and further generalize the class of inputs for which the program fails.
+
+Create a class GenerativeGrammarReducer as subclass of GrammarReducer; extend the method reduce_subtree() accordingly.
+\end{quote}
