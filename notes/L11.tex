@@ -411,8 +411,11 @@ the vast majority of the time.
 \subsection*{Implementing Grammar-Based Reduction}
 When we talked about generating inputs from grammars,
 we moved from string manipulations to tree manipulations.
-Let's do the same thing for reduction: we parse the input
-and then we manipulate the derivation tree, to reduce it.
+Now for reduction, we parse the input
+and then we manipulate the derivation tree.
+Specifically, we carry out the reduction by replacing
+subtrees with smaller subtrees.
+This means that the tree remains syntactically valid throughout.
 
 \paragraph{Approach 1: Substitution by Subtrees.}
 Specifically, we ``substitute subtrees by smaller subtrees
@@ -424,10 +427,11 @@ The derivation trees are taller than I'd like to show here,
 so I'll show excerpts. Once again, we are working with
 \texttt{1 + (2 * 3)}, and here is the top of the
 relevant derivation tree.
+\vspace*{-1em}
 \begin{center}
 \begin{tikzpicture}[node distance=1.3cm]
   \node[bt] (s)               {\brac{start}};
-  \node[bt] (e0) [below of=s] {\brac{expr}};
+  \node[bt,fill=green!50] (e0) [below of=s] {\brac{expr}};
   \node[bt,text width=1cm,fill=green!20] (+) [below of=e0] {+};
   \node[bt] (t) [left of=+,xshift=-1cm] {\brac{term}};
   \node[bt] (e1) [right of=+,xshift=1cm] {\brac{expr}};
@@ -439,14 +443,14 @@ relevant derivation tree.
 \end{tikzpicture}
 \end{center}
 This tree has the \brac{expr} \texttt{(2 * 3)} as a subtree, so
-we can swap the \brac{expr} we see in the above figure
+we can swap the darker green \brac{expr} we see in the above figure
 with the subtree for \texttt{(2 * 3)}. Here is a tree
 with that substitution carried out.
 \vspace*{-1em}
 \begin{center}
 \begin{tikzpicture}[node distance=1.3cm]
   \node[bt] (s)               {\brac{start}};
-  \node[bt] (e0) [below of=s] {\brac{expr}};
+  \node[bt,fill=green!50] (e0) [below of=s] {\brac{expr}};
   \node[bt] (t0) [below of=e0] {\brac{term}};
   \node[bt,text width=2cm] (f0) [below of=t0] {\brac{factor}};
   \node[bt] (e1) [below of=f0] {\brac{expr}};
@@ -508,12 +512,13 @@ but, per the grammar, a \brac{term} can also be
 \end{verbatim}
 and we can modify the tree as follows:
 \begin{python}
-# 2 * 3
+# term_tree gets "2 * 3"
 term_tree = new_derivation_tree[1][0][1][0][1][0][1][1][1][0]
-# 3
+# shorter_term_tree gets "3"
 shorter_term_tree = term_tree[1][2]  
 new_derivation_tree[1][0][1][0][1][0][1][1][1][0] = shorter_term_tree
 all_terminals(new_derivation_tree)
+# new_derivation_tree is "(3)"
 \end{python}
 to yield a smaller tree, one with just a parenthesized integer \texttt{(3)}.
 
@@ -562,7 +567,9 @@ It searches \texttt{tree} and returns a list of subtrees that have \texttt{symbo
 \end{python}
 Because \texttt{subtrees\_with\_symbol} tells us all subtrees
 that have a given symbol as root,
-we can use it to do a like-for-like replacement.
+we can use it to look for all instances of that symbol,
+which is most of the work for the substitution strategy
+and also useful for finding replacements to simplify with.
 
 The other strategy is found in \texttt{alternate\_reductions()}.
 If we have a \brac{x}, and \brac{x} is defined as $Y$ or $Z$, then we
@@ -650,10 +657,9 @@ parse errors.
 
 \paragraph{Adding depth.} So far, we try to replace subtrees with
 the smallest possible subtrees; we replace \texttt{2 * 3} by first
-\texttt{2} and then \texttt{3}. But, delta debugging tries to remove
-more before removing less---it prefers to remove larger chunks
-before removing smaller chunks. In the tree context, we want to replace
-with larger subtrees instead of smaller subtrees.
+\texttt{2} and then \texttt{3}. Going straight to small trees may remove too much at once, and delta debugging
+tries to remove a ``sensible'' amount at once. In the tree context, we want to replace
+with larger subtrees instead of the smallest possible subtree.
 
 How do we get larger subtrees? We replace by subtrees that are closer
 to the root, i.e. that have smaller depth. By definition, they are larger.
@@ -683,7 +689,7 @@ The key differences are that this doesn't try the subtrees
 \texttt{2 * 3}, or the single-digit subtrees. It replaces the entire
 \brac{expr} with the \texttt{(2 * 3)} \brac{expr}, as before.
 Then, it replaces the remaining \brac{term} by the \brac{factor}
-that goes to the \brac{digit} 3. There is nothing more,
+that goes to the \brac{digit} 3. There is nothing more that fails,
 so it terminates. This terminates in 3 steps instead of 5.
 
 \section*{Grammar-Based versus Delta Debugging}

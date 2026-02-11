@@ -503,7 +503,486 @@ different choices.
 \end{changemargin}
 \end{frame}
 
+\part{Reducing Inputs, but With Grammars}
+\begin{frame}
+  \partpage
+\end{frame}
+
+\begin{frame}
+  \frametitle{Motivation}
+  \Large
+\begin{changemargin}{2cm}  
+  Grammar-Based Reduction: GRABR\\[1em]
+
+  Another application of grammars.\\[1em]
+
+  Structured input languages, \\
+  e.g. conforming to a grammar,\\
+  \qquad may not work well with delta debugging.\\[1em]
+  Idea: Use the grammar to drive reductions.
+\end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Delta Debugging \& Expressions}
+  \Large
+\begin{python}
+>>> expr_input = "1 + (2 * 3)"
+>>> dd_reducer = DeltaDebuggingReducer(mystery, log_test=True)
+>>> dd_reducer.reduce(expr_input)
+\end{python}
+
+\begin{changemargin}{2cm}  
+This works, but almost all of the substrings aren't
+valid expressions.
+\end{changemargin}
+\begin{verbatim}
+Test #2 '2 * 3)' 6 PASS
+Test #3 '1 + (' 5 PASS
+...
+Test #13 '()' 2 FAIL
+Test #14 ')' 1 PASS
+Test #15 '(' 1 PASS
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Modelling a Program}
+  \Large
+  \begin{changemargin}{2cm}
+    Situation: program immediately rejects invalid expressions.\\[1em]
+    We model this with a contrived \texttt{Runner}:
+\begin{python}
+class EvalMysteryRunner(MysteryRunner):
+  def __init__(self) -> None:
+      self.parser = EarleyParser(EXPR_GRAMMAR)
+
+  def run(self, inp: str) -> Tuple[str, Outcome]:
+      try:
+          tree, *_ = self.parser.parse(inp)
+      except SyntaxError:
+          return (inp, Runner.UNRESOLVED)
+      return super().run(inp)
+\end{python}
+i.e. we get no information from an expression that doesn't parse.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Delta Debugging Utterly Fails}
+\begin{verbatim}
+>>> expr_input = "1 + (2 * 3)"
+>>> dd_reducer = DeltaDebuggingReducer(eval_mystery, log_test=True)
+... dd_reducer.reduce(expr_input)
+Test #1 '1 + (2 * 3)' 11 FAIL
+Test #2 '2 * 3)' 6 UNRESOLVED
+Test #3 '1 + (' 5 UNRESOLVED
+...
+Test #20 '1 + (2 * )' 10 UNRESOLVED
+Test #21 '1 + (2 * 3' 10 UNRESOLVED
+'1 + (2 * 3)'
+\end{verbatim}
+  \Large
+  \begin{changemargin}{2cm}
+    Zero of 20 attempts to reduce parse. \\
+    Delta debugging gives us nothing.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Delta Debugging and Validity Constraints}
+  \Large
+  \begin{changemargin}{2cm}
+    \texttt{EvalMysteryRunner} imposed a reasonable validity constraint on inputs---an input must be
+    a valid expression.\\[1em]
+    Invalid inputs are valuable for fuzzing,\\
+    but not useful for reducing inputs.\\[1em]
+    For reducing: want to give the runner something it can usually work with.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Delta Debugging and Validity Constraints}
+  \Large
+  \begin{changemargin}{2cm}
+    \texttt{EvalMysteryRunner} imposed a reasonable validity constraint on inputs---an input must be
+    a valid expression.\\[1em]
+    Invalid inputs are valuable for fuzzing,\\
+    but not useful for reducing inputs.\\[1em]
+    For reducing: want to give the runner something it can usually work with.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Overview: Grammar-based Reduction}
+  \Large
+  \begin{changemargin}{2cm}
+    Main idea: reduce by replacing subtrees with smaller subtrees.\\[1em]
+    Implication: have a syntactically valid tree at all times.
+  \end{changemargin}
+\end{frame}
 
 
+\begin{frame}
+  \frametitle{Implementing Grammar-based Reduction}
+  \Large
+  \begin{changemargin}{2cm}
+    Two ideas:
+    \begin{itemize}
+    \item ``Substitution by subtrees'': e.g. replace an \brac{expr} with a smaller \brac{expr}.
+    \item ``Simplifying by replacing subtrees'': e.g. replace a \brac{term} which is \texttt{\brac{factor} * \brac{term}} by its alternative \brac{factor}.
+    \end{itemize}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{(1) Substitution by subtrees}
+  \Large
+  \begin{changemargin}{2cm}
+    This is a like-for-like substitution.\\[1em]
+    e.g.
+    \begin{center}
+      \texttt{1 + (2 * 3)} $\Rightarrow$ \texttt{(2 * 3)}
+    \end{center}
+~\\
+    Replace the dark-green \brac{expr} by smaller \brac{expr}:\\[1em]
+  \end{changemargin}
+\begin{center}
+\scalebox{.6}{\begin{tikzpicture}[node distance=1.3cm]
+  \node[bt,text width=2.5cm] (s)               {\brac{start}};
+  \node[bt,fill=green!50,text width=2cm] (e0) [below of=s] {\brac{expr}};
+  \node[bt,text width=1cm,fill=green!20] (+) [below of=e0] {+};
+  \node[bt] (t) [left of=+,xshift=-1cm] {\brac{term}};
+  \node[bt] (e1) [right of=+,xshift=1cm] {\brac{expr}};
+
+  \path[->] (s) edge node {} (e0);
+  \path[->] (e0) edge node {} (t);
+  \path[->] (e0) edge node {} (+);
+  \path[->] (e0) edge node {} (e1);
+\end{tikzpicture} }
+\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Substitution code}
+\begin{python}
+  import copy
+  expr_input = "1 + (2 * 3)"
+  derivation_tree, *_ = EarleyParser(EXPR_GRAMMAR).parse(expr_input)
+  new_derivation_tree = copy.deepcopy(derivation_tree)
+  sub_expr_tree = new_derivation_tree[1][0][1][2]
+  new_derivation_tree[1][0] = sub_expr_tree
+  all_terminals(new_derivation_tree)
+\end{python}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Other substitution by subtrees}
+  \Large
+  \begin{changemargin}{2cm}
+    We only substitute by subtrees already in the tree.\\[1em]
+    The two allowed substitutions for \brac{expr}:
+    \begin{center}
+      \texttt{1 + (2 * 3)} $\Rightarrow$ \texttt{(2 * 3)}\\
+      \texttt{1 + (2 * 3)} $\Rightarrow$ \texttt{2 * 3}
+    \end{center}
+    Arbitrary replacement of \brac{expr} with non-\brac{expr} likely violates the grammar.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{EXPR Grammar Reminder}
+  \Large
+  \begin{python}
+    "<term>":
+        ["<factor> * <term>", "<factor> / <term>", "<factor>"],
+  \end{python}
+\end{frame}
+
+\begin{frame}
+  \frametitle{(2) Simplifying by Replacing Subtrees}
+  \Large
+  \begin{changemargin}{2cm}
+    More complicated than substitution. \\
+    e.g. have \texttt{\brac{term} = 2 * 3}\\ which is \texttt{\brac{factor} * \brac{term}}.\\[1em]
+    \brac{term} can be just \brac{factor}.\\
+    Remove the \texttt{\brac{factor} * \brac{term}} and put in \texttt{\brac{factor} = 3}.\\[1em]
+  \end{changemargin}
+    \begin{center}
+      \texttt{1 + (2 * 3)} $\Rightarrow$ \texttt{1 + (3)}
+    \end{center}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Carrying out GRABR}
+  \Large
+  \begin{changemargin}{2cm}
+    Goal: replace derivation subtrees by smaller subtrees,\\
+    and alternatives with smaller subtrees, \\
+    thus simplifying the input.\\[1em]
+    But: which strategy---(1) or (2)---when?
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{About the implementation}
+\begin{python}
+class GrammarReducer(CachingReducer):
+    def __init__(self, runner: Runner, parser: Parser, *,
+             log_test: bool = False, log_reduce: bool = False):
+        # ...
+
+    def subtrees_with_symbol(self, tree: DerivationTree,
+                         symbol: str, depth: int = -1,
+                         ignore_root: bool = True) 
+                 -> List[DerivationTree]:
+        # straightforward tree traversal
+\end{python}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Using \texttt{subtrees\_with\_symbol()}}
+
+  \Large
+  \begin{changemargin}{1cm}
+    \texttt{subtrees\_with\_symbol} 
+    is the main part of the substitution strategy and
+    also used in simplifying.\\[1em]
+    Here's all the \brac{term}s in our expression:
+  \end{changemargin}
+\begin{python}
+>>> expr_input = "1 + (2 * 3)"
+>>> derivation_tree, *_ = EarleyParser(EXPR_GRAMMAR).parse(expr_input)
+>>> grammar_reducer = GrammarReducer(
+      mystery,
+      EarleyParser(EXPR_GRAMMAR),
+      log_reduce=True)
+>>> [all_terminals(t) for t in grammar_reducer.subtrees_with_symbol(
+      derivation_tree, "<term>")]
+['1', '(2 * 3)', '2 * 3', '3']
+\end{python}
+  \begin{changemargin}{1cm}
+We use it to find candidates to replace with.
+  \end{changemargin}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{How \texttt{alternate\_reductions()} works}
+
+  \Large
+  \begin{changemargin}{2cm}
+    Say we have \brac{x}, and grammar says.\\[1em]
+    \[ \brac{x} ::= Y \mid Z \]
+    
+Then: construct $Y$s and $Z$s using candidates we find in the tree;
+return the shortest $Y$ and the shortest $Z$ we can construct.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Using \texttt{alternate\_reductions()}}
+
+  \Large
+  \begin{changemargin}{1cm}
+    Here we print all alternate reductions for \brac{term}:
+  \end{changemargin}
+\begin{python}
+>>> grammar_reducer.try_all_combinations = True
+>>> print([all_terminals(t)
+       for t in grammar_reducer.alternate_reductions
+                       (derivation_tree, "<term>")])
+['1', '2', '3', '1 * 1', '1 * 3', '2 * 1', '2 * 3', '3 * 1', '3 * 3', '(2 * 3)', '1 * 2 * 3', '2 * 2 * 3', '3 * 2 * 3', '1 * (2 * 3)', '(2 * 3) * 1', '(2 * 3) * 3', '2 * (2 * 3)', '3 * (2 * 3)']
+\end{python}
+\begin{changemargin}{1cm}
+  Includes: all possible \brac{digit}s in the tree, plus
+  \texttt{\brac{factor} * \brac{term}},
+  with the \brac{factor}s and \brac{term}s already in the tree.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Without \texttt{try\_all\_combinations}}
+
+  \Large
+  \begin{changemargin}{1cm}
+Returns the shortest
+\brac{factor} and the shortest \texttt{\brac{factor} * \brac{term}}.\\[1em]
+There is no \texttt{\brac{factor} / \brac{term}} in the tree.
+  \end{changemargin}
+\begin{python}
+>>> grammar_reducer.try_all_combinations = False
+>>> print([all_terminals(t)
+       for t in grammar_reducer.alternate_reductions
+                       (derivation_tree, "<term>")])
+['1', '1 * 1']
+\end{python}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Combining Strategies}
+
+  \Large
+  \begin{changemargin}{1cm}
+    Why not both?\\[1em]
+    We collect results from substitution and simplifying,
+    combine, and deduplicate.
+  \end{changemargin}
+  \begin{python}
+    def symbol_reductions(self, tree: DerivationTree, 
+                          symbol: str, 
+                          depth: int = -1):
+        reductions = (self.subtrees_with_symbol(tree, symbol, depth=depth)
+                      + self.alternate_reductions(tree, symbol, 
+                                depth=depth))
+        # Filter duplicates and put into unique_reductions      [... omitted]
+        return unique_reductions
+  \end{python}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Running the Code: \brac{expr}}
+
+  \Large
+  \begin{changemargin}{1cm}
+Recall: \brac{expr} is either ``\texttt{\brac{term} + \brac{expr}}'', or ``\brac{term}''.
+\begin{python}
+>>> print ([all_terminals(t) for t in grammar_reducer.subtrees_with_symbol(derivation_tree, "<expr>")])
+['1 + (2 * 3)', '(2 * 3)', '2 * 3']
+>>> print ([all_terminals(t) for t in grammar_reducer.alternate_reductions(derivation_tree, "<expr>")])
+['1', '1 + (2 * 3)']
+>>> print ([all_terminals(t) for t in grammar_reducer.symbol_reductions(derivation_tree, "<expr>")])
+['1 + (2 * 3)', '(2 * 3)', '2 * 3', '1']
+\end{python}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Running the Code: \brac{term}}
+
+  \Large
+\begin{python}
+>>> print ([all_terminals(t) for t in grammar_reducer.symbol_reductions(derivation_tree, "<term>")])
+['1', '(2 * 3)', '2 * 3', '3', '1 * 1']
+\end{python}
+\begin{changemargin}{1cm}
+  The \texttt{1 * 1} is an alternate expansion for \brac{term}.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Implementation structure: \texttt{reduce\_subtree}}
+
+  \begin{changemargin}{2cm}
+    For each child:
+    \begin{enumerate}
+\item collect the set of \texttt{symbol\_reductions()},
+\item check that a reduction is indeed smaller,
+\item replace the child with the reduction.
+    \end{enumerate}
+    If the reduction fails (as desired), continue with reduced tree.\\[1em]
+    Recursively reduce children.
+
+  \end{changemargin}
+\end{frame}
+  
+\begin{frame}[fragile]
+  \frametitle{GRABR works}
+  \begin{changemargin}{2cm}
+    We can call the \texttt{reduce()} method,
+    which uses some helper functions:
+  \end{changemargin}
+\begin{python}
+>>>  grammar_reducer = GrammarReducer(
+       eval_mystery,
+       EarleyParser(EXPR_GRAMMAR),
+       log_test=True)
+>>> grammar_reducer.reduce(expr_input)
+Test #1 '(2 * 3)' 7 FAIL
+Test #2 '2 * 3' 5 PASS
+Test #3 '3' 1 PASS
+Test #4 '2' 1 PASS
+Test #5 '(3)' 3 FAIL
+(3)
+\end{python}
+  \begin{changemargin}{2cm}
+    We get valid output \texttt{(3)} at the end, in 5 steps.\\[1em]
+    No \texttt{UNRESOLVED} tests along the way.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Removing less: using depth}
+  \begin{changemargin}{2cm}
+    So far: replace subtrees with smallest possible subtrees,\\
+    e.g. $\texttt{2 * 3} \rightarrow \texttt{2}$ and then \texttt{3}.\\[1em]
+    Delta debugging tries to remove ``sensible'' chunk sizes.\\
+    For trees: replace with larger subtrees rather than smaller subtrees.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Where depth comes in}
+  \begin{changemargin}{2cm}
+    Subtrees closer to root (smaller depth) are by definition bigger.\\[1em]
+    
+\texttt{subtrees\_with\_symbol()} takes \texttt{depth}
+parameter---only return subtrees at the given depth.\\[1em]
+
+Search starting with depth 0 and increase;\\
+hence, preferentially start with bigger subtrees.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Depth at work}
+\begin{python}
+>>>  grammar_reducer = GrammarReducer(
+       eval_mystery,
+       EarleyParser(EXPR_GRAMMAR),
+       log_test=True)
+>>> grammar_reducer.reduce_tree = grammar_reducer.reduce_tree_with_depth
+>>> grammar_reducer.reduce(expr_input)
+Test #1 '(2 * 3)' 7 FAIL
+Test #2 '(3)' 3 FAIL
+Test #3 '3' 1 PASS
+
+'(3)'
+\end{python}
+\begin{changemargin}{2cm}
+  Does not try subtrees \texttt{2 * 3} or single-digits.\\
+  Replaces top \brac{expr} with \texttt{(2*3)} as before.\\
+  Then, replaces \brac{term} by the \brac{factor} ``\texttt{3}''.\\
+  \texttt{(3)} is as reduced as possible; 3 steps, not 5.
+\end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Grammar-based vs delta debugging}
+\begin{python}
+long_expr_input = GrammarFuzzer(EXPR_GRAMMAR, min_nonterminals=100).fuzz()
+\end{python}
+
+\begin{changemargin}{2cm}
+  Use the grammar reducer:
+\end{changemargin}
+\begin{python}
+grammar_reducer = GrammarReducer(eval_mystery, EarleyParser(EXPR_GRAMMAR))
+with Timer() as grammar_time:
+    print(grammar_reducer.reduce(long_expr_input))
+\end{python}
+\begin{changemargin}{2cm}
+  I ran it and it needed 9 tests, finishing in 0.033s.\\[1em]
+Now the delta debugger:
+\end{changemargin}
+\begin{python}
+dd_reducer = DeltaDebuggingReducer(eval_mystery)
+with Timer() as dd_time:
+    print(dd_reducer.reduce(long_expr_input))
+\end{python}
+\begin{changemargin}{2cm}
+This took 618 tests and took 0.503s.
+\end{changemargin}
+\end{frame}
 
 \end{document}
