@@ -1,10 +1,28 @@
 change a2 due date to Mar 6, so could include a question from L14 (symbolic execution)
 a3 due date end of term
 
-* Q1: could reuse a PMD question
+* Q1: could reuse a PMD question - nah, too much overhead
+
 * fuzzing: Q2-Q5
 * Q2: mutation-based fuzzing
 * Q3: grammar-based fuzzing (ask questions like the ones I was thinking about for the midterm)
 * Q4: property-based testing
-* Q5: reducing inputs---do a reduction manually; put a case where the test case is actually context sensitive (e.g. operations that write to state)
+* Q5: reducing inputs---do a reduction manually; put a case where the test case is actually context sensitive (e.g. operations that write to state); grammar reduction
+
+>>> ddr = DeltaDebuggingReducer(MidtermRunner())
+>>> ddr.reduce (">001>;:>7>7351:>>512249<5;687539<>4:=0;<28215:01:<")
+'39639'
+>>> ddr = DeltaDebuggingReducer(MidtermRunner(),log_test=True)
+>>> ddr.reduce (">001>;:>7>7351:>>512249<5;687539<>4:=0;<28215:01:<")
+
 * Q6: Symbolic execution
+
+reducing: implement a 'move stuff around' reduction pass
+https://www.drmaciver.com/2019/01/notes-on-test-case-reduction/
+
+why does the grammar fuzzer return a super long last number when creating expressions?
+
+coverage-based
+% actually the impl can jump two steps...
+% assignment problem inspired by midterm Q2: can't jump 2 steps in mutation; implement a fix to this (randomly keep some non-adding mutations, do two mutations) (but actually it should be able to...)
+
