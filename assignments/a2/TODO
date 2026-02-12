@@ -1,0 +1,5 @@
+Q1 mutation fuzzing: needs more
+Q2 grammar fuzzing: nothing yet
+Q3 reducing inputs: add delta debugging question (pretty easy), make sure the other part is workable
+Q4 property-based fuzzing: done
+Q5 symbolic execution: done
