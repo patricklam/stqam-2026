@@ -5,4 +5,9 @@ it draws between 1 and 5 decimal digits to form an integral part, then between 0
 to form a fractional part, and a random sign (+ or -). The skeleton includes class \texttt{RandomFuzzer}
 in \texttt{fuzzer.py}.
 
-(more questions goes here)
+% From the Fuzzing Book, MutationFuzzer.html:
+
+Coverage-guided fuzzing question. Show how the population and seed evolve.
+
+When adding a new element to the list of candidates, AFL does actually not compare the coverage, but adds an element if it exercises a new branch. Using branch coverage from the exercises of the "Coverage" chapter, implement this "branch" strategy and compare it against the "coverage" strategy, above.
+
