@@ -10,7 +10,7 @@
 09 Grammar-Based-Fuzzing
 10 Fuzzing-Configurations
 11 Reducing-Failure-Inducing-Inputs
-12 Constraint-Based-Fuzzing-and-Property-Based-Testing
+12 Property-Based-Testing
 14 Symbolic-Execution
 15 Bounded-Model-Checking-CBMC-and-Kani
 16 Dafny-Application-Cedar
