@@ -1,3 +1,8 @@
+TODO:
+collect more papers to present
+maybe record L14 lecture
+definitely record lecture about how to present a paper; content/post/20160608-good-talks.md
+
 * 3 weeks practical testing content
 
 _* L01: general course intro (needs update, brief mention of oracles)
@@ -42,7 +47,7 @@ https://docs.gitlab.com/user/application_security/sast/evaluation_guide/
 if time permits:
       https://www.fuzzingbook.org/html/APIFuzzer.html
 
-__ L12 property based testing  ... ( automatic test generation )
+** L12 property based testing  ... ( automatic test generation )
       https://increment.com/testing/in-praise-of-property-based-testing/
 
       https://www.tedinski.com/2018/12/11/fuzzing-and-property-testing.html
@@ -56,18 +61,8 @@ __ L12 property based testing  ... ( automatic test generation )
       https://www.fuzzingbook.org/html/GrammarCoverageFuzzer.html
       https://www.fuzzingbook.org/html/GeneratorGrammarFuzzer.html
       https://www.fuzzingbook.org/html/FuzzingWithConstraints.html
-
-- test generation / assertions 
-- invariant inference: https://www.fuzzingbook.org/html/DynamicInvariants.html
-
-fuzzing book suggestion:
-
-    Learn how grammars can be used to generate syntactically correct inputs. This makes test generation much more efficient, but you have to write (or mine) a grammar in the first place.
-
-    Learn how to fuzz APIs and graphical user interfaces. Both of these are important domains for software test generation.
-
-    Learn how to reduce failure-inducing inputs to a minimum automatically. This is a great time saver for debugging, especially in conjunction with automated testing.
-
+      https://www.fuzzingbook.org/html/DynamicInvariants.html
+      test generation / assertions 
 
 * Reading Week * (February 16-20)
 
@@ -88,37 +83,37 @@ https://opencourse.inf.ed.ac.uk/sites/default/files/https/opencourse.inf.ed.ac.u
 https://etaps.org/blog/040-totta-2025/
 https://aws.amazon.com/blogs/opensource/how-open-source-projects-are-using-kani-to-write-better-software-in-rust/
 
-* L14 L07 from W25: symbolic execution (need for BMC/Dafny)
+*_ L14 L07 from W25: symbolic execution (need for BMC/Dafny)
 
-* L15 CBMC/CPROVER, bounded model checking for C, and loop unwinding; verifying Rust with Kani: proof harnesses, contracts, and unsafe Rust
+*_ L15 CBMC/CPROVER, bounded model checking for C, and loop unwinding; verifying Rust with Kani: proof harnesses, contracts, and unsafe Rust
 could also talk about this: https://model-checking.github.io/kani-verifier-blog/2023/08/31/using-kani-to-validate-security-boundaries-in-aws-firecracker.html
       https://model-checking.github.io/kani-verifier-blog/2022/10/27/using-kani-with-the-bolero-property-testing-framework.html
       https://crates.io/crates/proptest
-_ L16 more on bounded model checking
+__ L16 more on bounded model checking
 
 assignment questions: https://doina.net/AR15/AR15-L6.pdf
 
 
 * 3 weeks Dafny 
   (January 26)
-* L17 Dafny application: Cedar / Dafny
-(A2 due here, Mar 6, will be mostly fuzzing)
-_ L18 Kani vs Dafny
+__ L17 Leftover Kani; Dafny application: Cedar / Dafny
+__ L18 Kani vs Dafny
       TODO loop invariants
-* L19 More Dafny, including VC and lemmas
-* L20 Bubblesort in Dafny
-* L21 Dafny sequences and VCgen
-* L22 On the impact of formal verification on software development https://ranjitjhala.github.io/static/oopsla25-formal.pdf
+*_ L19 More Dafny, including VC and lemmas
+(A2 due here, Mar 13, mostly fuzzing)
+*_ L20 Bubblesort in Dafny
+*_ L21 Dafny sequences and VCgen
+*_ L22 On the impact of formal verification on software development https://ranjitjhala.github.io/static/oopsla25-formal.pdf
 bonus, maybe add to L22
 "N things I learned trying to do formal methods in industry" Mike Dodds
 
-_ L23 Reasoning about software quality
+__ L23 Reasoning about software quality
 https://dl.acm.org/doi/10.1145/1882362.1882382
 https://www.sosy-lab.org/research/pub/2024-STTT.Six_Years_Later_Testing_vs_Model_Checking.pdf
 https://www.sosy-lab.org/research/pub/2017-TACAS.Software_Verification_with_Validation_of_Results.pdf
 
 
-_ L24 Review
+__ L24 Review
 
 
 Cheap techniques: 
