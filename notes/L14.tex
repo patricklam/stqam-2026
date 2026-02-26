@@ -63,7 +63,7 @@
 
 \lstset{ %
 language=Java,
-basicstyle=\ttfamily,commentstyle=\scriptsize\itshape,showstringspaces=false,breaklines=true,numbers=left}
+basicstyle=\ttfamily,commentstyle=\scriptsize\itshape,showstringspaces=false,breaklines=true,numbers=left,numberstyle=\small}
 
 %\usepackage{fontspec}
 %\setmonofont{Cousine}[Scale=MatchLowercase]
@@ -84,12 +84,21 @@ def Foo(x,y):
     return y / x
 \end{lstlisting}
 
-We are going to use \emph{symbolic execution} to automatically generate a test suite that:
+Previously, we've talked about various methods for testing functions: writing a test suite manually;
+fuzzing; and property-based testing. 
+
+We're going to add to our arsenal with \emph{symbolic execution}, which will automatically generate\footnote{if conditions are right\ldots} a test suite that:
 \begin{itemize}[noitemsep]
 \item achieves full branch coverage (actually even better: full path coverage);
 \item identifies dead code; and,
 \item discovers whether division by 0 is possible.
 \end{itemize}
+More generally, symbolic execution is a deterministic technique which automatically analyses some code and generates
+tests to determine reachability of each line of that code.
+
+We need symbolic execution to understand how the bounded model checker Kani and the auto-active program verifier
+Dafny work. You can use both of these tools without understanding symbolic execution, at least until things
+to wrong. But we are studying how these tools work, so we'll need at least some notions of symbolic execution.
 
 \paragraph{Symbolic Execution in a Nutshell.} In four steps:
 \begin{enumerate}[noitemsep]
@@ -117,7 +126,7 @@ def Foo(x,y):
 
 \paragraph{Main Components of Symbolic Execution.} As above, we have:
 
-\emph{Traversing}: automatically exploring program paths, executing the program on symbolic input values (vs the concrete values that the semantics operates on); forking execution at each branch; and recording branching conditions.
+\emph{Traversing}: automatically exploring program paths, executing the program on symbolic input values (vs the concrete values that we have when we run the program); forking execution at each branch; and recording branch conditions.
 
 \emph{Solving constraints}: deciding path feasibility, and generating test cases to get paths and to find bugs.
 
@@ -129,7 +138,7 @@ def Foo(x,y):
 \item \texttt{x <= y, x != 0}: reaches \texttt{return y / x}
 \end{enumerate}
 
-\paragraph{Solving Constraints.} For each path, we generate a set of constraints and ask SMT solver z3 to solve them for us:
+\paragraph{Solving Constraints.} For each path, we generate a set of constraints and ask the z3 SMT solver to solve them for us. Here's path \#2.
 \begin{lstlisting}
 (declare-fun x () Int)
 (declare-fun y () Int)
@@ -150,7 +159,7 @@ Symbolic execution is actually quite old; here are references from 1975 by Rober
 I will also point out that even if the software works perfectly (never crashes, for instance), you still don't know that the software is doing the right thing. You need SE 463 (requirements)
 for that.
 
-In any case, in the 2000s, SAT solvers and their big brothers SMT solvers made SAT feasible in practice. In the context of formal verification, constraint solving is easy. Classical verification
+In any case, in the 2000s, SAT solvers and their big brothers (SMT solvers) made SAT feasible in practice. In the context of formal verification, constraint solving is easy. Classical verification
 algorithms---with worst-case exponential running time---became viable in practice even if not in theory.
 
 % There were also conceptual breakthroughs in the mid-2000s with dynamic symbolic execution, which we'll see in Lecture 9.
@@ -168,7 +177,7 @@ Let's continue with an example.
   }
 \end{lstlisting}
 We can exhaustively explore all of the paths. Hereafter, $\mathit{pc}$ means path condition (rather than program counter as before), and it's the thing inside the boxes. Solid lines are the true branch, while dashed lines are the false branch.
-This tree is different from the one in the slides, but I think it's right. Each node shows the result of the previous test. In this picture (and only in this picture---for space reasons), you get
+Each node shows the result of the previous test. In this picture (and only in this picture---for space reasons), you get
 the path condition by conjoining the conditions that lead to your path; for instance, the full path condition at the left-most leaf is $a \le b \wedge c \le d \wedge b \le d$.
 
 \begin{center}
@@ -295,7 +304,7 @@ stored in program variable $\texttt{x}$. We also know that \texttt{r} is 0 after
 Program point (1) is a branch, so there are two possible symbolic states coming out of the branch statement.
 The path condition is what has to be true to reach a particular point. In this case, on the true branch, it must be
 the case that $X > 8$ (that's how you get there); and conversely for the false branch, $X \le 8$. We encode that in the
-path condition. In these pictures we use the convention that the solid line denotes the then-branch, while the dotted line
+path condition. We continue the convention that the solid line denotes the then-branch, while the dotted line
 denotes the else-branch.
 
 \begin{center}
@@ -953,7 +962,7 @@ and show that the \texttt{error()} call is reachable or unreachable.
 The rewriting process, or instrumenting the programs with properties, can
 translate any safety property (``bad things don't happen'') into
 reachability (of an \texttt{error()} call). There is some similarity
-to fuzzing.
+to using fuzzing plus explicit assertions to find problems.
 
 Rewriting can be explicit or implicit. For explicit rewriting, this is like
 sanitizers, and we instrument the code with checks. But the symbolic engine
@@ -968,9 +977,9 @@ Checks might look like this:
 \section*{Problems of (Classical) Symbolic Execution}
 Of course, I've shown you cases where symbolic execution works. This isn't real code. What happens for real?
 
-Some code is hard to analyze. Even if it generates innocuous-looking constraints, the resulting constraints might be beyond the abilities of our SMT solvers. And cryptographic hashes are definitely hard to invert.
+Some code is hard to analyze. Even if it generates innocuous-looking constraints, the resulting constraints might be beyond the abilities of our SMT solvers. For instance, cryptographic hashes are definitely hard to invert.
 
-There's also the path explosion problem. The number of paths in the program is exponential in the size of the program. Control flow, loops, procedures, concurrency, etc can cause lots of paths.
+There's also the path explosion problem. The number of paths in the program is at least exponential in the size of the program. Control flow, loops, procedures, concurrency, etc., can cause lots of paths---a potentially infinite number, in the case of loops.
 
 And, to analyze real code, you need to work with more than just integers.
 There are pointers and data structures; files and databases; networks and sockets; and threads and thread schedules, among other things. There has to be some way of handling these.
