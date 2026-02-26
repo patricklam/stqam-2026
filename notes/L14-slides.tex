@@ -1,80 +1,115 @@
-\documentclass[11pt]{article}
-\usepackage{pifont}
-\usepackage{multicol}
+\documentclass{beamer}
+
+\usetheme{Boadilla}
+
+\usepackage{times}
+\usefonttheme{structurebold}
 \usepackage{listings}
+
 \usepackage{pgf}
 \usepackage{tikz}
 \usepackage{alltt}
-\usepackage{hyperref}
-\usepackage{url}
-\usepackage{amssymb}
+\usepackage[normalem]{ulem}
 \usetikzlibrary{arrows,automata,shapes,positioning}
+\usepackage{amsmath,amssymb}
+\usepackage{rotating}
+\usepackage{ulem}
+\usepackage{pythonhighlight}
+\usepackage{amssymb}
+\usepackage{pifont}
+\newcommand{\xmark}{\ding{55}}
+
+\usetikzlibrary{arrows,automata,shapes}
 \tikzstyle{block} = [rectangle, draw, fill=blue!20, 
     text width=5em, text centered, rounded corners, minimum height=2em]
 \tikzstyle{bt} = [rectangle, draw, fill=blue!20, 
-    text width=1em, text centered, rounded corners, minimum height=2em]
-\newcommand{\xmark}{\ding{55}}
+    text width=4em, text centered, rounded corners, minimum height=2em]
 
-\newtheorem{defn}{Definition}
-\newtheorem{crit}{Criterion}
-\newcommand{\true}{\mbox{\sf true}}
-\newcommand{\false}{\mbox{\sf false}}
-
-\newcommand*\circled[1]{\tikz[baseline=(char.base)]{
-            \node[shape=circle,draw,inner sep=2pt] (char) {#1};}}
-
-
-\newcommand{\handout}[5]{
-  \noindent
-  \begin{center}
-  \framebox{
-    \vbox{
-      \hbox to 5.78in { {\bf Software Testing, Quality Assurance and Maintenance } \hfill #2 }
-      \vspace{4mm}
-      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
-      \vspace{2mm}
-      \hbox to 5.78in { {\em #3 \hfill #4} }
-    }
-  }
-  \end{center}
-  \vspace*{4mm}
+\lstdefinelanguage{FSharp}%
+{morekeywords={let, new, match, with, rec, open, module, namespace, type, of, member, % 
+and, for, while, true, false, in, do, begin, end, fun, function, return, yield, try, %
+mutable, if, then, else, cloud, async, static, use, abstract, interface, inherit, finally },
+  otherkeywords={ let!, return!, do!, yield!, use!, var, from, select, where, order, by },
+  keywordstyle=\color{blue},
+  sensitive=true,
+  basicstyle=\ttfamily,
+	breaklines=true,
+  xleftmargin=\parindent,
+  aboveskip=\bigskipamount,
+	tabsize=4,
+  morecomment=[l][\color{olive}]{///},
+  morecomment=[l][\color{olive}]{//},
+  morecomment=[s][\color{olive}]{{(*}{*)}},
+  morestring=[b]",
+  showstringspaces=false,
+  literate={`}{\`}1,
+  stringstyle=\color{redstrings},
 }
 
-\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{#4}{Lecture #1}}
-\topmargin 0pt
-\advance \topmargin by -\headheight
-\advance \topmargin by -\headsep
-\textheight 8.9in
-\oddsidemargin 0pt
-\evensidemargin \oddsidemargin
-\marginparwidth 0.5in
-\textwidth 6.5in
+\lstdefinelanguage{JavaScript}{
+  keywords={typeof, new, true, false, catch, function, return, null, catch, switch, var, if, in, while, 
+do, else, case, break},
+  keywordstyle=\color{blue}\bfseries,
+  ndkeywords={class, export, boolean, throw, implements, import, this},
+  ndkeywordstyle=\color{darkgray}\bfseries,
+  identifierstyle=\color{black},
+  sensitive=false,
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  commentstyle=\color{purple}\ttfamily,
+  stringstyle=\color{red}\ttfamily,
+  morestring=[b]',
+  morestring=[b]''
+}
 
-\parindent 0in
-\parskip 1.5ex
-%\renewcommand{\baselinestretch}{1.25}
+%\setbeamercovered{dynamic}
+\setbeamertemplate{footline}[page number]{}
+\setbeamertemplate{navigation symbols}{}
+\usefonttheme{structurebold}
 
-\usepackage{enumitem}
+\title{Software Testing, Quality Assurance \& Maintenance---Lecture 14}
+\author{Patrick Lam\\University of Waterloo}
+\date{February 27, 2026}
 
-\newtheorem{prop}{Proposition}
-\newtheorem{lemma}{Lemma}
-\usepackage{ebproof}
-\newcommand{\qedsymbol}{\rule{1ex}{1ex}}
+\colorlet{redshaded}{red!25!bg}
+\colorlet{shaded}{black!25!bg}
+\colorlet{shadedshaded}{black!10!bg}
+\colorlet{blackshaded}{black!40!bg}
 
-\lstset{ %
-language=Java,
-basicstyle=\ttfamily,commentstyle=\scriptsize\itshape,showstringspaces=false,breaklines=true,numbers=left,numberstyle=\small}
+\colorlet{darkred}{red!80!black}
+\colorlet{darkblue}{blue!80!black}
+\colorlet{darkgreen}{green!80!black}
 
-%\usepackage{fontspec}
-%\setmonofont{Cousine}[Scale=MatchLowercase]
+\newcommand{\rot}[1]{\rotatebox{90}{\mbox{#1}}}
+\newcommand{\gray}[1]{\mbox{#1}}
+
+\newenvironment{changemargin}[1]{% 
+  \begin{list}{}{% 
+    \setlength{\topsep}{0pt}% 
+    \setlength{\leftmargin}{#1}% 
+    \setlength{\rightmargin}{1em}
+    \setlength{\listparindent}{\parindent}% 
+    \setlength{\itemindent}{\parindent}% 
+    \setlength{\parsep}{\parskip}% 
+  }% 
+  \item[]}{\end{list}}
+
+\newcommand{\brac}[1]{\texttt{\textless #1\textgreater}}
+
 
 \begin{document}
+\begin{frame}
+  \titlepage
+\end{frame}
 
-\lecture{14 --- February 27, 2026}{Winter 2026}{Patrick Lam}{version 1}
+\part{Motivating Symbolic Execution}
+\begin{frame}
+  \partpage
+\end{frame}
 
-Here's a function.
-
-\begin{lstlisting}
+\begin{frame}[fragile]
+  \frametitle{Consider this function\ldots}
+  \begin{python}
 def Foo(x,y):
 """ requires: x and y are int
     ensures: returns floor(max(x,y)/min(x,y))"""
@@ -82,37 +117,99 @@ def Foo(x,y):
     return x / y
   else:
     return y / x
-\end{lstlisting}
+  \end{python}
+  \begin{changemargin}{2cm}
+    ~\\ \Large
+    How to test? So far:
+    \begin{itemize}
+    \item manually-written test suite;
+    \item fuzzing;
+    \item property-based testing.
+    \end{itemize}
+  \end{changemargin}
+\end{frame}
 
-Previously, we've talked about various methods for testing functions: writing a test suite manually;
-fuzzing; and property-based testing. 
+\begin{frame}[fragile]
+  \frametitle{Symbolic execution: magic?}
+  \begin{changemargin}{1cm}
+    \Large
+    We introduce \alert{symbolic execution}.
+    \begin{itemize}
+    \item Achieves full branch (actually, path) coverage;
+    \item Identifies dead code;
+    \item Discovers whether division by 0 is possible.
+    \end{itemize}
+    (How well does fuzzing work on the example?)
+  \end{changemargin}
+\end{frame}
 
-We're going to add to our arsenal with \emph{symbolic execution}, which will automatically generate\footnote{if conditions are right\ldots} a test suite that:
-\begin{itemize}[noitemsep]
-\item achieves full branch coverage (actually even better: full path coverage);
-\item identifies dead code; and,
-\item discovers whether division by 0 is possible.
-\end{itemize}
-More generally, symbolic execution is a deterministic technique which automatically analyzes some code and generates
+\begin{frame}[fragile]
+  \frametitle{About symbolic execution}
+  \begin{changemargin}{1cm}
+    \Large
+    Symbolic execution is a deterministic technique which
+    \begin{itemize}
+    \item automatically analyzes some code, and
+      \item generates
 tests to determine reachability of each line of that code.
+    \end{itemize}
+  \end{changemargin}
+  \end{frame}
 
-We need symbolic execution to understand how the bounded model checker Kani and the auto-active program verifier
-Dafny work. You can use both of these tools without understanding symbolic execution, at least until things
-to wrong. But we are studying how these tools work, so we'll need at least some notions of symbolic execution.
+\begin{frame}[fragile]
+  \frametitle{Why?}
+  \begin{changemargin}{1cm}
+    \Large
+    Must understand symbolic execution to understand bounded model checker \alert{Kani} and auto-active program verifier \alert{Dafny}.\\[1em]
 
-\paragraph{Symbolic Execution in a Nutshell.} In four steps:
-\begin{enumerate}[noitemsep]
-\item \emph{transform} the program to add explicit tests for division by 0 (oracles);
-\item \emph{traverse} the program to compute each program path; \\
-  \hspace*{2em} path1: \texttt{x > y, y == 0}; path2: \texttt{x > y, y != 0, return x / y}; etc.
-\item \emph{solve} constraints for each path using a constraint (or logic) solver; \\
-  \hspace*{2em} path1: \texttt{x=10,y=0}; path2: \texttt{x=10,y=1}; etc.
-\item \emph{run} the program on tests generated by the previous step.
-\end{enumerate}
-Under symbolic execution, all testing is now automatic. And, for some definitions of exhaustive (path coverage), the testing is also exhaustive.
+    Can use these tools without understanding.\\[1em]
 
-Here's the transformed program.
-\begin{lstlisting}
+    We are here to understand.
+  \end{changemargin}
+  \end{frame}
+
+\part{How Symbolic Execution Works: a Worked Example}
+\begin{frame}
+  \partpage
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Four Steps to Symbolic Execution}
+  \begin{changemargin}{1cm}
+    \Large
+    if we are looking for division by 0 errors:
+    \begin{itemize}
+    \item \emph{transform} program to add oracles---\\
+      \hspace*{2em} tests for division by 0;
+\item \emph{traverse} \& compute each program path; \\
+{\small  \hspace*{2em} path1: \texttt{x > y, y == 0}; \\
+  \hspace*{2em} path2: \texttt{x > y, y != 0, return x / y}; etc.
+}
+\item \emph{solve} constraints for each path; \\
+{\small  \hspace*{2em} path1: \texttt{x=10,y=0}; \\
+  \hspace*{2em} path2: \texttt{x=10,y=1}; etc.
+  }
+\item \emph{run} the program on generated tests.
+    \end{itemize}
+  \end{changemargin}
+  \end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Implications}
+  \begin{changemargin}{1cm}
+    \Large
+    All testing is now automatic.\\[1em]
+    This testing is also exhaustive, \\ \hspace*{1em} with respect to path coverage.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Transformed function}
+  \begin{changemargin}{1cm}
+    \Large
+With the asserts:
+  \end{changemargin}
+  \begin{python}
 def Foo(x,y):
 """ requires: x and y are int
     ensures: returns floor(max(x,y)/min(x,y))"""
@@ -122,23 +219,59 @@ def Foo(x,y):
   else:
     assert x != 0
     return y / x
-\end{lstlisting}
+  \end{python}
+\end{frame}
 
-\paragraph{Main Components of Symbolic Execution.} As above, we have:
+\begin{frame}[fragile]
+  \frametitle{The Next Two Steps}
+  \begin{changemargin}{1cm}
+    \Large
+    Traversing:\\
+    \hspace*{1em}    for each program path, execute program on symbolic input values; \\
+    \hspace*{1em} record branch conditions.
+    \\[1em]
+    Solving constraints:\\
+    \hspace*{1em}    decide path feasibility; \\
+    \hspace*{1em} generate test cases to reach paths and to find bugs.
+  \end{changemargin}
+\end{frame}
 
-\emph{Traversing}: automatically exploring program paths, executing the program on symbolic input values (vs the concrete values that we have when we run the program); creating 2 new paths for each branch; and recording branch conditions.
-
-\emph{Solving constraints}: deciding path feasibility, and generating test cases to get paths and to find bugs.
-
-\paragraph{Traversing Paths.} Let's enumerate all of the paths.
-\begin{enumerate}[noitemsep]
+\begin{frame}[fragile]
+  \frametitle{Transformed function}
+  \begin{changemargin}{1cm}
+    \Large
+With the asserts:
+  \end{changemargin}
+  \begin{python}
+def Foo(x,y):
+""" requires: x and y are int
+    ensures: returns floor(max(x,y)/min(x,y))"""
+  if x > y:
+    assert y != 0
+    return x / y
+  else:
+    assert x != 0
+    return y / x
+  \end{python}
+\end{frame}
+\begin{frame}[fragile]
+  \frametitle{Traversing Paths}
+  \begin{changemargin}{1cm}
+    \large
+    Enumerating all the paths:
+\begin{enumerate}
 \item \texttt{x > y, y == 0}: assertion fails
 \item \texttt{x > y, y != 0}: reaches \texttt{return x / y}
 \item \texttt{x <= y, x == 0}: assertion fails
 \item \texttt{x <= y, x != 0}: reaches \texttt{return y / x}
 \end{enumerate}
+  \end{changemargin}
+\end{frame}
 
-\paragraph{Solving Constraints.} For each path, we generate a set of constraints and ask the z3 SMT solver to solve them for us. Here's path \#2.
+\begin{frame}[fragile]
+  \frametitle{Solving Constraints}
+  \begin{changemargin}{1cm}
+    The z3 SMT solver can solve this example, corresponding to path \#2:
 \begin{lstlisting}
 (declare-fun x () Int)
 (declare-fun y () Int)
@@ -147,41 +280,71 @@ def Foo(x,y):
 (check-sat)
 (get-model)
 \end{lstlisting}
+  \end{changemargin}
+\end{frame}
 
-\section*{History of symbolic execution}
-Symbolic execution is actually quite old; here are references from 1975 by Robert S. Boyer, Bernard Elspas, and Karl N. Levitt; and James C. King: \cite{boyer75:_selec,king75}.
+\begin{frame}[fragile]
+  \frametitle{Solution}
+  \begin{changemargin}{1cm}
+\begin{lstlisting}
+sat
+(
+  (define-fun y () Int
+    1)
+  (define-fun x () Int
+    2)
+)
+\end{lstlisting}
+  \end{changemargin}
+\end{frame}
 
+\begin{frame}[fragile]
+  \frametitle{History of Symbolic Execution}
+  \begin{changemargin}{1cm}
 \begin{quote}
   Recent work on proving the correctness of programs by formal analysis [5] shows great promise and appears to be the ultimate technique for producing reliable programs. However,
   the practical accomplishments in this area fall short of a tool for routine use. Fundamental problems in reducing the theory to practice are not likely to be solved in the immediate future.
 \end{quote}
+(from a 1975 paper)
+  \end{changemargin}
+\end{frame}
 
-I will also point out that even if the software works perfectly (never crashes, for instance), you still don't know that the software is doing the right thing. You need SE 463 (requirements)
-for that.
+\begin{frame}[fragile]
+  \frametitle{What about today?}
+  \begin{changemargin}{1cm}
+    \Large
+    1. Even if the software never crashes, still need it to do the right thing (validation).\\[1em]
+    2. Verification, though, is more feasible in practice with industrial-strength SAT/SMT solvers:
+    constraint solving is easy.
+  \end{changemargin}
+\end{frame}
 
-In any case, in the 2000s, SAT solvers and their big brothers (SMT solvers) made SAT feasible in practice. In the context of formal verification, constraint solving is easy. Classical verification
-algorithms---with worst-case exponential running time---became viable in practice even if not in theory.
+\part{Symbolic Execution: Path Conditions}
+\begin{frame}
+  \partpage
+\end{frame}
 
-% There were also conceptual breakthroughs in the mid-2000s with dynamic symbolic execution, which we'll see in Lecture 9.
+\begin{frame}[fragile]
+  \frametitle{Our next example}
+  \begin{lstlisting}[language=C,basicstyle=\small]
+int max4(int a, int b, int c, int d) {
+ return max2(max2(a, b/*(1)*/), max2(c, d/*(2)*/) /*(3)*/);
+}
 
-\section*{Symbolic Execution Illustrated}
-Let's continue with an example.
-\begin{lstlisting}
-  int max4(int a, int b, int c, int d) {
-    return max2(max2(a, b /*(1)*/), max2(c, d /*(2)*/) /*(3)*/);
-  }
+int max2(int x, int y) {
+ if (x <= y) return y;
+ else return x;
+}
+  \end{lstlisting}
+~\\
+  We will explore all the paths.
+\end{frame}
 
-  int max2(int x, int y) {
-    if (x <= y) return y;
-    else return x;
-  }
-\end{lstlisting}
-We can exhaustively explore all of the paths. Hereafter, $\mathit{pc}$ means path condition (rather than program counter as before), and it's the thing inside the boxes. Solid lines are the true branch, while dashed lines are the false branch.
-Each node shows the result of the previous test. In this picture (and only in this picture---for space reasons), you get
-the path condition by conjoining the conditions that lead to your path; for instance, the full path condition at the left-most leaf is $a \le b \wedge c \le d \wedge b \le d$.
-
-\begin{center}
-    \begin{tikzpicture}[
+\begin{frame}[fragile]
+  \frametitle{All the paths}
+  \begin{center}
+    \scalebox{0.8}{
+        \begin{tikzpicture}[
         node distance=.5cm and .5cm,
         every node/.style={draw, rounded corners, fill=gray!10, align=center},
         every path/.style={thick},
@@ -201,7 +364,7 @@ the path condition by conjoining the conditions that lead to your path; for inst
       \node (lll)[below left=of ll,xshift=2em]   {\underline{$b \le d$} \\ $a=1$\\$b=1$\\$c=2$\\$d=2$};
       \node (llr)[below right=of ll,xshift=-3em] {\underline{$b > d$} \\ $a=1$\\$b=2$\\$c=1$\\$d=1$};
       \node (lrl)[below left=of lr,xshift=3em]   {\underline{$b \le c$} \\ $a=1$\\$b=2$\\$c=2$\\$d=1$};
-      \node (lrr)[below right=of lr,xshift=-2em] {\underline{$b > c$} \\ $a=1$\\$b=3$\\$c=2$\\$d=1$};
+      \node (lrr)[below right=of lr,xshift=-2.5em] {\underline{$b > c$} \\ $a=1$\\$b=3$\\$c=2$\\$d=1$};
 
       \node (rll)[below left=of rl,xshift=2em]   {\underline{$a \le d$} \\ $a=2$\\$b=1$\\$c=2$\\$d=2$};
       \node (rlr)[below right=of rl,xshift=-3em] {\underline{$a > d$} \\ $a=3$\\$b=1$\\$c=2$\\$d=2$};
@@ -226,12 +389,40 @@ the path condition by conjoining the conditions that lead to your path; for inst
     \draw[->] (rr) -- (rrl);
     \draw[->,dotted] (rr) -- (rrr);
     
+        \end{tikzpicture}
+        }
+  \end{center}
+  \emph{pc} = path condition; solid = true branch; dashed = false branch.\\[1em]
+  Here (and only here), get \emph{pc} by conjoining conditions on your path; \\
+  e.g. leftmost leaf has \emph{pc}: $a \le b \wedge c \le d \wedge b \le d$.
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{A test case}
+  \begin{changemargin}{1cm}
+    We ask z3 to compute values for $a, b, c, d$, based on  \emph{pc} $a \le b \wedge c \le d \wedge b \le d$.
+  \end{changemargin}
+
+  \begin{center}
+    \begin{tikzpicture}[
+        node distance=.5cm and .5cm,
+        every node/.style={draw, rounded corners, fill=gray!10, align=center},
+        every path/.style={thick},
+        decision/.style={draw, rounded corners, fill=gray!20, align=center, minimum width=3.5cm, yshift=2em}
+    ]
+            \node (lll)   {\underline{$b \le d$} \\ $a=1$\\$b=1$\\$c=2$\\$d=2$};
     \end{tikzpicture}
-\end{center}
+  \end{center}
+\end{frame}
 
-I manually worked out these test cases to meet the constraints, but of course we can also get z3 to compute it too.
-That's the whole reason we're talking about this.
+\begin{frame}[fragile]
+  \frametitle{Running z3}
 
+  \[ a \le b \wedge c > d \wedge b \le c \]
+  \begin{tabular}{l|l}
+   
+    Input: & Output: \\
+    
 \begin{lstlisting}
 (declare-fun a () Int)
 (declare-fun b () Int)
@@ -247,25 +438,28 @@ That's the whole reason we're talking about this.
 (check-sat)
 (get-model)
 \end{lstlisting}
+&
 
-If you run this, then you get:
 \begin{lstlisting}
 sat
 (
-  (define-fun d () Int
-    1)
-  (define-fun a () Int
-    1)
-  (define-fun c () Int
-    2)
-  (define-fun b () Int
-    1)
+  (define-fun d () Int 1)
+  (define-fun a () Int 1)
+  (define-fun c () Int 2)
+  (define-fun b () Int 1)
 )
 \end{lstlisting}
+  \end{tabular}
+\end{frame}
 
-\section*{A Symbolic Execution Example}
-We are now going to illustrate how symbolic execution works on this code:
-\begin{lstlisting}
+\part{Symbolic Execution: Example 1}
+\begin{frame}
+  \partpage
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Another proc}
+  \begin{lstlisting}[language=C,basicstyle=\small]
   int proc(int x) {
     int r = 0;
 
@@ -277,10 +471,12 @@ We are now going to illustrate how symbolic execution works on this code:
       r = x - 2;
     }
   }
+  \end{lstlisting}
+\end{frame}
 
-\end{lstlisting}
-
-The initial symbolic state, after executing \texttt{r=0}, is this:
+\begin{frame}[fragile]
+  \frametitle{Initial symbolic state}
+After executing \texttt{r=0}:
 \begin{center}
     \begin{tikzpicture}[
         node distance=1.5cm and 1cm,
@@ -298,15 +494,43 @@ The initial symbolic state, after executing \texttt{r=0}, is this:
     
     \end{tikzpicture}
 \end{center}
-The start of the method is always reachable, so \textbf{$pc = \textsf{true}$}. There is one input $X$
-stored in program variable $\texttt{x}$. We also know that \texttt{r} is 0 after its initialization.
+\begin{enumerate}
+\item method start is always reachable, so \textbf{$pc = \textsf{true}$}
+\item the sole input, symbolic $X$, is stored in $\texttt{x}$
+\item \texttt{r} is 0
+\end{enumerate}
+\end{frame}
 
-Program point (1) is a branch, so there are two possible symbolic states coming out of the branch statement.
-The path condition is what has to be true to reach a particular point. In this case, on the true branch, it must be
-the case that $X > 8$ (that's how you get there); and conversely for the false branch, $X \le 8$. We encode that in the
-path condition. We continue the convention that the solid line denotes the then-branch, while the dotted line
-denotes the else-branch.
+\begin{frame}[fragile]
+  \frametitle{same proc again}
+  \begin{lstlisting}[language=C,basicstyle=\small]
+  int proc(int x) {
+    int r = 0;
 
+    if (x > 8) { // (1)
+      r = x - 7;
+    }
+
+    if (x < 5) { // (2)
+      r = x - 2;
+    }
+  }
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Symbolically executing the if}
+  \begin{changemargin}{1em}
+    \large
+  point (1) is \verb+if (x > 8)+: 2 possible symbolic states after.\\[1em]
+  
+  \emph{pc} is what has to be true to reach a point.\\[1em]
+
+  on true branch, must have $X > 8$;\\
+  on false branch, $X \le 8$.\\[1em]
+
+  Encode this in \emph{pc}.
+  \end{changemargin}
 \begin{center}
     \begin{tikzpicture}[
         node distance=.5cm and .5cm,
@@ -336,9 +560,14 @@ denotes the else-branch.
     
     \end{tikzpicture}
 \end{center}
-We ask the SMT solver if both path conditions $X > 8$ and $X \le 8$ are satisfiable. They are ($\checkmark$).
+Ask SMT solver if path conditions $X > 8$ and $X \le 8$ are satisfiable: yes ($\checkmark$).
+\end{frame}
 
-We continue executing the code in the then-branch, updating \texttt{r} with its new symbolic value, $X - 7$.
+\begin{frame}[fragile]
+  \frametitle{then-branch code: \texttt{r = x - 7}}
+  \begin{changemargin}{1em}
+    \large
+Update \texttt{r} with its new symbolic value, $X - 7$.\\[1em]
 \begin{center}
     \begin{tikzpicture}[
         node distance=.5cm and .5cm,
@@ -373,8 +602,13 @@ We continue executing the code in the then-branch, updating \texttt{r} with its 
     
     \end{tikzpicture}
 \end{center}
-Execution continues to the second conditional (2). This induces another node in the tree. (Actually, 2 nodes, but let's start with the true branch only).
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{\texttt{if x < 5 (2)} then-branch}
 \begin{center}
+    \scalebox{0.8}{
     \begin{tikzpicture}[
         node distance=.5cm and .5cm,
         every node/.style={draw, rounded corners, fill=gray!10, align=center},
@@ -412,11 +646,17 @@ Execution continues to the second conditional (2). This induces another node in 
     \draw[->] (left2) -- (ll);
     
     \end{tikzpicture}
+}
 \end{center}
-The SMT solver says that the true branch's path condition is unsatisfiable (\xmark): there is no $X$ such that $X > 8$ and $X < 5$. We throw away that state and instead
-explore the else branch.
-The else branch's path condition is indeed satisfiable ($\checkmark$). The else branch is empty, so we proceed to the return and end that path.
+\begin{changemargin}{1cm}
+  Now unsatisfiable (can't have $X > 8 \wedge X < 5$); throw it away.
+\end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{second conditional (2) \texttt{if x < 5} and else-branch}
 \begin{center}
+    \scalebox{0.8}{
     \begin{tikzpicture}[
         node distance=.5cm and .5cm,
         every node/.style={draw, rounded corners, fill=gray!10, align=center},
@@ -454,9 +694,19 @@ The else branch's path condition is indeed satisfiable ($\checkmark$). The else 
     \draw[->,dotted] (left2) -- (ll);
     
     \end{tikzpicture}
+}
 \end{center}
-We continue with the else branch of (1), which proceeds directly to conditional (2).
-\begin{center}
+\begin{changemargin}{1cm}
+  else branch path condition is satisfiable ($\checkmark$); \\
+  proceed to the return and end that path.
+\end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{back up to (1) else-branch and (2) then-branch}
+  \begin{changemargin}{1cm}
+    (1) else-branch proceeds directly to conditional (2):\\[1em]
+    \scalebox{0.8}{
     \begin{tikzpicture}[
         node distance=.5cm and .5cm,
         every node/.style={draw, rounded corners, fill=gray!10, align=center},
@@ -498,10 +748,21 @@ We continue with the else branch of (1), which proceeds directly to conditional 
     \draw[->] (right) -- (rl);
     
     \end{tikzpicture}
-\end{center}
-The resulting path condition after (1) is false and (2) is true, $X \le 8 \wedge X < 5$, is satisfiable ($\checkmark$). We continue executing the code
-in the then-branch and assign to \texttt{r} symbolic value $X-2$.
+
+    }
+    ~\\
+    The resulting path condition after (1) is false and (2) is true, $X \le 8 \wedge X < 5$, is satisfiable ($\checkmark$).
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{finishing (2) then-branch}
+  \begin{changemargin}{1cm}
+    We continue executing the code
+in the then-branch and assign to \texttt{r} the symbolic value $X-2$.
+  \end{changemargin}
 \begin{center}
+    \scalebox{0.8}{
     \begin{tikzpicture}[
         node distance=.5cm and .5cm,
         every node/.style={draw, rounded corners, fill=gray!10, align=center},
@@ -547,10 +808,17 @@ in the then-branch and assign to \texttt{r} symbolic value $X-2$.
     \draw[->] (rl) -- (rl2);
     
     \end{tikzpicture}
+}
 \end{center}
-The final path to explore is the else-branch of conditional (2). That path condition,
-$X \le 8 \wedge X \ge 5$, is also satisfiable ($\checkmark$).
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{finally (2) else-branch}
+  \begin{changemargin}{1cm}
+That path condition,
+$X \le 8 \wedge X \ge 5$, is also satisfiable ($\checkmark$).\\[1em]
 \begin{center}
+    \scalebox{0.6}{
     \begin{tikzpicture}[
         node distance=.5cm and .5cm,
         every node/.style={draw, rounded corners, fill=gray!10, align=center},
@@ -600,88 +868,129 @@ $X \le 8 \wedge X \ge 5$, is also satisfiable ($\checkmark$).
     \draw[->,dotted] (right) -- (rr);
     
     \end{tikzpicture}
+    }
 \end{center}
-Whenever we had asked the SMT solver whether a path condition was satisfiable, we also requested
-a satisfying assignment, which I didn't show you at the time. But some satisfying assignments are,
-from left to right, $X = 9$; $X = 4$; $X = 7$, and they induce the test cases \texttt{proc(9)},
-\texttt{proc(4)}, and \texttt{proc(7)}. This test suite achieves full path coverage on this function:
-it explores all feasible paths from entry to return (not just branches!).
+  \end{changemargin}
+\end{frame}
 
-\section*{Defining symbolic execution}
-We've seen a couple of examples of symbolic execution.
-This technique analyses programs by tracking symbolic values (like $X$
-above) rather than actual concrete values; it is thus a form of static
-analysis. These symbolic values enable (symbolic) reasoning about
-\emph{all} inputs that take the same path through the program, not
-just certain concrete values.
+\begin{frame}[fragile]
+  \frametitle{Satisfying assignments $\checkmark$ \xmark}
+  \begin{changemargin}{1cm}
+    We asked SMT solver about $\checkmark$ versus \xmark.\\
+    At the same time, we also requested satisfying assignments.\\[1em]
+\begin{center}
+    \scalebox{0.6}{
+    \begin{tikzpicture}[
+        node distance=.5cm and .5cm,
+        every node/.style={draw, rounded corners, fill=gray!10, align=center},
+        every path/.style={thick},
+        decision/.style={draw, rounded corners, fill=gray!20, align=center, minimum width=3.5cm}
+    ]
 
-Symbolic values stand in for input variables. Programs can operate on
-a range of input values, and we don't want to commit to any specific
-values at analysis time, so we just leave it symbolic.
 
-The notion of symbolic values is going to be key to understanding how
-both Kani and Dafny work.
+    % Nodes
+      \node (start) {\textbf{$pc = \textsf{true}$} \\
+        $\texttt{x} = X$ \\
+        $\texttt{r} = 0$ };
+    
+    \node (left)[below left=of start, decision,yshift=1em] {$X > 8$ \\ 
+        $\texttt{x} = X$ \\
+        $\texttt{r} = 0$ };
 
-\paragraph{Path conditions.} The (symbolic) path conditions characterize what must
-hold on a given path, and the symbolic state summarizes the effects
-of the execution on all possible program states.
+    \node (left2)[below =of left] {$X > 8$ \\ 
+        $\texttt{x} = X$ \\
+        $\texttt{r} = X - 7$ };
+
+    \node (ll)[below left =of left2,decision,yshift=1em] {$X > 8 \wedge X \ge 5$ \\ 
+        $\texttt{x} = X$ \\
+        $\texttt{r} = X - 7$ };
+    
+    \node (right)[below right=of start, decision,yshift=1em] {$X \leq 8$ \\ 
+        $\texttt{x} = X$ \\
+        $\texttt{r} = 0$ };
+    \node (rl)[below left=of right, decision, xshift=3em] {$X \leq 8 \wedge X < 5$\\
+        $\texttt{x} = X$ \\
+        $\texttt{r} = 0$ };
+    \node (rl2)[below=of rl] {$X \leq 8 \wedge X < 5$\\
+        $\texttt{x} = X$ \\
+        $\texttt{r} = X-2$ };
+    \node (rr)[below right=of right, decision,xshift=-2em] {$X \leq 8 \wedge X \ge 5$~~$\checkmark$\\
+        $\texttt{x} = X$ \\
+        $\texttt{r} = 0$ };
+
+    % Edges
+      
+    \draw[->] (start) -- (left);
+    \draw[->, dotted] (start) -- (right);
+    \draw[->] (left) -- (left2);
+    \draw[->,dotted] (left2) -- (ll);
+    \draw[->] (right) -- (rl);
+    \draw[->] (rl) -- (rl2);
+    \draw[->,dotted] (right) -- (rr);
+    
+    \end{tikzpicture}
+    }
+\end{center}
+
+Some satisfying assignments, from left to right:
+    \begin{center}
+      $X = 9$; $X = 4$; $X = 7$;
+    \end{center}
+    test cases:
+    \begin{center}
+      \texttt{proc(9)}, \texttt{proc(4)}, \texttt{proc(7)}
+    \end{center}
+Explores all feasible paths.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Defining symbolic execution}
+  \begin{changemargin}{1cm}
+    We've seen some examples.\\
+    Summing up:
+    \begin{itemize}
+    \item track symbolic values (e.g. $X$) rather than actual concrete values;
+    \item enable symbolic reasoning about all inputs taking a given path.
+    \end{itemize}
+    ~\\[1em]
+    Symbolic value: stands in for input variable.\\
+    Don't need to commit to any specific values.\\[1em]
+    The concept of symbolic value is key to Kani and Dafny.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Path conditions}
+  \begin{changemargin}{1cm}
+    (Symbolic) path condition: characterize what must
+    hold on a given path.\\[1em]
+
+    Symbolic state: summarizes the effects
+of the execution on all possible program states.\\[1em]
 
 A path condition for a path $P$ is a formula $\mathit{pc}$
-such that $\mathit{pc}$ is satisfiable if and only if $P$ is
-executable.
+s.t. $\mathit{pc}$ is satisfiable iff $P$ is
+executable.\\[1em]
 
-In symbolic execution, we use a theorem prover, or a constraint solver (like z3),
-to check if a path condition is satisfiable and the path can be taken.
+In symbolic execution: use a theorem prover or a constraint solver (like z3)
+to check if a path condition is satisfiable and the path can be taken.\\[1em]
+
 A satisfying assignment can be used as an input for the program to execute the path of interest.
 
-%% \paragraph{Symbolic state.} A \emph{symbolic state} is a pair $S = (\mathit{Env}, \mathit{pc})$, where:
-%% \begin{itemize}[noitemsep]
-%% \item Environment $\mathit{Env}: L \rightarrow E$ is a mapping from program variables to symbolic expressions (i.e. first-order logic terms);
-%% \item Path condition $\mathit{pc}$ is a first-order logic formula.
-%% \end{itemize}
+  \end{changemargin}
+\end{frame}
 
-%% When executing a program, there is a concrete state after every program execution step.
-%% One could formally define the states using operational semantics, but we'll skip that here.
-%% This would allow us to define when a concrete state $M : L \rightarrow \mathbb{Z}$ satisfies ($\models$) a symbolic state $S = (\mathit{Env}, \mathit{pc})$:
-%% \[ M \models (\mathit{Env}, \mathit{pc}) \mbox{ iff } \left( (\bigwedge_{v \in L} M(v) = \mathit{Env}(v)) \wedge \mbox{$\mathit{pc}$ is SAT} \right) \]
-
-%% %% We had the operational semantics on concrete states before. It is possible to extend them to symbolic states. Each program statement updates symbolic variables and the path condition, in a way that is consistent with the operational semantics.
-
-%% \paragraph{Symbolic state satisfiability.} Let's look at a symbolic state and two concrete states that may or may not satisfy it. Here's the symbolic state.
-%% \[ \mathit{Env} = \left\{ \begin{array}{c} x \mapsto X \\ y \mapsto Y \end{array} \right. \hspace*{2em} \mathit{pc} = X > 5 \wedge Y < 3 \]
-%% Now, what about concrete state
-%% \[ [x \mapsto 10, y \mapsto 1] \models? S \]
-%% Here, $\mathit{Env}$ is saying that $x = X$ and $y = Y$, so we just have concrete path condition $(10 > 5) \wedge (1 < 3)$, which is true, so the concrete state above does satisfy this symbolic state.
-
-%% For concrete state 
-%% \[ [x \mapsto 1, y \mapsto 10] \models? S \]
-%% we have $(1 > 5) \wedge (10 < 3)$, which is false, so that this concrete state does not satisfy the symbolic state.
-
-%% A new example of symbolic state (slightly modified from the slides):
-%% \[ \mathit{Env} = \left\{ \begin{array}{c} x \mapsto X + Y \\ y \mapsto Y - X \end{array} \right. \hspace*{2em} \mathit{pc} = 2 * X - Y > 0 \]
-
-%% Now, what if concrete state was
-%% \[ [x \mapsto 10, y \mapsto 2] \models? S \]
-%% We can use linear algebra on the equations $10 = X + Y$ and $2 = Y - X$ to get $X = 4, Y = 6$. That gives concrete path condition $2 * 4 - 6 > 0$, which evaluates to true, making this concrete
-%% state satisfy the symbolic state. (I think the example in the slides is broken, because we're supposed to be working over integers here, and the example in the slides yields fractions.)
-
-%% With concrete state
-%% \[ [x \mapsto 2, y \mapsto 10] \models? S \]
-%% linear algebra gives us $X = -8, Y = 6$, so we have path condition $(2 * (-8)) - 6 > 0$, which is false, and so this concrete state does not satisfy the given symbolic state.
-
-%% \paragraph{Another view of symbolic execution.} Symbolic execution is quite path-based. We can say that symbolic execution creates a functional representation of each path
-%% in the control-flow graph of a program, i.e. under symbolic execution, we view each program path as a function from inputs to outputs.
-
-%% The domain for path $P_i$, or $D[P_i]$, is the set of inputs that force the program onto path $P_i$.
-
-%% The program $P$ as a whole can be thought of as a collection of partial functions $P_1, \ldots, P_r$, where each $P_i$ maps some (disjoint) part of the program input to output.
-%% Here's a picture from the slides, though I disagree with partitioning the output space; outputs can be anything. (In math-speak, the function induced by the program need not be injective).
-
-%% \includegraphics[width=.9\textwidth]{L14/partial-function.png}
-
-\section*{A Third Symbolic Execution Example}
-Once again, we can use symbolic execution to find an assertion violation.
-\begin{lstlisting}
+\part{Symbolic Execution: Example 2}
+\begin{frame}
+  \partpage
+\end{frame}
+\begin{frame}[fragile]
+  \frametitle{One more symbolic execution example}
+\begin{changemargin}{1cm}
+  Symbolic execution can find assertion violation:
+  
+\begin{lstlisting}[language=C]
 proc(int a, int b, int c) {
   int x = 0, y = 0, z = 0;
   if (a) { // (1)
@@ -696,8 +1005,13 @@ proc(int a, int b, int c) {
   assert (x + y + z != 3);
 }
 \end{lstlisting}
+We will say $a = A, b = B, c = C$ always, leaving them out of symbolic state.
+\end{changemargin}
+\end{frame}
 
-We are going to say that $a = A, b = B, c = C$ always, and leave them out of the symbolic state for space reasons. The initial state is:
+\begin{frame}[fragile]
+  \frametitle{Initial state}
+\begin{changemargin}{1cm}
 \begin{center}
     \begin{tikzpicture}[
         node distance=.5cm and .5cm,
@@ -714,11 +1028,14 @@ We are going to say that $a = A, b = B, c = C$ always, and leave them out of the
     
     \end{tikzpicture}
 \end{center}
+\end{changemargin}
+\end{frame}
 
-I'm going to combine visiting the true-branch of (1) as well as the true-branch of (2) in the following picture.
-Both path conditions $A$ and $A \wedge B < 5$ are satisfiable ($\checkmark$). We can't visit (3)'s true-branch because the
-path condition inside that branch, $A \wedge B < 5 \wedge (\neg A \wedge C)$, is unsatisfiable (\xmark).
-
+\begin{frame}[fragile]
+  \frametitle{Skipping ahead}
+  \begin{changemargin}{1cm}
+    true-branch (1) plus true-branch (2):
+\end{changemargin}
 
 \begin{center}
     \begin{tikzpicture}[
@@ -749,7 +1066,19 @@ path condition inside that branch, $A \wedge B < 5 \wedge (\neg A \wedge C)$, is
     \end{tikzpicture}
 \end{center}
 
-We can also add the else-branch of (2), which has a satisfiable path condition ($\checkmark$) and has no body.
+  \begin{changemargin}{1cm}
+    $A$ and $A \wedge B < 5$ both satisfiable ($\checkmark$).\\[1em]
+    can't visit (3)'s true-branch because pc inside that branch, $A \wedge B < 5 \wedge (\neg A \wedge C)$, is unsatisfiable (\xmark).
+\end{changemargin}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{adding (2) else-branch}
+  \begin{changemargin}{1cm}
+    satisfiable ($\checkmark$) path condition and no body:
+    
+\end{changemargin}
 \begin{center}
     \begin{tikzpicture}[
         node distance=.5cm and .5cm,
@@ -782,8 +1111,15 @@ We can also add the else-branch of (2), which has a satisfiable path condition (
     
     \end{tikzpicture}
 \end{center}
-Now we visit the else-branch of (1) and also the else-branch of (2), which yields satisfiable $(\checkmark)$ path condition $\neg A \wedge B \ge 5$. 
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{adding (1) else-branch and (2) else-branch}
+  \begin{changemargin}{1cm}
+    yields satisfiable ($\checkmark$) path condition $\neg A \wedge B \ge 5$.
+\end{changemargin}
 \begin{center}
+\scalebox{0.6}{
     \begin{tikzpicture}[
         node distance=.5cm and .5cm,
         every node/.style={draw, rounded corners, fill=gray!10, align=center},
@@ -823,9 +1159,17 @@ Now we visit the else-branch of (1) and also the else-branch of (2), which yield
     \draw[->,dotted] (right) -- (rr);
     
     \end{tikzpicture}
+}
 \end{center}
-And there are still unexplored paths through the true-branch of (2) leading to (3), for which we'll explore the else-branch first. This yields satisfiable $(\checkmark)$ path condition $\neg A \wedge B < 5 \wedge \neg C$. (I simplified $\neg (\neg a \wedge c)$ to just $a \vee \neg c$ to get the path condition here).
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{(2) true-branch leading to (3)'s else-branch}
+  \begin{changemargin}{1cm}
+    yields satisfiable ($\checkmark$) path condition $\neg A \wedge B < 5 \wedge \neg A \wedge C$
+\end{changemargin}
 \begin{center}
+\scalebox{0.6}{
     \begin{tikzpicture}[
         node distance=.5cm and .5cm,
         every node/.style={draw, rounded corners, fill=gray!10, align=center},
@@ -877,9 +1221,17 @@ And there are still unexplored paths through the true-branch of (2) leading to (
     \draw[->,dotted] (rl) -- (rlr);
     
     \end{tikzpicture}
+}
 \end{center}
-Finally, we explore the then-branch of (3), yielding a satisfiable ($\checkmark$) path condition $\neg A \wedge B < 5 \wedge \neg A \wedge C$ (which I've simplified).
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{finally: (3) then-branch}
+  \begin{changemargin}{1cm}
+path condition $\neg A \wedge B < 5 \wedge \neg A \wedge C$
+\end{changemargin}
 \begin{center}
+\scalebox{0.6}{
     \begin{tikzpicture}[
         node distance=.5cm and .5cm,
         every node/.style={draw, rounded corners, fill=gray!10, align=center},
@@ -936,19 +1288,37 @@ Finally, we explore the then-branch of (3), yielding a satisfiable ($\checkmark$
     \draw[->] (rl) -- (rll);
     
     \end{tikzpicture}
+}
 \end{center}
-This path fails the assert. We can ask the SMT solver to find a test case that violates the assertion, which is $A$ false, $B=4$, and $C$ true,
-yielding $x = 0, y = 1, z = 2$, so that the assert is checking $0 + 1 + 2 \neq 3$, which fails as desired.
 
-\section*{Finding Bugs using Symbolic Execution}
-We've seen that symbolic execution enumerates paths. It will therefore find bugs that trigger when a specific path executes. That's not quite enough on its own, though.
-Like fuzzing: we saw how we rewrote programs to use specific asserts, as in the division by zero example. In general, finding a bug requires finding the conditions that trigger it.
-Bugs include assertion failures, buffer overflows, division by zero, etc.
+\begin{changemargin}{1cm}
+  This path fails the assert \texttt{(x + y + z != 3)}.\\
+  SMT solver tells us $A$ false, $B=4$, and $C$ true.\\
+  have $x = 0, y = 1, z = 2$, i.e. $0 + 1 + 2 \neq 3$, fails as desired.
+\end{changemargin}
+\end{frame}
 
-We go one more step beyond just having asserts, and compile these assertions into conditionals. This treats assertions as conditions and creates explicit error paths. Since
-we are exploring all paths, we will explore the error path (containing an \texttt{error()} call) if it is reachable.
+\part{Symbolic Execution Commentary}
+\begin{frame}
+  \partpage
+\end{frame}
 
-So, we compile from
+\begin{frame}[fragile]
+  \frametitle{Finding Bugs using Symbolic Execution}
+  \begin{changemargin}{1cm}
+    Symbolic execution enumerates paths;\\
+    \hspace*{1em} thus, finds bugs triggered on a specific path.\\[1em]
+    Like fuzzing: use specific asserts.\\[1em]
+    To find a bug: find conditions that trigger it.\\[1em]
+    Bugs: assertion failures, buffer overflows, division by zero, etc.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Asserts versus conditionals}
+  \begin{changemargin}{1cm}
+    Explicit error paths:
+ compile from
 \begin{center}
   \texttt{assert x != NULL}
 \end{center}
@@ -957,39 +1327,76 @@ into
   \texttt{if (x == NULL)}\\
   \texttt{~~~~error();}
 \end{center}
-and show that the \texttt{error()} call is reachable or unreachable.
 
-The rewriting process, or instrumenting the programs with properties, can
-translate any safety property (``bad things don't happen'') into
-reachability (of an \texttt{error()} call). There is some similarity
-to using fuzzing plus explicit assertions to find problems.
+Since we explore all paths, we will explore the error path (containing an \texttt{error()} call) if it is reachable.
+  \end{changemargin}
+\end{frame}
 
-Rewriting can be explicit or implicit. For explicit rewriting, this is like
-sanitizers, and we instrument the code with checks. But the symbolic engine
-can also implicitly inject extra checks at runtime.
+\begin{frame}[fragile]
+  \frametitle{Implications of rewriting}
+  \begin{changemargin}{1cm}
+\Large
+Rewriting/instrumenting programs with properties:\\[1em]
+translates any safety property (``bad things don't happen'') into
+reachability (of an \texttt{error()} call). \\[1em]
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Rewriting: explicit or implicit}
+  \begin{changemargin}{0.5cm}
+    \Large
+Explicit: like
+sanitizers, instrument the code with checks. \\[1em]
+
+Symbolic engine
+can also implicitly inject extra checks at runtime. \\[1em]
 
 Checks might look like this:
+{\small
 \begin{eqnarray*}
  \texttt{y = 100 / x} &\Rightarrow& \texttt{assert x != 0; y = 100/x} \mbox{ (division by zero)}\\
  \texttt{a[x] = 10} &\Rightarrow& \texttt{assert x >= 0 \&\& x < len(a)} \mbox{ (array bounds)}
 \end{eqnarray*}
+}  \end{changemargin}
+\end{frame}
 
-\section*{Problems of (Classical) Symbolic Execution}
-Of course, I've shown you cases where symbolic execution works. This isn't real code. What happens for real?
+\begin{frame}[fragile]
+  \frametitle{Problems of (Classical) Symbolic Execution}
+  \begin{changemargin}{1cm} \Large
+    We've seen selected examples.\\
+    Real-world?\\[1em]
 
-Some code is hard to analyze. Even if it generates innocuous-looking constraints, the resulting constraints might be beyond the abilities of our SMT solvers. For instance, cryptographic hashes are definitely hard to invert.
+    Some code is hard to analyze. \\
+    Resulting constraints might be beyond the abilities of our SMT solvers. \\
+    e.g. cryptographic hashes are definitely hard to invert.
+  \end{changemargin}
+\end{frame}
 
-There's also the path explosion problem. The number of paths in the program is at least exponential in the size of the program. Control flow, loops, procedures, concurrency, etc., can cause lots of paths---a potentially infinite number, in the case of loops.
+\begin{frame}[fragile]
+  \frametitle{Problems of (Classical) Symbolic Execution II}
+  \begin{changemargin}{1cm} \Large
+    Also: the path explosion problem. \\
+    \# of paths in the program is at least exponential in the size of the program. \\[1em]
+    Control flow, loops, procedures, concurrency, etc., can cause lots of paths---potentially infinite.
+  \end{changemargin}
+\end{frame}
 
-And, to analyze real code, you need to work with more than just integers.
-There are pointers and data structures; files and databases; networks and sockets; and threads and thread schedules, among other things. There has to be some way of handling these.
+\begin{frame}[fragile]
+  \frametitle{Problems of (Classical) Symbolic Execution III}
+  \begin{changemargin}{1cm} \Large
+To analyze real code, you need to work with more than just integers.\\[1em]
+\begin{itemize}
+\item pointers and data structures;
+\item files and databases;
+\item networks and sockets;
+\item threads and thread schedules; etc.
+\end{itemize}
+There has to be some way of handling these.\\[1em]
 
 But, for the purpose of this course, you now know enough about symbolic execution to make sense of bounded model checking.
+  \end{changemargin}
+\end{frame}
 
-%Which is why we'll talk about dynamic symbolic execution soon.
-
-
-\bibliographystyle{alpha}
-\bibliography{L14}
 
 \end{document}
