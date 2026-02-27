@@ -86,7 +86,7 @@ run.
 
 
 My goal in talking about bounded model checking is for you to be able
-to apply modern bounded model checking tools like CBMC and Kani,
+to apply modern bounded model checking tools like CBMC and Kani to verify software,
 understanding (at a high level) how they work and when they are likely
 to fail, and understanding what they are telling you when they succeed.
 
@@ -161,15 +161,22 @@ Property foo.division-by-zero.2:
   division by zero in y / x
   !(x == 0u)
 \end{verbatim}}
-and with \verb+--show-vcc+ shows the relevant required verification conditions, as we discussed last time. Here's the report from the \texttt{y / x} division.
+and with \verb+--show-vcc+ shows the relevant required verification conditions.
+
+A verification condition (VC) is a logical formula---an implication---that implies that
+a desired program property holds; let's look at one.
+Here's the VC from the \texttt{y / x} division.
 {\scriptsize \begin{verbatim}
 {-10} goto_symex::\guard#1 <=> ¬(foo::y!0@1#1 >= foo::x!0@1#1)
 {-11} goto_symex::return_value::foo!0#1 = foo::x!0@1#1 / foo::y!0@1#1
 |---------------------------------
 {1} ¬goto_symex::\guard#1 => ¬(foo::x!0@1#1 = 0)
 \end{verbatim} }
-We can see that CBMC is going to automatically put in an assertion checking for division by zero, and it knows
-the conditions under which the y/x branch is executed, recording the conditions in variable guard1, which is true when $\neg (y \ge x)$. Verification succeeds on this branch if one can establish that input \texttt{x} is nonzero, given that guard1 is false (necessary to reach this branch).
+
+  CBMC automatically puts in an assertion checking for division by zero.
+  Using symbolic execution, it knows
+  the conditions under which the y/x branch is executed, recording these conditions in variable guard1---true when $\neg (y \ge x)$.
+  Verification succeeds on this branch if one can establish that input \texttt{x} is nonzero, given that guard1 is false (which was necessary to reach this branch).
 
 \paragraph{CBMC checks.}
 It's not just division by zero. From \verb+cbmc --help+, CBMC includes checks for: bounds, pointers, memory leaks,
@@ -177,7 +184,7 @@ memory cleanups, division by zero (ints and floats), (signed and unsigned) overf
 arithmetic overflow and underflow, non-meaningful type conversions and shifts, floating-point overflow and NaN,
 enum ranges, and pointer validity.
 
-Consider this program\footnote{https://model-checking.github.io/cbmc-training/cbmc/overview/debugging.html}:
+Consider this program\footnote{\url{https://model-checking.github.io/cbmc-training/cbmc/overview/debugging.html}}:
 \begin{lstlisting}[language=C]
 #define SIZE 20
 char buffer[SIZE];
@@ -315,8 +322,9 @@ test doesnt_crash ... ok
 test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.10s
 \end{verbatim}
 }
-(The Rust proptest crate starts with a random value and can ``shrink'' the value, but that's unlikely to get the
-needed value.)
+(The Rust proptest crate starts with a random value, but that's unlikely to get the
+needed value. 
+It can also ``shrink'' the value, which won't help here either.)
 
 \subsection*{Proof Harnesses}
 Rust has good syntax for so-called proof harnesses. You can write proof harnesses in C as well,
@@ -340,8 +348,8 @@ and assert. You still \emph{arrange} conditions to call the system under test, i
 preconditions, but you are now arranging with the help of symbolic values. \emph{Act} is as normal,
 even if it's not acting with concrete values. And the \emph{assert} phase (not present in the example above)
 still consists of assertions, but it may not be possible to write concrete assertions given an abstract input.
-The assertions may contain refinements of the
-postcondition that are supposed to be true due to what gets passed to the system in the arrange phase.
+The assertions may contain statements that are supposed to be true due to what the act phase did---these
+might also form part of the postcondition.
 
 We can run proof harnesses with ``cargo kani'', which in turn invokes CBMC.
 {\scriptsize
@@ -398,7 +406,7 @@ with that bit pattern, then we trigger the panic.
 going on\footnote{\url{https://model-checking.github.io/kani/tutorial-nondeterministic-variables.html}},
 which I've copied to \texttt{code/L15/kani-inventory-example}.
 
-We have a struct \texttt{Inventory} with delegating methods implementing functionality:
+We have a struct \texttt{Inventory} with methods implementing functionality using delegation:
 \begin{lstlisting}[language=Rust]
 pub type ProductId = u32;
 
@@ -436,13 +444,14 @@ pub fn safe_update() {
     assert!(inventory.get(&id).unwrap() == quantity);
 }
 \end{lstlisting}
+
+The symbolic execution is going to symbolically generate all valid
+values for \texttt{id} and \texttt{quantity}, perform the \texttt{update}, and check that the
+quantity associated with \texttt{id} is the quantity inserted.
+
 The example on the webpage has an unwinding limit, but that doesn't seem to do anything, so I omitted it.
 The assertion about the NonZeroU32 is also unnecessary by construction: the type NonZeroU32 cannot be 0,
 and so \texttt{kani::any()} will not generate a value of 0 for it.
-
-The symbolic execution is going to symbolically generate all valid
-values for \texttt{id} and \texttt{quantity} and check that the
-quantity associated with \texttt{id} is the quantity inserted.
 
 \subsection*{Boundedness \& loop unwinding}
 The really important thing to understand about bounded model checking,
@@ -481,9 +490,15 @@ fn check_initialize_prefix() {
     initialize_prefix(length, &mut buffer);
 }
 \end{lstlisting}
+Note the use of \texttt{kani::assume()} after \texttt{kani::any()}. This stylized
+usage constrains \texttt{length} to be anything, but no greater than \texttt{LIMIT}.
 
-This proof harness specifies an \emph{unwinding bound}. Since there is no loop
-invariant (Kani supports, but does not require, invariants), then Kani tries to cope
+Importantly, this proof harness specifies an \emph{unwinding bound}.
+The problem is that symbolic execution needs to reason about all paths.
+But when there's a loop, then there is an unbounded number of paths.
+Loop invariants are one way of dealing with this.
+Since there is no loop
+invariant in this case (Kani supports, but does not require, invariants), then Kani tries to cope
 with the loop by unwinding it some finite number of times. Unwinding is a key concept
 for bounded model checking.
 
@@ -636,7 +651,7 @@ We can see that CBMC prints out concrete input values for the \texttt{climb\_pid
 
 
 \subsection*{Contracts}
-Dafny verification is heavily based on contracts. Kani can also do contracts\footnote{\url{https://model-checking.github.io/kani/reference/experimental/contracts.html}}; the code is available in \texttt{code/L16/kani-contracts}.
+Program verification is heavily based on contracts. Essentially, assuming that a method's precondition holds, verification consists of showing that its postcondition must hold after the method execution terminates. Preconditions and postconditions are logical formulas of some sort. Dafny's approach is thus based on contracts. Kani can also do contracts\footnote{\url{https://model-checking.github.io/kani/reference/experimental/contracts.html}}; the following code is available in \texttt{code/L15/kani-contracts}.
 
 Here is a gcd implementation, along with a contract.
 \begin{lstlisting}[language=Rust]
@@ -659,7 +674,7 @@ declares the recursion in the function. This is a partial contract---it's missin
 a detail---but what it says is appropriate, as far as it goes.
 
 You can trigger exhaustive checking of the implementation against the contract using the invocation \verb+cargo kani -Z function-contracts+. Even though it's only 8-bit integers, it still takes 11 seconds on my laptop. But we then can conclude that
-\texttt{gcd} is correct. I tried to run it for 16-bit integers but it takes a lot longer and I gave up.
+\texttt{gcd} meets its specification. I tried to run it for 16-bit integers but it takes a lot longer and I gave up.
 
 Having verified a contract for \texttt{gcd}, you can then tell Kani to
 use its contract when verifying any functions that subsequently call
@@ -692,7 +707,7 @@ It is possible to use Kani, and other tools, to ensure that even
 Unsafe Rust code is free of undefined behaviour and respects its
 contract. One can start with the tools that we've seen here. Kani
 would require a good proof harness to ensure the absence of undefined
-behaviour.  This includes bounds errors and overflows. (Overflows are
+behaviour.  This includes bounds errors and integer overflows. (Integer overflows are
 panics in debug mode and wrap in release mode.)
 
 \section*{Using Bounded Model Checking}

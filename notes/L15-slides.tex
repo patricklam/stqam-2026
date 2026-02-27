@@ -1,0 +1,1334 @@
+\documentclass{beamer}
+
+\usetheme{Boadilla}
+
+\usepackage{times}
+\usefonttheme{structurebold}
+\usepackage{listings}
+\usepackage{listings-rust}
+
+\usepackage{pgf}
+\usepackage{tikz}
+\usepackage{alltt}
+\usepackage[normalem]{ulem}
+\usetikzlibrary{arrows,automata,shapes,positioning}
+\usepackage{amsmath,amssymb}
+\usepackage{rotating}
+\usepackage{ulem}
+\usepackage{pythonhighlight}
+\usepackage{amssymb}
+\usepackage{pifont}
+\newcommand{\xmark}{\ding{55}}
+
+\usetikzlibrary{arrows,automata,shapes}
+\tikzstyle{block} = [rectangle, draw, fill=blue!20, 
+    text width=5em, text centered, rounded corners, minimum height=2em]
+\tikzstyle{bt} = [rectangle, draw, fill=blue!20, 
+    text width=4em, text centered, rounded corners, minimum height=2em]
+
+\lstdefinelanguage{FSharp}%
+{morekeywords={let, new, match, with, rec, open, module, namespace, type, of, member, % 
+and, for, while, true, false, in, do, begin, end, fun, function, return, yield, try, %
+mutable, if, then, else, cloud, async, static, use, abstract, interface, inherit, finally },
+  otherkeywords={ let!, return!, do!, yield!, use!, var, from, select, where, order, by },
+  keywordstyle=\color{blue},
+  sensitive=true,
+  basicstyle=\ttfamily,
+	breaklines=true,
+  xleftmargin=\parindent,
+  aboveskip=\bigskipamount,
+	tabsize=4,
+  morecomment=[l][\color{olive}]{///},
+  morecomment=[l][\color{olive}]{//},
+  morecomment=[s][\color{olive}]{{(*}{*)}},
+  morestring=[b]",
+  showstringspaces=false,
+  literate={`}{\`}1,
+  stringstyle=\color{redstrings},
+}
+
+\lstdefinelanguage{JavaScript}{
+  keywords={typeof, new, true, false, catch, function, return, null, catch, switch, var, if, in, while, 
+do, else, case, break},
+  keywordstyle=\color{blue}\bfseries,
+  ndkeywords={class, export, boolean, throw, implements, import, this},
+  ndkeywordstyle=\color{darkgray}\bfseries,
+  identifierstyle=\color{black},
+  sensitive=false,
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  commentstyle=\color{purple}\ttfamily,
+  stringstyle=\color{red}\ttfamily,
+  morestring=[b]',
+  morestring=[b]''
+}
+
+%\setbeamercovered{dynamic}
+\setbeamertemplate{footline}[page number]{}
+\setbeamertemplate{navigation symbols}{}
+\usefonttheme{structurebold}
+
+\title{Software Testing, Quality Assurance \& Maintenance---Lecture 15}
+\author{Patrick Lam\\University of Waterloo}
+\date{March 2, 2026}
+
+\colorlet{redshaded}{red!25!bg}
+\colorlet{shaded}{black!25!bg}
+\colorlet{shadedshaded}{black!10!bg}
+\colorlet{blackshaded}{black!40!bg}
+
+\colorlet{darkred}{red!80!black}
+\colorlet{darkblue}{blue!80!black}
+\colorlet{darkgreen}{green!80!black}
+
+\newcommand{\rot}[1]{\rotatebox{90}{\mbox{#1}}}
+\newcommand{\gray}[1]{\mbox{#1}}
+
+\newenvironment{changemargin}[1]{% 
+  \begin{list}{}{% 
+    \setlength{\topsep}{0pt}% 
+    \setlength{\leftmargin}{#1}% 
+    \setlength{\rightmargin}{1em}
+    \setlength{\listparindent}{\parindent}% 
+    \setlength{\itemindent}{\parindent}% 
+    \setlength{\parsep}{\parskip}% 
+  }% 
+  \item[]}{\end{list}}
+
+\newcommand{\brac}[1]{\texttt{\textless #1\textgreater}}
+
+
+\begin{document}
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.3]{\includegraphics[width=\paperwidth]{L15/02910_smol_common_rock_crab_v1.jpg}};}
+\part{Bounded Model Checking: \\ About CBMC and Kani}
+\begin{frame}
+  \partpage
+\end{frame}
+\usebackgroundtemplate{}
+
+\begin{frame}[fragile]
+  \frametitle{Seen on the Internet}
+  \Large
+  \begin{changemargin}{1cm}
+\begin{quote}
+  Bounded model checking is unit testing \\ with superpowers.\\[1em]
+  --- Karl Schultheisz, \\
+  \url{https://kdsch.org/post/cbmc-technique/}
+\end{quote}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{About Bounded Model Checking}
+  \begin{changemargin}{1cm}
+    \Large
+    Bounded Model Checking (BMC): a way to statically verify code properties.\\[1em]
+    Tools: CBMC (for C) and Kani (for Rust).\\[1em]
+    
+    More lightweight than full program verification (Dafny).\\[1em]
+
+    \begin{itemize}
+      \item Don't need loop invariants.
+      \item Don't necessarily get a guarantee.
+      \item More exhaustive than testing.
+    \end{itemize}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Goals}
+  \begin{changemargin}{1cm}
+    \Large
+    Be able to apply modern model checking tools\\ \hspace*{2em} (CBMC/Kani);\\[1em]
+    Understand how they work and when they fail;\\[1em]
+    Know what guarantees they are giving you.
+  \end{changemargin}
+\end{frame}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.3]{\includegraphics[width=\paperwidth]{L15/02910_smol_common_rock_crab_v1.jpg}};}
+\part{Exploring CBMC}
+\begin{frame}
+  \partpage
+\end{frame}
+\usebackgroundtemplate{}
+
+\begin{frame}[fragile]
+  \frametitle{The simplest possible program}
+  \begin{changemargin}{1cm}
+    \begin{lstlisting}[language=C,showstringspaces=false]
+int main()
+{
+  int a = 5;
+  __CPROVER_assert(a == 2, "a is not 2");
+  return 0;
+}
+    \end{lstlisting}
+    \Large
+    ~\\
+    Let's try to verify it.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Verifying the simplest possible program}
+  \begin{changemargin}{1cm}
+{\small
+\begin{verbatim}
+$ cbmc explicit-assert.c
+CBMC version 6.6.0 (cbmc-6.6.0) 64-bit x86_64 linux
+Type-checking explicit-assert
+Generating GOTO Program
+Adding CPROVER library (x86_64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Starting Bounded Model Checking
+Passing problem to propositional reduction
+converting SSA
+Running propositional reduction
+SAT checker: instance is SATISFIABLE
+
+** Results:
+explicit-assert.c function main
+[main.assertion.1] line 4 a is not 2: FAILURE
+\end{verbatim}
+}
+\Large
+It is, indeed, what we would expect; we can also change the program and make it pass.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{The symbolic execution example (in C)}
+  \begin{changemargin}{1cm}
+\lstinputlisting[language=C,showstringspaces=false]{code/L15/div-by-zero.c}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Finding possible division by 0}
+  \begin{changemargin}{0cm}
+{\scriptsize
+\begin{verbatim}
+$ cbmc div-by-zero.c --function foo
+[...]
+** Results:
+div-by-zero.c function foo
+[foo.division-by-zero.1] line 4 division by zero in x / y: FAILURE
+[foo.division-by-zero.2] line 6 division by zero in y / x: FAILURE
+\end{verbatim} }
+~\\
+Running CBMC with \verb+--show-properties+:
+{\scriptsize
+\begin{verbatim}
+
+Property foo.division-by-zero.1:
+  file div-by-zero.c line 4 function foo
+  division by zero in x / y
+  !(y == 0u)
+
+Property foo.division-by-zero.2:
+  file div-by-zero.c line 6 function foo
+  division by zero in y / x
+  !(x == 0u)
+\end{verbatim}}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Verification Conditions}
+  \begin{changemargin}{1cm}
+\Large
+A \alert{verification condition} (VC) is a logical formula---an implication---that implies that
+a desired program property holds.
+  \end{changemargin}
+\end{frame}
+    
+\begin{frame}[fragile]
+  \frametitle{Showing Verification Conditions}
+  \begin{changemargin}{1cm}
+\large
+Here's the VC for the \texttt{y / x} division.
+  \end{changemargin}
+{\scriptsize \begin{verbatim}
+{-10} goto_symex::\guard#1 <=> ¬(foo::y!0@1#1 >= foo::x!0@1#1)
+{-11} goto_symex::return_value::foo!0#1 = foo::x!0@1#1 / foo::y!0@1#1
+|---------------------------------
+{1} ¬goto_symex::\guard#1 => ¬(foo::x!0@1#1 = 0)
+\end{verbatim} }
+
+  \begin{changemargin}{1cm}\large
+  CBMC automatically puts in an assertion checking for division by zero.\\[1em]
+  Using symbolic execution, it knows
+  the conditions under which the y/x branch is executed, \\
+  recording these conditions in variable guard1---\\ \qquad true when $\neg (y \ge x)$.
+
+
+  \end{changemargin}
+
+
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{What's Needed to Verify}
+{\scriptsize \begin{verbatim}
+{-10} goto_symex::\guard#1 <=> ¬(foo::y!0@1#1 >= foo::x!0@1#1)
+{-11} goto_symex::return_value::foo!0#1 = foo::x!0@1#1 / foo::y!0@1#1
+|---------------------------------
+{1} ¬goto_symex::\guard#1 => ¬(foo::x!0@1#1 = 0)
+\end{verbatim} }
+  \begin{changemargin}{1cm}
+\Large
+Verification succeeds on this branch if one can establish that input \texttt{x} is nonzero, given that guard1 is false (which was necessary to reach this branch).
+  \end{changemargin}
+\end{frame}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.1]{\includegraphics[width=\paperwidth]{L15/20240113_233437724_basket_from_harbourside_market.jpg}};}
+\begin{frame}[fragile]
+  \frametitle{What CBMC can check}
+  \begin{changemargin}{1cm}
+\large
+CBMC can check:
+\begin{itemize}
+  \item bounds,
+  \item pointers,
+  \item memory leaks,
+  \item memory cleanups,
+  \item division by zero (ints and floats),
+  \item (signed and unsigned) overflow and underflow,
+  \item pointer arithmetic overflow and underflow,
+  \item non-meaningful type conversions and shifts,
+  \item floating-point overflow and NaN,
+  \item enum ranges,
+  \item pointer validity.
+\end{itemize}
+  \end{changemargin}
+\end{frame}
+\usebackgroundtemplate{}
+
+\begin{frame}[fragile]
+  \frametitle{Undefined behaviour example}
+  \begin{changemargin}{1cm}
+\large
+{\scriptsize (\url{https://model-checking.github.io/cbmc-training/cbmc/overview/debugging.html})}
+\begin{lstlisting}[language=C,showstringspaces=false]
+#define SIZE 20
+char buffer[SIZE];
+
+char read_buffer(int i)
+  { return buffer[i];     }
+char read_pointer(int i)
+  { return *(buffer + i); }
+
+int main() {
+  int index; // uninitialized
+  read_buffer(index);
+  read_pointer(index);
+}
+\end{lstlisting}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Focussing}
+  \begin{changemargin}{1cm}
+\Large
+{\scriptsize 
+\begin{lstlisting}[language=C,showstringspaces=false]
+  int index; // uninitialized
+  buffer[index]; // read at uninitialized index
+\end{lstlisting} }
+C says this is undefined behaviour; anything can happen.\\[1em]
+Don't write such code!\\[1em]
+CBMC can analyze such code as if there is an arbitrary value in \texttt{index}:\\
+\qquad a core strength of symbolic execution.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Attempting to Verify}
+  \begin{changemargin}{1cm}
+    CBMC reports bounds (upper and lower---\texttt{index} can be negative) and pointer dereference failures:
+    
+{\scriptsize \begin{verbatim}
+$ cbmc memory-safety.c --bounds-check --pointer-check
+** Results:
+memory-safety.c function read_buffer
+[read_buffer.array_bounds.1] line 4 array 'buffer' lower bound in buffer[(signed long int)i]: FAILURE
+[read_buffer.array_bounds.2] line 4 array 'buffer' upper bound in buffer[(signed long int)i]: FAILURE
+
+memory-safety.c function read_pointer
+[read_pointer.pointer_dereference.1] line 5 dereference failure: pointer outside object bounds in
+     buffer[(signed long int)i]: FAILURE
+\end{verbatim} }
+~\\
+Under the hood: CBMC adds assertions about the compile-time known array size (20) and
+compares \texttt{index} to the array size.\\[1em]
+
+These assertions fail, given an unconstrained index,
+and so the SMT solver flags a violation.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Learning more}
+  \begin{changemargin}{1cm}
+ CBMC \verb+--trace+ tells you about the violated property and values that lead to it.
+
+{\scriptsize \begin{verbatim}
+
+State 32 file memory-safety.c function main line 8 thread 0
+----------------------------------------------------
+  index=2147483647 (01111111 11111111 11111111 11111111)
+
+State 35 file memory-safety.c function main line 9 thread 0
+----------------------------------------------------
+  i=2147483647 (01111111 11111111 11111111 11111111)
+
+Violated property:
+  file memory-safety.c function read_buffer line 4 thread 0
+  array 'buffer' upper bound in buffer[(signed long int)i]
+  !((signed long int)i >= 20l)
+\end{verbatim} }
+i.e. if \texttt{index} were initialized to 2147483647, we exceed buffer size (= 20).
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{CBMC \& Concurrency?}
+  \begin{changemargin}{1cm}
+    CBMC is supposed to support concurrency.\\[1em]
+    I tried examples from the Internet on CBMC 6.6.0, and get errors.\\[2em]
+    
+Concurrency is a key application of model checking:
+it can check all execution interleavings. \\[1em]
+
+SE students: You might enjoy using some model checker for CS 343 next term, though
+it may not work with $\mu$C++.
+  \end{changemargin}
+\end{frame}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.3]{\includegraphics[width=\paperwidth]{L15/02910_smol_common_rock_crab_v1.jpg}};}
+\part{Kani: Bounded Model Checking for Rust}
+\begin{frame}
+  \partpage
+\end{frame}
+\usebackgroundtemplate{}
+
+\begin{frame}[fragile]
+  \frametitle{Why Kani?}
+  \begin{changemargin}{1cm}
+    \Large
+    Kani does model checking of Rust code using CBMC.\\[1em]
+    Kani syntax shows some concepts clearly.\\[1em]
+    You shouldn't need to understand Rust to use Kani.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Rust: attributes}
+  \begin{changemargin}{1cm}
+    (code in \texttt{code/L15/rust-tests})\\[1em]
+    
+    {\Large Here we have the ``test'' attribute.}
+\begin{lstlisting}[language=Rust]
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_add() {
+        assert_eq!(add(1, 2), 3);
+    }
+}
+\end{lstlisting}
+\Large Use \texttt{cargo test} to run tests.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Rust: standard symbolic execution demonstration}
+  \begin{changemargin}{1cm}
+    {\scriptsize
+\begin{lstlisting}[language=Rust,showstringspaces=false]
+  fn estimate_size(x: u32) -> u32 {
+    if x < 256 {
+        if x < 128 {
+            return 1;
+        } else {
+            return 3;
+        }
+    } else if x < 1024 {
+        if x > 1022 {
+            panic!("Oh no, a failing corner case!");
+        } else {
+            return 5;
+        }
+    } else {
+        if x < 2048 {
+            return 7;
+        } else {
+            return 9;
+        }
+    }
+}
+\end{lstlisting}
+}
+One test input (out of 4 billion)  will trigger the panic. 
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Proptest won't find the panic}
+  \begin{changemargin}{1cm}
+    When talking about fuzzing, we also talked about property testing.\\[1em]
+    
+    proptest crate does Rust property testing.\\[1em]
+
+    A property test is quite unlikely to find this 1-in-4-billion bug:
+{    \scriptsize
+\begin{lstlisting}[language=Rust]
+use proptest::prelude::*;
+proptest! {
+  #![proptest_config(ProptestConfig::with_cases(10000))]
+  #[test]
+  fn doesnt_crash(x: u32) {
+      estimate_size(x);
+  }
+}
+\end{lstlisting}
+}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Running proptest}
+  \begin{changemargin}{0cm}
+Almost always, you'll see:
+{\scriptsize
+\begin{verbatim}
+$ cargo test
+   Compiling kani-example v0.1.0 (/home/plam/courses/stqam-2026-working-notes/notes/code/L15/kani-example)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.49s
+     Running unittests src/main.rs (target/debug/deps/kani_example-9e52195d8a3f4738)
+
+running 3 tests
+test tests::test_bad_add ... ignored
+test tests::test_add ... ok
+test doesnt_crash ... ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored;
+   0 measured; 0 filtered out; finished in 0.10s
+\end{verbatim}
+}
+
+~\\
+(Rust proptest crate starts with a random value, 
+but that's unlikely to get the needed value. \\[1em]
+It can also ``shrink'' the obtained value---not helpful here.)
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Proof Harnesses}
+  \begin{changemargin}{2cm}
+    \Large
+    Idea: a \alert{proof harness} is like a test case, but there is (bounded) proving.\\[1em]
+\begin{lstlisting}[language=Rust]
+#[cfg(kani)]
+#[kani::proof]
+fn check_estimate_size() {
+    let x: u32 = kani::any();
+    estimate_size(x);
+}
+\end{lstlisting}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Proptest vs proof harness}
+  \begin{changemargin}{2cm}
+{    \Large
+    Let's compare.}
+  \end{changemargin}
+
+  \begin{tabular}{ll}
+    \scriptsize
+      \begin{minipage}{.4\textwidth}
+\begin{lstlisting}[language=Rust]
+#[cfg(kani)]
+#[kani::proof]
+fn check_estimate_size() {
+    let x: u32 = kani::any();
+    estimate_size(x);
+}
+\end{lstlisting}
+      \end{minipage} &
+      \begin{minipage}{.4\textwidth}
+    \scriptsize
+\begin{lstlisting}[language=Rust]
+  #[test]
+  fn doesnt_crash(x: u32) {
+      estimate_size(x);
+  }
+\end{lstlisting}
+      \end{minipage}
+    \end{tabular}
+
+  \begin{changemargin}{2cm}
+{    \Large
+    \ldots pretty similar! }
+  \end{changemargin}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Looking at the Proof Harness}
+  \begin{changemargin}{2cm}
+    \Large
+\begin{lstlisting}[language=Rust]
+#[cfg(kani)]
+#[kani::proof]
+fn check_estimate_size() {
+  // nondeterministic value
+  let x: u32 = kani::any(); 
+  estimate_size(x);
+}
+\end{lstlisting}
+Instead of relying on proptest to call us, \\
+explicitly create a nondeterministic value.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Proof Harnesses as Tests}
+  \begin{changemargin}{2cm}
+    \Large
+    A proof harness is like a test.\\[1em]
+    Arrange:\\
+\begin{lstlisting}[language=Rust]
+  let x: u32 = kani::any(); 
+\end{lstlisting}
+
+Act:\\
+\begin{lstlisting}[language=Rust]
+  estimate_size(x);
+\end{lstlisting}
+
+Assert:\\
+\verb+  +not present here.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{More about proof harnesses and assertions}
+  \begin{changemargin}{2cm}
+    \Large
+    For a proof harness:\\[1em]
+    Assert phase still consists of assertions; \\
+    but, may not be possible to write concrete assertions given abstract input.\\[1em]
+    
+    Assertions summarize what the act phase did.\\
+    May be related to the postcondition.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Running the proof harness}
+  \begin{changemargin}{1cm}
+Run proof harnesses with ``cargo kani''; invokes CBMC.\\[1em]
+{\scriptsize
+\begin{verbatim}
+$ cargo kani
+[...]
+RESULTS:
+Check 1: estimate_size.assertion.1
+	 - Status: FAILURE
+	 - Description: "Oh no, a failing corner case!"
+	 - Location: src/main.rs:18:13 in function estimate_size
+
+
+SUMMARY:
+ ** 1 of 1 failed
+Failed Checks: Oh no, a failing corner case!
+ File: "src/main.rs", line 18, in estimate_size
+\end{verbatim}
+}
+~\\
+Kani finds that there exists some {\tt x}
+that reaches the \texttt{panic!}.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{\texttt{kani::any()} and symbolic execution}
+  \begin{changemargin}{1cm}
+\texttt{kani::any()} represents all possible bit-values valid for 
+\texttt{u32} (here, because it's the type of \texttt{x})---like symbolic \texttt{X}.\\[1em]
+
+If you assign \texttt{kani::any()} to some other type,
+it takes on all values of that type. \\[1em]
+
+Kani supports most Rust primitive types and some from the
+standard library.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Concrete test cases from Kani}
+  \begin{changemargin}{1cm}
+     Experimental feature \verb+--concrete--playback+
+shows counterexample test case.
+  \end{changemargin}
+{\scriptsize
+\begin{verbatim}
+$ cargo kani --concrete-playback=print -Z concrete-playback
+[...]
+/// Test generated for harness `check_estimate_size` 
+///
+/// Check for `assertion`: "Oh no, a failing corner case!"
+
+#[test]
+fn kani_concrete_playback_check_estimate_size_6323293968261416923() {
+    let concrete_vals: Vec<Vec<u8>> = vec![ // 1023
+        vec![255, 3, 0, 0], ];
+    kani::concrete_playback_run(concrete_vals, check_estimate_size);
+}
+\end{verbatim} }
+  \begin{changemargin}{1cm}
+Kani searches permissible bit patterns for \texttt{x}. \\[1em]
+Here: array of u8s
+containing the bit pattern representing 1023: [255, 3, 0, 0]. \\[1em]
+
+If we call \texttt{check\_estimate\_size()}
+with that bit pattern, \\ then
+ we trigger the panic.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Kani inventory example: more sophisticated state}
+  \begin{changemargin}{1cm}
+    We've now seen bounded model checking on \texttt{u32}s.\\[1em]
+    What about more sophisticated types? \\[1em]
+    Here's a user-defined type, which uses a (non-stdlib) \texttt{VecMap}.
+\begin{lstlisting}[language=Rust]
+pub type ProductId = u32;
+
+pub struct Inventory {
+  /// Every product in inventory
+  // must have a non-zero quantity
+  pub inner: VecMap<ProductId, NonZeroU32>,
+}
+\end{lstlisting}
+~\\
+There is also an invariant about the \texttt{VecMap}.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{\texttt{Inventory} implementation}
+  \begin{changemargin}{1cm}
+It delegates.
+\begin{lstlisting}[language=Rust]
+impl Inventory {
+  pub fn update(&mut self, id: ProductId,
+                new_quantity: NonZeroU32) {
+    self.inner.insert(id, new_quantity);
+  }
+
+  pub fn get(&self, id: &ProductId)
+                -> Option<NonZeroU32> {
+    self.inner.get(id).cloned()
+  }
+}
+\end{lstlisting}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{An \texttt{Inventory} proof harness}
+  \begin{changemargin}{1cm}
+Adds to the inventory and checks that the quantity matches:
+\scriptsize
+\begin{lstlisting}[language=Rust,showstringspaces=false]
+// cargo kani --harness safe_update
+#[kani::proof]
+pub fn safe_update() {
+    // Empty to start (deterministic)
+    let mut inventory = Inventory { inner: VecMap::new() };
+
+    // Create non-deterministic variables for id and quantity.
+    let id: ProductId = kani::any();
+    let quantity: NonZeroU32 = kani::any();
+    assert!(quantity.get() != 0, 
+        "NonZeroU32 is internally a u32 but must be nonzero.");
+
+    // Update the inventory and check the result.
+    inventory.update(id, quantity);
+    assert!(inventory.get(&id).unwrap() == quantity);
+}
+\end{lstlisting}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{How the proof harness works}
+  \begin{changemargin}{1cm}
+    \Large
+Arrange: (Symbolically) generate all valid
+    values for \texttt{id} and \texttt{quantity} using symbolic execution; \\[1em]
+Act: call \texttt{update};\\[1em]
+Assert: check that the
+quantity associated with \texttt{id} is the quantity inserted.\\[1em]
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Proof harness notes}
+  \begin{changemargin}{1cm}
+    \Large
+I omitted an unwinding limit from the example (more soon on that).\\[1em]
+
+\texttt{assert!(quantity.get() != 0)} unnecessary by construction, since
+\texttt{NonZeroU32} is non zero.
+  \end{changemargin}
+\end{frame}
+
+\part{BMC: Boundedness \& Unwinding}
+\begin{frame}
+  \partpage
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Kani vs Dafny}
+  \begin{changemargin}{1cm}
+    \Large
+    Recall:
+    \begin{itemize}
+    \item Kani = bounded model checking
+      \item Dafny = auto-active verification
+    \end{itemize}
+
+    Key difference: how to handle \alert{loops}.\\[1em]
+
+    Otherwise: at some level, both generate a formula and get it solved.\\[1em]
+
+    (Another difference: BMC uses proof harnesses to focus efforts.)
+
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Kani example: loop}
+  \begin{changemargin}{1cm}
+\begin{lstlisting}[language=Rust]
+fn initialize_prefix(length: usize,
+                     buffer: &mut [u8]) {
+    // Let's just ignore invalid calls
+    if length > buffer.len() {
+        return;
+    }
+
+    for i in 0..=length {
+        buffer[i] = 0;
+    }
+}
+\end{lstlisting}
+
+    \Large
+    There's an off-by-one error.\\
+    Also a loop.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Proof harness for initialize\_prefix}
+  \begin{changemargin}{1cm}
+\begin{lstlisting}[language=Rust]
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(1)] // deliberately too low
+fn check_initialize_prefix() {
+    const LIMIT: usize = 10;
+    let mut buffer: [u8; LIMIT] = [1; LIMIT];
+
+    let length = kani::any();
+    kani::assume(length <= LIMIT);
+
+    initialize_prefix(length, &mut buffer);
+}
+\end{lstlisting}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{any/assume idiom}
+  \begin{changemargin}{1cm}
+\begin{lstlisting}[language=Rust]
+    let length = kani::any();
+    kani::assume(length <= LIMIT);
+\end{lstlisting}
+~\\[1em]
+\Large
+This is a standard idiom for letting \texttt{length} be anything,
+except that it is no greater than \texttt{LIMIT}.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{What about loops?}
+  \begin{changemargin}{1cm}
+    \large
+    Symbolic execution needs to reason about all paths.\\[1em]
+
+    But when there's a loop, \\then there is an unbounded number of paths!\\[1em]
+
+    One strategy: loop invariants.\\[1em]
+
+    Here, there are no loop invariants\\ (Kani supports but does not require them).\\[1em]
+
+    So, Kani \alert{unwinds} the loop some bounded number of times. \\[1em]
+
+    Unwinding is a key concept for bounded model checking.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Unwinding bound}
+  \begin{changemargin}{1cm}
+{\Large Let's set the unwinding bound to 2:}
+\begin{lstlisting}[language=Rust]
+#[kani::unwind(2)] // deliberately too low
+\end{lstlisting}
+{\Large which applies to the loop in initialize\_prefix:}
+\begin{lstlisting}[language=Rust]
+    for i in 0..=length {
+        buffer[i] = 0; }
+\end{lstlisting}
+{\Large to yield}
+\begin{lstlisting}[language=Rust]
+    i = 0;
+    if i <= length {
+      buffer[i] = 0;
+      i += 1;
+      if i <= length {
+        buffer[i] = 0;
+        i += 1;
+        assert (!(i <= length));
+      }
+    }
+\end{lstlisting}
+
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{What happens?}
+  \begin{changemargin}{1cm}
+    {\Large Kani complains:}
+    ~\\[1em]
+{\scriptsize
+\begin{verbatim}
+Check 73: initialize_prefix.unwind.0
+         - Status: FAILURE
+         - Description: "unwinding assertion loop 0"
+         - Location: src/lib.rs:7:5 in function initialize_prefix
+
+\end{verbatim}
+}
+{\Large That is, the \emph{unwinding assertion} failed:}
+\begin{lstlisting}[language=Rust]
+        assert (!(i <= length));
+\end{lstlisting}
+
+{\Large because the loop could execute for more iterations than the bound.}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{When unwinding might work}
+  \begin{changemargin}{1cm}
+    {\Large Remember that we had a LIMIT:}
+\begin{lstlisting}[language=Rust]
+    const LIMIT: usize = 10;
+    let mut buffer: [u8; LIMIT] = [1; LIMIT];
+\end{lstlisting}
+{\Large If the unwinding bound is large enough
+(i.e. bigger than LIMIT), then the unwinding assertion
+doesn't fail.}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Trying again with a bigger bound}
+  \begin{changemargin}{1cm}
+    {\large We can increase the unwinding bound \\ \qquad (this dial goes to 11).\\
+      Then we get a new error:}
+  \end{changemargin}
+
+  {\scriptsize
+\begin{verbatim}
+Check 2: initialize_prefix.assertion.1
+  - Status: FAILURE
+  - Description: "index out of bounds: the length is less than or equal to the given index"
+  - Location: src/lib.rs:8:9 in function initialize_prefix
+\end{verbatim} }
+
+  \begin{changemargin}{1cm}
+{\large    This was the off-by-one error. Fix it:}
+\begin{lstlisting}[language=Rust]
+    if length >= buffer.len() {
+\end{lstlisting}
+{\large and verification succeeds:}
+  \end{changemargin}
+      { \scriptsize
+\begin{verbatim}
+SUMMARY:
+ ** 0 of 73 failed
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.19064504s
+\end{verbatim}
+}
+  \begin{changemargin}{1cm}
+    {\large So this code is correct for buffers of length at most 10.}
+  \end{changemargin}
+  
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{About boundedness}
+  \begin{changemargin}{1cm}
+    \large \emph{Bounded} in bounded model checking means:
+    \begin{enumerate}
+    \item can check finite \# of loop iterations, asserting that the loop never loops more than that;
+    \item data structures are of at most a bounded size.
+    \end{enumerate}
+~\\[1em]
+    Boundedness of data structures is why BMC doesn't report unconditional truth:
+    maybe there is a counterexample, but it needs a bigger bound.\\[1em]
+    
+    Unlike with the unwinding assertion, you don't know anything about bigger sizes.\\[1em]
+    Large bound gives more confidence, but not a guarantee.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{\texttt{kani::any()} and unbounded data structures}
+  \Large
+  \begin{changemargin}{1cm}
+    Per the documentation, basically:
+    \begin{itemize}
+      \item instead use \texttt{BoundedArbitrary}
+        and specify a bound; or,
+      \item add to data structure a bounded \# of times.
+    \end{itemize}
+~\\
+Kani quickly
+becomes slow as the bound grows---exponential growth bites again.
+  \end{changemargin}
+\end{frame}
+
+\part{CBMC: PID controllers \& test generation}
+\begin{frame}
+  \partpage
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{PID controllers}
+  \Large
+  \begin{changemargin}{1cm}
+    SE students will encounter these in SE 380 (controls) next fall.\\[1em]
+    CBMC documentation shows test generation for them. \\[1em]
+    This code runs in a loop, so we'll use loop unwinding.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{PID controller: one iteration}
+  \Large
+  \begin{changemargin}{0cm}
+{\scriptsize \begin{lstlisting}[language=C]
+void climb_pid_run()
+{
+  float err=estimator_z_dot-desired_climb;
+
+  float fgaz=climb_pgain*(err+climb_igain*climb_sum_err)+
+                CLIMB_LEVEL_GAZ+CLIMB_GAZ_OF_CLIMB*desired_climb;
+
+  float pprz=fgaz*MAX_PPRZ;
+  desired_gaz=((pprz>=0 && pprz<=MAX_PPRZ)
+                ? pprz : (pprz>MAX_PPRZ ? MAX_PPRZ : 0));
+
+  /** pitch offset for climb */
+  float pitch_of_vz=(desired_climb>0)
+                ? desired_climb*pitch_of_vz_pgain : 0;
+  desired_pitch=nav_pitch+pitch_of_vz;
+
+  climb_sum_err=err+climb_sum_err;
+  if (climb_sum_err>MAX_CLIMB_SUM_ERR) climb_sum_err=MAX_CLIMB_SUM_ERR;
+  if (climb_sum_err<-MAX_CLIMB_SUM_ERR) climb_sum_err=-MAX_CLIMB_SUM_ERR;
+}
+\end{lstlisting}
+}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{PID controller: driver}
+  \scriptsize
+  \begin{changemargin}{0cm}
+\begin{lstlisting}[language=C]
+int main() {
+ while(1) {
+  /** Non-deterministic input values */
+  desired_climb=nondet_float();
+  estimator_z_dot=nondet_float();
+
+  /** constrain range of input values */
+  __CPROVER_assume(desired_climb>=-MAX_CLIMB && desired_climb<=MAX_CLIMB);
+  __CPROVER_assume(estimator_z_dot>=-MAX_CLIMB && estimator_z_dot<=MAX_CLIMB);
+  __CPROVER_input("desired_climb", desired_climb);
+  __CPROVER_input("estimator_z_dot", estimator_z_dot);
+
+  climb_pid_run();
+
+  __CPROVER_output("desired_gaz", desired_gaz);
+  __CPROVER_output("desired_pitch", desired_pitch);
+ }
+
+ return 0;
+}
+\end{lstlisting}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{What CBMC can do with the PID controller driver}
+
+  \Large \begin{changemargin}{1cm}
+  Infinite loop, so CBMC can't fully unwind.\\
+  Can unwind to a fixed depth, allegedly.\\[1em]
+
+  CBMC can generate test cases (concrete inputs satisfying specified criteria).\\[1em]
+
+  CBMC doco's example achieves MC/DC (criterion used for avionics), but we won't talk about that.\\[1em]
+  
+  Can ask CBMC to use e.g. branch coverage as well.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{MC/DC example}
+{ \scriptsize
+\begin{verbatim}
+$ cbmc pid.c --cover mcdc --show-test-suite --unwind 6
+[...]
+
+** coverage results:
+[...]
+** 36 of 37 covered (97.3%)
+
+Test suite:
+desired_climb=2.097152e+6f, estimator_z_dot=2.097149e+6f, desired_climb=-65538.0f, estimator_z_dot=-6.612582e+7f, desired_climb=-217.0f, estimator_z_dot=792.0f, desired_climb=0.0f, estimator_z_dot=0.0f, desired_climb=0.0f, estimator_z_dot=-4.0f, desired_climb=2.758654e+7f, estimator_z_dot=-5.092844e+8f
+desired_climb=-2.097152e+6f, estimator_z_dot=-2.097149e+6f, desired_climb=-65538.0f, estimator_z_dot=-6.612582e+7f, desired_climb=-217.0f, estimator_z_dot=792.0f, desired_climb=0.0f, estimator_z_dot=0.0f, desired_climb=0.0f, estimator_z_dot=-4.0f, desired_climb=2.758654e+7f, estimator_z_dot=-5.092844e+8f
+[...]
+\end{verbatim}
+}
+\Large
+\begin{changemargin}{2cm}
+  We get concrete inputs for \texttt{climb\_pid\_run()}, 
+  satisfying \texttt{assume}s.\\[1em]
+
+  Can put into regression tests; \\
+  need oracle to know if outputs correct.
+\end{changemargin}
+\end{frame}
+
+\part{Back to Kani: Contracts}
+\begin{frame}
+  \partpage
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Contracts: the foundation of verification}
+{  \scriptsize
+\begin{lstlisting}[language=Rust]
+#[kani::requires(min != 0 && max != 0)]
+#[kani::ensures(|result| *result != 0 && max % *result == 0 &&
+                min % *result == 0)]
+#[kani::recursion]
+fn gcd(mut max: u8, mut min: u8) -> u8 {
+    if min > max {
+        std::mem::swap(&mut max, &mut min);
+    }
+
+    let rest = max % min;
+    if rest == 0 { min } else { gcd(min, rest) }
+}
+\end{lstlisting}
+}
+  \begin{changemargin}{1cm}
+    \Large
+  A contract includes a \texttt{requires} clause (precondition) and an \texttt{ensures} clause (postcondition).\\[1em]
+  
+\end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{About contracts}
+{  \scriptsize
+\begin{lstlisting}[language=Rust]
+#[kani::requires(min != 0 && max != 0)]
+#[kani::ensures(|result| *result != 0 && max % *result == 0 &&
+                min % *result == 0)]
+\end{lstlisting}
+}
+  \begin{changemargin}{1cm}
+    \large
+    ~\\
+    \hspace*{-1em}Verification proof obligation: \\
+    assuming the precondition,\\
+  show that the postcondition must hold after the method execution terminates.\\[1em]
+  \hspace*{-1em} Dafny always uses contracts; Kani can use contracts.
+\end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{The gcd contract}
+{  \scriptsize
+\begin{lstlisting}[language=Rust]
+#[kani::requires(min != 0 && max != 0)]
+#[kani::ensures(|result| *result != 0 && max % *result == 0 &&
+                min % *result == 0)]
+#[kani::recursion]
+fn gcd(mut max: u8, mut min: u8) -> u8 {
+    if min > max {
+        std::mem::swap(&mut max, &mut min);
+    }
+
+    let rest = max % min;
+    if rest == 0 { min } else { gcd(min, rest) }
+}
+\end{lstlisting}
+}
+  \begin{changemargin}{1cm}
+    \large
+    Implementation is straightforward recursive.\\[1em]
+    Precondition: OK to call with any nonzero 8-bit uints.\\[1em]
+    Postcondition: result is divisor of both \texttt{min} and \texttt{max}.\\
+    \qquad missing a detail: incomplete but not wrong.
+  
+\end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Contract checking with Kani}
+  
+\begin{verbatim}
+$ cargo kani -Z function-contracts
+[...]
+SUMMARY:
+ ** 0 of 368 failed (4 unreachable)
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 12.000412s
+\end{verbatim}
+
+\begin{changemargin}{1cm}
+\Large
+  Can conclude that \texttt{gcd} meets its spec, \\ for 8-bit integers.\\[1em]
+  Tried for 16-bit integers. Takes too long.\\ Gave up.
+\end{changemargin}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Using contracts}
+  
+  \begin{changemargin}{1cm}
+    \large
+    Having verified the \texttt{gcd} contract, can then tell Kani to use the contract
+    when verifying any functions that call \texttt{gcd}.\\[1em]
+    Don't need to re-prove the wheel every time.
+{ \scriptsize
+\begin{lstlisting}[language=Rust]
+// Assume foo() invokes gcd().
+// By using stub_verified, we tell Kani to replace 
+// invocations of gcd() with its verified contracts.
+#[kani::proof]
+#[kani::stub_verified(gcd)]
+fn check_foo() {
+    let x: u8 = kani::any();
+    foo(x);
+}
+\end{lstlisting} }
+    \large
+This is called stubbing in the Kani world.
+  \end{changemargin}
+
+\end{frame}
+
+\part{Unsafe Rust}
+\begin{frame}
+  \partpage
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Teaser: Kani and Unsafe Rust}
+  
+  \begin{changemargin}{2cm}
+    \large
+    Will probably say more. \\[1em]
+
+    Have seen Kani find assertion violations.\\
+    For C, must also verify the absence of undefined behaviour.\\[1em]
+
+    Mostly one uses Safe Rust, \\ \qquad with no undefined behaviour.\\
+    But, for performance \& interop, may have to use Unsafe Rust, \\ \qquad \emph{with} undefined behaviour.
+  \end{changemargin}
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Kani and Unsafe Rust}
+  
+  \begin{changemargin}{2cm}
+    \Large
+    Kani can ensure absence of undefined behaviour in Unsafe Rust. \\
+    Other tools can do this too.\\[1em]
+    For Kani: need a good proof harness to ensure no undefined behaviour.\\
+    Harness must rule out bounds errors and integer overflows.
+  \end{changemargin}
+\end{frame}
+
+\part{Using Bounded Model Checking}
+\begin{frame}
+  \partpage
+\end{frame}
+
+\begin{frame}
+  \frametitle{Three-step approach from Kani book}
+  
+  \begin{changemargin}{1cm}
+    \begin{itemize}
+    \item bound problem size in proof harness (define a \texttt{LIMIT});
+    \item guess an \texttt{unwind} bound, increase as necessary;
+    \item if Kani takes too long, decrease the \texttt{LIMIT}.
+    \end{itemize}
+    ~\\
+    Probably if you can prove with a reasonably small bound,
+    your code is fine. But that's not a proof.\\[1em]
+    This does not require invariants.\\[1em]
+    Works well for many problems, but not for parsing.\\[1em]
+    Also you can find good practices for verification-friendly C.
+  \end{changemargin}
+\end{frame}
+
+\end{document}
