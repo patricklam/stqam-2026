@@ -85,19 +85,20 @@ https://aws.amazon.com/blogs/opensource/how-open-source-projects-are-using-kani-
 
 ** L14 L07 from W25: symbolic execution (need for BMC/Dafny)
 
-*_ L15 CBMC/CPROVER, bounded model checking for C, and loop unwinding; verifying Rust with Kani: proof harnesses, contracts, and unsafe Rust
+** L15 midterm discussion 
+** L16 CBMC/CPROVER, bounded model checking for C, and loop unwinding; verifying Rust with Kani: proof harnesses, contracts, and unsafe Rust
+__ L17 more on bounded model checking
+unsafe rust?
 could also talk about this: https://model-checking.github.io/kani-verifier-blog/2023/08/31/using-kani-to-validate-security-boundaries-in-aws-firecracker.html
       https://model-checking.github.io/kani-verifier-blog/2022/10/27/using-kani-with-the-bolero-property-testing-framework.html
       https://crates.io/crates/proptest
-__ L16 more on bounded model checking
 
 assignment questions: https://doina.net/AR15/AR15-L6.pdf
 
 
 * 3 weeks Dafny 
   (January 26)
-__ L17 Leftover Kani; Dafny application: Cedar / Dafny
-__ L18 Kani vs Dafny
+__ L18 Leftover Kani; Dafny application: Cedar / Dafny, Kani vs Dafny
       TODO loop invariants
 *_ L19 More Dafny, including VC and lemmas
 (A2 due here, Mar 13, mostly fuzzing)

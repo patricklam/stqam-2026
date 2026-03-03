@@ -5,7 +5,7 @@ Use the equality operator == for all comparisons in this question.
 \begin{enumerate}[label=(\alph*)]
 \item (6 points) Write property-based tests for the three tests
 in \texttt{a2-property-based-testing/decimals.py}; they check
-that $d = -(-d)$; $d + 0 = 0$; and $d_1 + d_2 = d_2 + d_1$. You need to add a
+that $d = -(-d)$; $d + 0 = d$; and $d_1 + d_2 = d_2 + d_1$. You need to add a
 \texttt{@given} annotation to make these functions into Hypothesis tests,
 and you'll need to use \texttt{.normalize()} on the \texttt{Decimal}. You also
 want your tests to pass, so you'll need the right parameters at \texttt{@given}.
