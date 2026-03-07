@@ -13,8 +13,8 @@
 12 Property-Based-Testing
 14 Symbolic-Execution
 15 Bounded-Model-Checking-CBMC-and-Kani
-16 Dafny-Application-Cedar
-17 Dafny
+16 Blank
+17 Bolero-Kani-and-Dafny
 18 Kani-vs-Dafny
 19 Dafny-VC-and-Lemmas
 20 Bubblesort-in-Dafny
