@@ -122,8 +122,9 @@ fn test_update_account_balance_random() {
 }
 \end{lstlisting}
 which is fine, I guess. But we can use coverage-guided fuzzing, as we've discussed.
-The code in the blog post for using libFuzzer or AFL doesn't actually work,
-because these fuzzers give you bits, and you have to convert them into i32s yourself.
+
+The blog post gives snippets which give the flavour of manually using libFuzzer or AFL. But they don't actually work,
+because these fuzzers give you an array of u8s, and you have to convert them into i32s yourself.
 The point, though, is: well, it's pretty much the same interface for random testing, fuzzing, and Kani.
 So, can't we introduce a layer of abstraction? Bolero does this, and this code does work:
 \begin{lstlisting}[language=Rust]
@@ -171,7 +172,6 @@ Failed Checks: attempt to add with overflow
 VERIFICATION:- FAILED
 Verification Time: 0.16379055s
 \end{verbatim}
-Running \texttt{cargo test} is also supposed to do normal random testing.
 
 \paragraph{Another out-of-bounds example.} Maybe we should have just started
 with this example! Anyway, here it is. It returns the $n$th-from-the-end element
@@ -268,7 +268,8 @@ in a case where Kani does. Or, for instance, due to bounds, Kani might
 not find an issue, where fuzzing does.
 
 When either fuzzing or Kani give you a test case, then that's real,
-and you can fix it. When Kani reports an unwinding error, then you don't know.
+and you can fix it. When Kani reports an unwinding assertion failure, then you don't know,
+and need to investigate more.
 If Kani says that your program is correct, then it is (modulo the bound),
 assuming everything else on the system (e.g. the Rust implementation)
 is also correct. Sometimes there are bit flips\footnote{\url{https://mas.to/@gabrielesvelto/116171750653898304}}.
@@ -286,13 +287,13 @@ e.g.
 becomes
 \begin{lstlisting}
   let value = kani::any();
-  kani::assume((min..max).contains(&value));
+  kani::assume((5..37).contains(&value));
   value
 \end{lstlisting}
 
 \section*{Kani (BMC) to Dafny (auto-active program verification)}
 Next, we are going to start talking about Dafny, which is a tool for
-automatically verifying annotations in program code. As I've alluded to
+automatically verifying annotated programs. As I've alluded to
 before, Dafny makes it possible to mostly-automatically do what you have
 done manually in SE 212. Some people call it an ``auto-active'' system
 (versus interactive theorem provers).
@@ -387,7 +388,8 @@ method {:test} TestStretchedRectangleCanHoldOriginal() {
 We can replace the \textsf{expect} with an \textsf{assert}, but that won't
 verify, because there is no postcondition for method \textsf{stretch}.
 If we add a postcondition, then the proof for the test case goes through,
-but that's still not a general result. It's just about that particular rectangle.
+but that's still not a general result from this test case. It's just about that particular rectangle.
+Dafny can also verify the method as a whole.
 
 This part of the lecture notes uses \texttt{proptests} rather than Bolero. We can run both of these tests using \textsf{cargo test}.
 \begin{lstlisting}[language=Rust]
@@ -433,14 +435,14 @@ mod verification {
     }
 }
 \end{lstlisting}
-This proof harness tells Kani to test the behaviour for \emph{any}
+This proof harness tells Kani to verify the behaviour for \emph{any}
 width, height, and factor.  When we invoke Kani, we see that it runs a
 whole bunch of tests, looking mostly for safety violations (in unsafe
 Rust, of which there is none here).  However, Kani also reports that
 the assertion fails. Why?
 
-It turns out that we're missing some preconditions. Kani does support
-contracts like those we've seen in Dafny, but we'll just encode them
+It turns out that we're missing some preconditions. We've said that Kani supports
+contracts, but we'll just encode them
 directly in the test harness.
 
 \begin{lstlisting}[language=Rust]

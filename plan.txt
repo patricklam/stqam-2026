@@ -55,7 +55,7 @@ if time permits:
       https://hypothesis.works/articles/what-is-property-based-testing/
       https://hypothesis.readthedocs.io/en/latest/tutorial/introduction.html
       https://fsharpforfunandprofit.com/posts/property-based-testing-2/
-
+      https://crates.io/crates/proptest (Rust)
 
       too long/no time
       https://www.fuzzingbook.org/html/GrammarCoverageFuzzer.html
@@ -86,23 +86,22 @@ https://aws.amazon.com/blogs/opensource/how-open-source-projects-are-using-kani-
 ** L14 L07 from W25: symbolic execution (need for BMC/Dafny)
 
 ** L15 midterm discussion 
-** L16 CBMC/CPROVER, bounded model checking for C, and loop unwinding; verifying Rust with Kani: proof harnesses, contracts, and unsafe Rust
-__ L17 more on bounded model checking
-unsafe rust?
+** L16 (labelled L15) CBMC/CPROVER, bounded model checking for C, and loop unwinding; verifying Rust with Kani: proof harnesses, contracts, and unsafe Rust
+
+__ L17 more on bounded model checking, Cedar/Dafny, Kani vs Dafny
+      (unsafe rust?)
 could also talk about this: https://model-checking.github.io/kani-verifier-blog/2023/08/31/using-kani-to-validate-security-boundaries-in-aws-firecracker.html
       https://model-checking.github.io/kani-verifier-blog/2022/10/27/using-kani-with-the-bolero-property-testing-framework.html
-      https://crates.io/crates/proptest
 
 assignment questions: https://doina.net/AR15/AR15-L6.pdf
 
 
 * 3 weeks Dafny 
-  (January 26)
-__ L18 Leftover Kani; Dafny application: Cedar / Dafny, Kani vs Dafny
-      TODO loop invariants
+__ L18 Dafny application: Cedar / Dafny, 
 *_ L19 More Dafny, including VC and lemmas
 (A2 due here, Mar 13, mostly fuzzing)
 *_ L20 Bubblesort in Dafny
+      TODO loop invariants in Dafny and Kani
 *_ L21 Dafny sequences and VCgen
 *_ L22 On the impact of formal verification on software development https://ranjitjhala.github.io/static/oopsla25-formal.pdf
 bonus, maybe add to L22

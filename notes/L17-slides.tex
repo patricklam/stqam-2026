@@ -1,0 +1,655 @@
+\documentclass{beamer}
+
+\usetheme{Boadilla}
+
+\usepackage{times}
+\usefonttheme{structurebold}
+\usepackage{listings}
+\usepackage{listings-rust}
+
+\usepackage{pgf}
+\usepackage{tikz}
+\usepackage{alltt}
+\usepackage[normalem]{ulem}
+\usetikzlibrary{arrows,automata,shapes,positioning}
+\usepackage{amsmath,amssymb}
+\usepackage{rotating}
+\usepackage{ulem}
+\usepackage{pythonhighlight}
+\usepackage{amssymb}
+\usepackage{pifont}
+\newcommand{\xmark}{\ding{55}}
+\usepackage{dafny}
+
+\usetikzlibrary{arrows,automata,shapes}
+\tikzstyle{block} = [rectangle, draw, fill=blue!20, 
+    text width=5em, text centered, rounded corners, minimum height=2em]
+\tikzstyle{bt} = [rectangle, draw, fill=blue!20, 
+    text width=4em, text centered, rounded corners, minimum height=2em]
+
+\lstset{ %
+language=Rust}
+
+%\setbeamercovered{dynamic}
+\setbeamertemplate{footline}[page number]{}
+\setbeamertemplate{navigation symbols}{}
+\usefonttheme{structurebold}
+
+\title{Software Testing, Quality Assurance \& Maintenance---Lecture 17}
+\author{Patrick Lam\\University of Waterloo}
+\date{March 9, 2026}
+
+\colorlet{redshaded}{red!25!bg}
+\colorlet{shaded}{black!25!bg}
+\colorlet{shadedshaded}{black!10!bg}
+\colorlet{blackshaded}{black!40!bg}
+
+\colorlet{darkred}{red!80!black}
+\colorlet{darkblue}{blue!80!black}
+\colorlet{darkgreen}{green!80!black}
+
+\newcommand{\rot}[1]{\rotatebox{90}{\mbox{#1}}}
+\newcommand{\gray}[1]{\mbox{#1}}
+
+\newenvironment{changemargin}[1]{% 
+  \begin{list}{}{% 
+    \setlength{\topsep}{0pt}% 
+    \setlength{\leftmargin}{#1}% 
+    \setlength{\rightmargin}{1em}
+    \setlength{\listparindent}{\parindent}% 
+    \setlength{\itemindent}{\parindent}% 
+    \setlength{\parsep}{\parskip}% 
+  }% 
+  \item[]}{\end{list}}
+
+\newcommand{\brac}[1]{\texttt{\textless #1\textgreater}}
+
+
+\begin{document}
+\begin{frame}
+  \titlepage
+\end{frame}
+
+%\usebackgroundtemplate{\tikz\node[opacity=0.3]{\includegraphics[width=\paperwidth]{L15/02910_smol_common_rock_crab_v1.jpg}};}
+\part{Property testing with Bolero;\\ extension to Kani}
+\begin{frame}
+  \partpage
+\end{frame}
+%\usebackgroundtemplate{}
+
+\begin{frame}[fragile]
+  \frametitle{Last time: Proptest vs proof harness}
+  \begin{changemargin}{2cm}
+{    \Large
+    Let's compare.}
+  \end{changemargin}
+
+  \begin{tabular}{ll}
+    \scriptsize
+      \begin{minipage}{.4\textwidth}
+\begin{lstlisting}[language=Rust]
+#[cfg(kani)]
+#[kani::proof]
+fn check_estimate_size() {
+    let x: u32 = kani::any();
+    estimate_size(x);
+}
+\end{lstlisting}
+      \end{minipage} &
+      \begin{minipage}{.4\textwidth}
+    \scriptsize
+\begin{lstlisting}[language=Rust]
+  #[test]
+  fn doesnt_crash(x: u32) {
+      estimate_size(x);
+  }
+\end{lstlisting}
+      \end{minipage}
+    \end{tabular}
+
+  \begin{changemargin}{2cm}
+{    \Large
+    \ldots still pretty similar! }
+  \end{changemargin}
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Bolero}
+  \begin{changemargin}{2cm}
+    \Large
+    meta-framework for property-testing:\\
+    integrates fuzzing engines \& also Kani.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Example: Property testing with Bolero}
+{\scriptsize
+  Source: \url{https://model-checking.github.io/kani-verifier-blog/2022/10/27/using-kani-with-the-bolero-property-testing-framework.html}.
+}
+
+\begin{lstlisting}[language=Rust]
+fn update_account_balance(current_balance: i32,
+                         amount: i32) -> i32 {
+    return current_balance + amount;
+}
+\end{lstlisting}
+\begin{changemargin}{1cm}
+  \Large
+(Blog post code is not executable, ours sort of is.)
+\end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Concrete test}
+\begin{lstlisting}[language=Rust]
+fn balance_upd_is_correct(current_balance: i32,
+   amount: i32, new_balance: i32) -> bool {
+ // also: checks other properties
+ return current_balance + amount == new_balance; }
+
+#[test]
+fn test_update_account_balance() {
+ let current_balance = 5; let amount = 2;
+ let nb = update_account_balance(current_balance, 
+                                 amount);
+ assert!(balance_upd_is_correct(current_balance,
+                               amount, nb));
+}
+\end{lstlisting}
+\begin{changemargin}{1cm}
+  \Large
+We can \texttt{cargo test} this, and it succeeds.
+\end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{DIY random testing}
+\begin{lstlisting}[language=Rust]
+#[test]
+fn test_update_account_balance_random() {
+ let current_balance = rand::random();
+ let amount = rand::random();
+ let result = update_account_balance
+                 (current_balance, amount);
+ assert!(balance_update_is_correct
+                 (current_balance, amount, result));
+}
+\end{lstlisting}
+\begin{changemargin}{1cm}
+  \Large
+But we've seen better: coverage-guided fuzzing.
+\end{changemargin}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Fundamental Theorem of Software Engineering}
+  \Large
+  \begin{quote}
+    ``We can solve any problem by introducing an extra level of indirection.''
+  \end{quote}
+  \begin{changemargin}{2cm}
+    (per Wikipedia, attributed to David J. Wheeler)\\[1em]
+
+    Here: Bolero abstracts away from specific fuzzing engine.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Bolero at work}
+\begin{lstlisting}[language=Rust]
+#[test]
+#[cfg_attr(kani, kani::proof)]
+fn test_update_account_balance_bolero() {
+    bolero::check!().with_type::<(i32, i32)>().cloned().for_each(|(current_balance, amount)| {
+        let result = update_account_balance(current_balance, amount);
+        assert!(balance_update_is_correct(current_balance, amount, result));
+    });
+}
+\end{lstlisting}
+\begin{changemargin}{1cm}
+  \Large
+  I can definitely run this with libfuzzer and Kani. \\
+  For technical reasons, AFL doesn't work on my system.\\
+  I don't have honggfuzz installed.
+\end{changemargin}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Libfuzzer under Bolero}
+{ \scriptsize \begin{verbatim}
+$ cargo bolero test test_update_account_balance_bolero --engine libfuzzer
+\end{verbatim} }
+
+\hspace*{2cm} tells us that our code fails on overflow:
+
+\scriptsize
+\begin{verbatim}
+======================== Test Failure ========================
+
+Input: 
+(
+    369098752,
+    1778384896,
+)
+
+Error: 
+panicked at src/main.rs:6:12:
+attempt to add with overflow
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace.
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Kani under Bolero}
+  \scriptsize
+\begin{verbatim}
+$ cargo bolero test test_update_account_balance_bolero --engine kani
+[...]
+SUMMARY:
+ ** 1 of 238 failed (1 unreachable)
+
+ ** 1 of 1 cover properties satisfied
+
+Failed Checks: attempt to add with overflow
+ File: "src/main.rs", line 6, in update_account_balance
+
+VERIFICATION:- FAILED
+Verification Time: 0.16379055s
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Another Bolero example: nth-rev}
+  \begin{changemargin}{1cm}
+    (Incorrectly) return $n$\textsuperscript{th}-from-the-end element as \texttt{Some(x)}.
+  \end{changemargin}
+\small \begin{lstlisting}
+fn nth_rev(arr: &[i32], index: usize) -> Option<i32> {
+    if index < arr.len() {
+        let rev_index = arr.len() - index /* - 1 */;
+        return Some(arr[rev_index]);
+    }
+    None
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Bolero harness}
+  \begin{changemargin}{1cm}
+{\Large    Check that we get \texttt{Some()} from each element.}
+  \end{changemargin}
+  \small
+\begin{lstlisting}
+const N: usize = 5; // bound for BMC
+
+#[test]
+#[cfg_attr(kani, kani::proof)] // if Kani, mark as proof harness
+fn check_rev() {
+    bolero::check!()
+        .with_type::<([i32; N], usize)>()
+        .cloned()
+        .for_each(|(arr, index)| {
+            let x = nth_rev(&arr, index);
+            if index < arr.len() {
+                assert!(x.is_some());
+            }
+        });
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{libfuzzer finds the bug}
+  \begin{changemargin}{1cm}
+\scriptsize \begin{verbatim}
+$ cargo bolero test check_rev --engine libfuzzer
+[...]
+test failed; shrinking input...
+
+======================== Test Failure ========================
+
+Input: 
+(
+    [
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    0,
+)
+
+Error: 
+panicked at src/main.rs:8:21:
+index out of bounds: the len is 5 but the index is 5
+\end{verbatim}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Kani finds the bug}
+  \begin{changemargin}{1cm}
+\scriptsize 
+\begin{verbatim}
+$ cargo bolero test check_rev --engine kani
+[...]
+SUMMARY:
+ ** 1 of 698 failed (8 unreachable)
+
+ ** 1 of 1 cover properties satisfied
+
+Failed Checks: index out of bounds: the length is less than or equal to the given index
+ File: "src/main.rs", line 8, in nth_rev
+
+VERIFICATION:- FAILED
+Verification Time: 1.0711443s
+\end{verbatim}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{After fixing, Kani succeeds}
+  \begin{changemargin}{1cm}
+\scriptsize 
+\begin{verbatim}
+SUMMARY:
+ ** 0 of 699 failed (8 unreachable)
+
+ ** 1 of 1 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 1.0993001s
+\end{verbatim}
+
+\Large ~ \\[1em]
+libfuzzer also doesn't find any bugs on an overnight run.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Why both Kani and libfuzzer}
+  \begin{changemargin}{1cm}
+    \Large
+    My take:
+    \begin{itemize}
+    \item Kani and libfuzzer succeeded and failed on same programs.
+      \item This is not true in general.
+    \end{itemize}
+    Perhaps fuzzing doesn't find anything, \\ but Kani does.\\[1em]
+    Or, Kani might not find an issue, \\
+    but fuzzing does.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Outputs from Kani and libfuzzer}
+  \begin{changemargin}{1cm}
+    \large
+    Both fuzzing and Kani might give a test case; \\
+    it's real, and you can fix it.\\[1em]
+    Unwinding assertion failure: must investigate more.\\
+    Kani success: your program is correct modulo the bound,\\
+    assuming everything else on the system correct.\\[1em]
+    Fuzzing says nothing: don't really know that your program is correct,
+    but have some warm and fuzzy feelings.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Under the hood: Bolero \& Kani}
+  \begin{changemargin}{1cm}
+    \Large
+    Bolero uses \texttt{kani::any()} to get a symbolic value, \\
+    \hspace*{1em} \texttt{kani::assume()} to restrict the range, e.g.
+    \normalsize
+\begin{lstlisting}
+  bolero::check!().with_generator(5..37)
+      .for_each( // snip... );
+\end{lstlisting}
+\Large becomes \normalsize
+\begin{lstlisting}
+  let value = kani::any();
+  kani::assume((5..37).contains(&value));
+  value
+\end{lstlisting}
+  \end{changemargin}
+\end{frame}
+    
+\part{Kani (BMC) to Dafny (auto-active program verification)}
+\begin{frame}
+  \partpage
+\end{frame}
+
+\begin{frame}
+  \frametitle{About Dafny}
+
+  \Large
+  \begin{changemargin}{1cm}
+    Dafny: automatically verify annotated programs.\\[1em]
+    In SE212, manually (with George's help) prove programs.\\[1em]
+    Dafny does the same, but mostly automatically.\\[1em]
+    Terminology: ``auto-active'' (versus interactive).
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Kani vs Dafny: Rust Rectangle example}
+\small
+\begin{lstlisting}[language=Rust]
+#[derive(Debug, Copy, Clone)]
+struct Rectangle {
+    width: u64, height: u64,
+}
+
+impl Rectangle {
+    fn can_hold(&self, other: &Rectangle) -> bool {
+        self.width > other.width && 
+        self.height > other.height 
+    }
+
+    fn stretch(&self, factor: u64) -> Option<Self> {
+        let w = self.width.checked_mul(factor)?;
+        let h = self.height.checked_mul(factor)?;
+        Some(Rectangle {
+            width: w,
+            height: h,
+        })
+    }
+}
+\end{lstlisting}
+\end{frame}
+\begin{frame}[fragile]
+  \frametitle{Dafny Rectangle}
+\large
+\begin{lstlisting}[language=dafny]
+  class Rectangle {
+      var width:int
+      var height:int
+  }
+
+  predicate can_hold(self:Rectangle, other:Rectangle)
+      reads self, other
+  {
+      self.width > other.width && self.height > other.height
+  }
+
+  method stretch(self:Rectangle, factor:nat)
+           returns (rv : Rectangle) {
+      rv := new Rectangle;
+      rv.width := self.width * factor;
+      rv.height := self.height * factor;
+      return rv;
+  }
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Rust concrete test case}
+  \begin{changemargin}{1cm}
+    Just an average test case.
+  \end{changemargin}
+  \small
+\begin{lstlisting}[language=Rust]
+  #[cfg(test)]
+  mod tests {
+      use super::*;
+
+      #[test]
+      fn stretched_rectangle_can_hold_original() {
+          let original = Rectangle {
+              width: 8,
+              height: 7,
+          };
+          let factor = 2;
+          let larger = original.stretch(factor);
+          assert!(larger.unwrap().can_hold(&original));
+      }
+  }
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Dafny concrete test case}
+  \begin{changemargin}{1cm}
+    Just an average test case (in Dafny).
+  \end{changemargin}
+  \small
+\begin{lstlisting}[language=dafny]
+method {:test} TestStretchedRectangleCanHoldOriginal() {
+    var original := new Rectangle;
+    original.width := 8; original.height := 7;
+    var factor := 2;
+    var larger := stretch(original, factor);
+    expect can_hold(larger, original);
+}
+\end{lstlisting}
+\large
+  \begin{changemargin}{1cm}
+    Note: \texttt{expect} is dynamic \texttt{assert}; plain \texttt{assert} is static.\\[1em]
+    More generally: the concrete test case is concrete; \\
+    we can write \texttt{assert}, in which case
+    we need the method to have an \texttt{ensures} clause.\\[1em]
+    If we have \texttt{ensures} then we can verify the whole method under all inputs.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Back to proptests: this works}
+\begin{lstlisting}[language=Rust]
+#[cfg(test)]
+mod proptests {
+ use super::*;
+ use proptest::prelude::*;
+ use proptest::num::u64;
+
+ proptest! {
+   #[test]
+   fn stretched_rectangle_can_hold_original
+      (width in u64::ANY, height in u64::ANY,
+       factor in u64::ANY) {
+     let original = Rectangle {
+       width: width, height: height,
+     };
+     if let Some(larger) = original.stretch(factor) {
+       assert!(larger.can_hold(&original));
+     } } } }
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{All the way to Kani}
+\begin{lstlisting}[language=Rust]
+// cargo kani --harness stretched_rectangle_can_hold_original}.
+#[cfg(kani)]
+mod verification {
+ use super::*;
+
+ #[kani::proof]
+ pub fn stretched_rectangle_can_hold_original() {
+  let original = Rectangle {
+      width: kani::any(),
+      height: kani::any(),
+  };
+  let factor = kani::any();
+  if let Some(larger) = original.stretch(factor) {
+      assert!(larger.can_hold(&original));
+  } } }
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Proof harness implications}
+  \begin{changemargin}{1cm}
+    \Large
+    Kani verifies behaviour for \emph{any} width, height, and factor.\\[1em]
+    It runs a whole bunch of tests, looking for safety violations (because Unsafe Rust).\\[1em]
+    But, also reports a failure!
+{ \scriptsize
+\begin{verbatim}
+
+Check 3: verification::stretched_rectangle_can_hold_original.assertion.1
+	 - Status: FAILURE
+	 - Description: "assertion failed: larger.can_hold(&original)"
+	 - Location: src/lib.rs:72:13 in function verification::stretched_rectangle_can_hold_original
+[...]
+SUMMARY:
+ ** 1 of 40 failed
+Failed Checks: assertion failed: larger.can_hold(&original)
+ File: "src/lib.rs", line 72, in verification::stretched_rectangle_can_hold_original
+
+VERIFICATION:- FAILED
+Verification Time: 0.08609796s
+\end{verbatim}
+}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Why failure?}
+  \begin{changemargin}{1cm}
+    \Large
+    We're missing some preconditions.\\[1em]
+    We'll encode them directly into the harnesss:
+\begin{lstlisting}[language=Rust]
+kani::assume(0 != original.width);
+kani::assume(0 != original.height);
+kani::assume(1 < factor);          
+\end{lstlisting}
+
+With these \textsf{assume}s (effectively preconditions), Kani verifies the code.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Analogous Dafny}
+  \small
+\begin{lstlisting}[language=dafny]
+method stretch(self:Rectangle, factor:nat) returns (rv : Rectangle)
+    ensures rv.width == self.width * factor && 
+            rv.height == self.height * factor
+{
+    rv := new Rectangle;
+    rv.width := self.width * factor;
+    rv.height := self.height * factor;
+    return rv;
+}
+
+method stretched_rectangle_can_hold_original
+                (original:Rectangle, factor:nat)
+    requires original.width > 0 && 
+             original.height > 0 && factor > 1
+{
+    var larger := stretch(original, factor);
+    assert can_hold(larger, original);
+}
+\end{lstlisting}
+\end{frame}
+
+\end{document}

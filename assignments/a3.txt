@@ -1,5 +1,7 @@
 some cbmc examples:
 
+find a case where cbmc/kani returns a false negative
+
 https://doina.net/AR15/AR15-L6.pdf
 Assignment
 Assignment (software bugs)
