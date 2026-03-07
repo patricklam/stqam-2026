@@ -3,6 +3,7 @@
 \usepackage{pifont}
 \usepackage{multicol}
 \usepackage{listings}
+\usepackage{listings-rust}
 \usepackage{pgf}
 \usepackage{tikz}
 \usepackage{alltt}
@@ -66,8 +67,8 @@
 \newcommand{\sem}[3]{\langle #1, #2 \rangle \Downarrow #3}
 
 \lstset{ %
-language=Java,
-basicstyle=\ttfamily,commentstyle=\scriptsize\itshape,showstringspaces=false,breaklines=true,numbers=left}
+language=Rust,
+basicstyle=\small\ttfamily,commentstyle=\small\itshape,showstringspaces=false,breaklines=true,numbers=left}
 
 %\usepackage{fontspec}
 %\setmonofont{Cousine}[Scale=MatchLowercase]
@@ -76,828 +77,561 @@ basicstyle=\ttfamily,commentstyle=\scriptsize\itshape,showstringspaces=false,bre
 
 \lecture{17 --- March 9, 2026}{Winter 2026}{Patrick Lam}{version 1}
 
-We motivated Dafny last time by talking about Cedar. In brief, Dafny
-proves user-specified annotations and verifies the absence of runtime
-errors---the things that are usually undefined behaviour or crashes,
-like out of bounds array indexes, null dereferences, etc.  We've seen
-how to use symbolic execution to avoid these as well, but Dafny is a
-fully-static approach that aims to work on real code (written in the
-Dafny language).
+\section*{Property testing with Bolero, plus extension to Kani}
 
-Other applications of verified software besides Cedar:
-\begin{itemize}[noitemsep]
-\item Paris Metro line 14 control system (B)\footnote{\url{https://www.clearsy.com/wp-content/uploads/2020/03/Formal-methods-for-Railways-brochure-mai-2020.pdf}}: 110,000 lines of models, 86,000 lines of Ada.
-\item seL4 (Haskell, Isabelle/HOL, C)\footnote{\url{https://sel4.systems/Info/FAQ/proof.html}}: the seL4 microkernel conforms to its specification and maintains integrity and confidentiality.
-\item CompCert (Coq)\footnote{https://inria.hal.science/hal-01238879}: a formally verified optimizing compiler
-\item IronClad (Dafny)\footnote{https://www.microsoft.com/en-us/research/project/ironclad/}: guarantees about how remote apps behave
-\end{itemize}
+We mentioned last time that property testing and bounded model checking looked pretty similar.
+Let's explore that in more depth. First, we'll talk about the Bolero meta-framework for property testing\footnote{\url{https://model-checking.github.io/kani-verifier-blog/2022/10/27/using-kani-with-the-bolero-property-testing-framework.html}},
+which can integrate a number of fuzzing engines and Kani as well.
 
-The first three applications were carried out by verification experts; the last one was done by systems programmers. In all of these cases, the systems were designed as verified systems from the start.
+The first example in the blog post isn't executable, but I made an executable version in the \texttt{code/L17/use-bolero} subdirectory. We start by talking about property testing, as we've seen with Hypothesis in the Python space and
+proptest for Rust.
 
-We're going to talk more about formal verification and software development in Lecture 12.
-
-\section*{Dafny}
-
-I don't know how long it will take, but in this set of lecture notes, we'll aim to get through
-the first online guide, which shows how to verify basic imperative code (including loops but not advanced
-topics like objects, sequences and sets, data structures, lemmas). I'm going to summarize what's
-there, and in class, we'll work on exercises together.
-
-\begin{itemize}[noitemsep]
-\item \url{https://dafny.org/dafny/OnlineTutorial/guide}
-\item \url{https://dafny.org/blog/2023/12/15/teaching-program-verification-in-dafny-at-amazon/}
-\end{itemize}
-
-\section*{Dafny: annotations}
-This annotation in Dafny should be familiar to you from what we've seen in class:
-\begin{lstlisting}[language=dafny]
-  forall k: int :: 0 <= k < a.Length ==> 0 < a[k]
+Say we have this function:
+\begin{lstlisting}[language=Rust]
+fn update_account_balance(current_balance: i32, amount: i32) -> i32 {
+    return current_balance + amount;
+}
 \end{lstlisting}
-or in ASCII,
+We can write a regular concrete test like this:
+\begin{lstlisting}[language=Rust]
+fn balance_update_is_correct(current_balance: i32, amount: i32, new_balance: i32) -> bool {
+ // also: checks that the transaction was carried out correctly,
+ // may include other properties as well, e.g. that no overflow occurred,
+ // there was enough balance for a withdrawal, etc.
+ return current_balance + amount == new_balance;
+}
+
+#[test]
+fn test_update_account_balance() {
+ let current_balance = 5;
+ let amount = 2;
+ let new_balance = update_account_balance(current_balance, amount);
+ assert!(balance_update_is_correct(current_balance, amount, new_balance));
+}
+\end{lstlisting}
+We can just \texttt{cargo test} to run this, and it succeeds of course.
+
+We can implement random testing by hand:
+\begin{lstlisting}[language=Rust]
+#[test]
+fn test_update_account_balance_random() {
+    let current_balance = rand::random();
+    let amount = rand::random();
+    let result = update_account_balance(current_balance, amount);
+    assert!(balance_update_is_correct(current_balance, amount, result));
+}
+\end{lstlisting}
+which is fine, I guess. But we can use coverage-guided fuzzing, as we've discussed.
+The code in the blog post for using libFuzzer or AFL doesn't actually work,
+because these fuzzers give you bits, and you have to convert them into i32s yourself.
+The point, though, is: well, it's pretty much the same interface for random testing, fuzzing, and Kani.
+So, can't we introduce a layer of abstraction? Bolero does this, and this code does work:
+\begin{lstlisting}[language=Rust]
+#[test]
+#[cfg_attr(kani, kani::proof)]
+fn test_update_account_balance_bolero() {
+    bolero::check!().with_type::<(i32, i32)>().cloned().for_each(|(current_balance, amount)| {
+        let result = update_account_balance(current_balance, amount);
+        assert!(balance_update_is_correct(current_balance, amount, result));
+    });
+}
+\end{lstlisting}
+If we run
 \begin{verbatim}
-  forall k: int :: 0 <= k < a.Length ==> 0 < a[k]
+$ cargo bolero test test_update_account_balance_bolero --engine libfuzzer
 \end{verbatim}
-It says that all elements of array $a$ are positive.
+then it tells us that our code fails on overflow.
+\begin{verbatim}
+======================== Test Failure ========================
 
-Let's start Dafny and write a method that ensures this as a postcondition.
-Can you fill this in on your computer, experimenting with how to make it verify?
-\begin{lstlisting}[language=dafny]
-  method all_positive() returns (rv:array<int>)
-  ensures forall k: int :: 0 <= k < rv.Length ==> 0 < rv[k]
-  {
-    var arr := new int[2];
-    // ...
-    return arr;
-  }  
-\end{lstlisting}
+Input: 
+(
+    369098752,
+    1778384896,
+)
 
-\section*{Dafny: methods}
-We saw a method above. A \emph{method} is a piece of imperative, executable code.
-It's like a Java method, or a procedure or function in other languages. Dafny uses
-``function'' to mean something else. Here's another method declaration:
-\begin{lstlisting}[language=dafny]
-  method Abs(x:int) returns (y:int)
-  {
-    // ...
-  }
-\end{lstlisting}
-Dafny methods can return multiple values:
-\begin{lstlisting}[language=dafny]
-  method MultipleReturns(x:int, y:int) returns (more:int, less:int)
-  {
-    more := x + y;
-    less := x - y;
-  }
-\end{lstlisting}
-Note the use of ``:='' for assignment (and ``=='' for equality).
+Error: 
+panicked at src/main.rs:6:12:
+attempt to add with overflow
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace.
+\end{verbatim}
+I can't use AFL on my 64-bit computer without doing more admin than I'd like,
+but presumably it's possible too. There is a honggfuzz backend
+but my computer doesn't have it. I can use Kani with Bolero, which also shows a failure.
 
-Return variables are just like local variables and can be assigned multiple times.
-Parameters are read-only.
+\begin{verbatim}
+SUMMARY:
+ ** 1 of 238 failed (1 unreachable)
 
-Let's fill in the body of Abs.
-\begin{lstlisting}[language=dafny]
-  method Abs(x:int) returns (y:int)
-  {
-    if x < 0 { // must write the {
-        return -x;
-      } else {
-        return x;
-     }
-  }
-\end{lstlisting}
+ ** 1 of 1 cover properties satisfied
 
-\section*{Preconditions and postconditions}
-What's special about Dafny, of course, is that you can write \textsf{requires}
-and \textsf{ensures} clauses on methods, and Dafny will try to verify them, or
-complain. Let's add a postcondition to the Abs method.
-\begin{lstlisting}[language=dafny]
-method AbsWithPostcondition(x:int) returns (y:int)
-  ensures 0 < y
-{
-  if x < 0 {
-    return -x;
-  } else {
-    return x;
-  }
-}
-\end{lstlisting}
-Note that we use the name of the return value, \textsf{y}. Now, why doesn't this verify?
+Failed Checks: attempt to add with overflow
+ File: "src/main.rs", line 6, in update_account_balance
 
-We can write multiple postconditions as well.
-\begin{lstlisting}[language=dafny]
-  method MultipleReturns(x:int, y:int) returns (more:int, less:int)
-    ensures less < x
-    ensures x < more
-  {
-    more := x + y;
-    less := x - y;
-  }
-\end{lstlisting}
-OK, what goes wrong here? How can we verify this method?
+VERIFICATION:- FAILED
+Verification Time: 0.16379055s
+\end{verbatim}
+Running \texttt{cargo test} is also supposed to do normal random testing.
 
-This doesn't help, but we can also write:
-\begin{lstlisting}[language=dafny]
-  method MultipleReturns(x:int, y:int) returns (more:int, less:int)
-    ensures less < x < more
-  {
-    more := x + y;
-    less := x - y;
-  }
-\end{lstlisting}
-
-There are two reasons why Dafny can't prove something.
-(1) it's ``too hard'' for Dafny and Boogie/Z3 (under the hood) to prove; (2)
-it's actually not true. Test cases can help with (2).
-The other thing you will need, in general, is invariants.
-
-So, of course \textsf{less $<$ x} isn't true if \textsf{y} is negative.
-Let's make sure that it's impossible to call \textsf{MultipleReturns}
-in that case.
-\begin{lstlisting}[language=dafny]
-  method MultipleReturns(x:int, y:int) returns (more:int, less:int)
-    requires y >= 0
-    ensures less < x < more
-  {
-    more := x + y;
-    less := x - y;
-  }
-\end{lstlisting}
-You can also write more than one requires clause. OK, here's an exercise.
-
-\paragraph{Exercise 0.} Write a method \textsf{Max} that takes two
-integer parameters and returns their maximum. Add appropriate annotations
-and make sure your code verifies.
-
-\begin{lstlisting}[language=dafny]
-  method Max(a: int, b: int) returns (c: int)
-    // write a postcondition
-  {
-    // write code
-  }
-\end{lstlisting}
-
-\section*{Assertions}
-We can put assertions anywhere, for instance:
-\begin{lstlisting}[language=dafny]
-  method TryingOutAssertions() {
-    assert 2 < 3;
-    // what about asserting something not true?
-  }
-\end{lstlisting}
-Assertions are especially helpful for debugging Dafny, because it tries to prove that they hold
-on all executions. So if you think that Dafny knows something, write it as an assertion and see
-if it does or not.
-
-Local variables are useful, including for assertions.
-\begin{lstlisting}[language=dafny]
-  method m()
-  {
-    var x, y, z: bool := 1, 2, true;
-  }
-\end{lstlisting}
-Dafny infers types for local variables, or you can explicitly specify them. Using variables:
-\begin{lstlisting}[language=dafny]
-  method TestAbsWithPostcondition(){
-    var v := AbsWithPostcondition(3);
-    assert 0 <= v;
-  }
-\end{lstlisting}
-
-\paragraph{Exercise 1.} Write a test method that calls your \textsf{Max} method from Exercise 0
-and then asserts something about the result.
-
-But what about:
-\begin{lstlisting}[language=dafny]
-  method AbsWithPostcondition(x:int) returns (y:int)
-  ensures 0 <= y
-  {
-    if x < 0 {
-      return -x;
-    } else {
-      return x;
-    }
-  }
-
-  method TestAbs()
-  {
-    var v := AbsWithPostcondition(3);
-    assert 0 <= v;
-    assert v == 3; // oops, can't prove this
-  }
-\end{lstlisting}
-Looking at \textsf{AbsWithPostcondition}, clearly \textsf{v} is 3 if we use the body of that method.
-But Dafny doesn't know that. It just looks at the postcondition. From the postcondition, it knows
-that \textsf{v} is non-negative, but not exactly what it is.
-
-Indeed, Dafny doesn't know the difference between \textsf{AbsWithPostcondition} and:
-\begin{lstlisting}[language=dafny]
-  method NotAbs(x:int) returns (y:int)
-  ensures 0 <= y
-  {
-    return 5;
-  }
-\end{lstlisting}
-and it also can't prove this:
-\begin{lstlisting}[language=dafny]
-  method TestNotAbs(x:int) returns (y:int)
-  ensures 0 <= y
-  {
-    var v := NotAbs(3);
-    assert v == 3; // actually not true
-  }
-\end{lstlisting}
-So what postcondition do we want? How about this?
-\begin{lstlisting}[language=dafny]
-  method AbsBetterPostcondition(x:int) returns (y:int)
-  ensures 0 <= y
-  ensures 0 <= x ==> y == x
-  {
-    if x < 0 {
-      return -x;
-    } else {
-      return x;
-    }
-  }
-\end{lstlisting}
-Well\ldots
-\begin{lstlisting}[language=dafny]
-  method TestAbsBetter(x:int) returns (y:int)
-  {
-    var v := AbsBetterPostcondition(5);
-    assert v == 5;
-    var w := AbsBetterPostcondition(-2);
-    assert w == 2;
-  }
-\end{lstlisting}
-OK, one way to write the postcondition we really want is:
-\begin{lstlisting}[language=dafny]
-  method AbsFullPostcondition(x:int) returns (y:int)
-  ensures 0 <= y
-  ensures 0 <= x ==> y == x
-  ensures x < 0 ==> y == -x
-  {
-    if x < 0 {
-      return -x;
-    } else {
-      return x;
-    }
-  }
-\end{lstlisting}
-Or we can write:
-\begin{lstlisting}[language=dafny]
-  ensures 0 <= y && (y == x || y == -x)
-\end{lstlisting}
-There can be more than one way to write a postcondition.
-
-Now, we want to eliminate the redundancy between the postcondition and the implementation.
-Functions can help here. But, first, some exercises.
-
-\paragraph{Exercise 2.} Using a precondition, change \textsf{Abs} such that it can only be called
-on negative values. Simplify the body of \textsf{Abs} into just one return statement and make sure
-the method still verifies.
-
-\paragraph{Exercise 3.} Keeping the postconditions of \textsf{Abs} the same as for
-\textsf{AbsFullPostcondition}, change the body of the method to just \textsf{y := x + 2}. What
-precondition do you need to impose on the method so that it verifies? What about body
-\textsf{y := x + 1}? What does that precondition say about when you can call the method?
-
-% requires x == -1
-% requires false
-
-\section*{Functions}
-
-Here is a function. A function body must consist of exactly one expression, which must have the correct type.
-\begin{lstlisting}[language=dafny]
-  function abs(x:int) : int
-  {
-    if x < 0 then -x else x
-  }
-\end{lstlisting}
-
-Why functions? They can be used directly in specifications (e.g. asserts, requires, ensures), e.g.
-\begin{lstlisting}[language=dafny]
-  method m()
-  {
-    assert abs(3) == 3;
-  }
-\end{lstlisting}
-We don't need to store the result of function \textsf{abs} in a temporary local variable, nor did we have
-to write a postcondition for it. Dafny doesn't forget about the function body. It is allowed to write
-preconditions and postconditions for functions, but not required.
-
-\paragraph{Exercise 4.} Write a function \textsf{max} that returns the larger of two integer parameters.
-Write a test method using an \textsf{assert} that checks that your function is correct (at least on one
-case).
-
-\paragraph{Exercise 5.} Change the postcondition of method \textsf{Abs} to use function \textsf{abs}, make sure
-that \textsf{Abs} still verifies, and then change the body of \textsf{Abs} to also use the function.
-
-Let's continue using functions. Here is a na\"ive implementation of the Fibonacci function.
-
-\begin{lstlisting}[language=dafny]
-function fib(n: nat): nat
-{
-  if n == 0 then 0
-  else if n == 1 then 1
-  else fib(n-1) + fib(n-2)
-}
-\end{lstlisting}
-
-Some notes. (1) We had \textsf{int}s before, but now we have
-\textsf{nat}s, i.e. natural numbers, which can't be negative; these
-are a subset type of \textsf{int}. (By the way, Dafny \textsf{int}s
-and \textsf{nat}s are unbounded.) (2) You wouldn't actually want to
-\emph{calculate} Fibonacci numbers this way, but it obviously matches
-the definition, and we can ask Dafny to prove that a (faster) implementation
-also computes the same thing as this function. It can serve as an oracle,
-more obviously matching the definition of Fibonacci numbers than the iterative implementation.
-
-\begin{lstlisting}[language=dafny]
-method ComputeFib(n: nat) returns (b: nat)
-  ensures b == fib(n)
-{
-  // ...
-}
-\end{lstlisting}
-
-\section*{Loops and Loop Invariants}
-The usual more efficient way to compute Fibonacci numbers is using a loop. You've seen loops in the context of Hoare logic, and Dafny is similar, except that it does a lot of
-proving for you. But it doesn't supply invariants.
-
-Here's a loop, with an invariant.
-\begin{lstlisting}[language=dafny]
-method FirstLoop(n:nat)
-{
-  var i := 0;
-  while i < n
-    invariant 0 <= i
-  {
-    i := i + 1;
-  }
-  assert i == n;
-}
-\end{lstlisting}
-We can see that $\mathsf{i == n}$ at the end of the loop, but does Dafny know that? We can ask it, using
-\textsf{assert}. (It doesn't). We need to strengthen the loop invariant. If we try $0 \leq i < n$, then
-Dafny complains that the invariant might not hold on entry and it might not be maintained by the loop body.
-Why is that?
-
-Well, in any case, if we use the invariant $0 \leq i \leq n$, then Dafny is satisfied with everything.
-
-\paragraph{Exercise 6.} Change the loop invariant to $0 \leq i \leq n + 2$. Does the loop still verify?
-Does the assertion $i == n$ after the loop still verify?
-
-\paragraph{Exercise 7.} With the original loop invariant, change the loop guard from $i < n$ to
-$i \neq n$. Do the loop and assertion after the loop still verify? Why or why not?
-
-Here is another loop, which implements multiplication using addition.
-\begin{lstlisting}[language=dafny]
-method AddByInc(n:nat, m:nat) returns (r:nat)
-  ensures r == n + m
-{
-  r := n;
-  var i := 0;
-  while (i < m)
-  {
-    i := i + 1;
-    r := r - 1;
-  }
-}
-\end{lstlisting}
-
-Turns out that we need to add two invariants for the while:
-\begin{lstlisting}[language=dafny]
-    invariant 0 <= i <= m;
-    invariant r == n + i;
-\end{lstlisting}
-These are similar invariants to what we've seen in Hoare logic, but it's easier to experiment with them here and see exactly what we need and when Dafny complains.
-The second invariant really is an invariant. We can express it as $n = r - i$. The loop doesn't modify $n$. So, as $i$ goes up, $r$ goes down by the same amount.
-
-We can also check some assertions at the end to see what Dafny actually knows:
-\begin{lstlisting}[language=dafny]
-  assert (r == n + i && i == m);
-  assert (r == n + m);
-\end{lstlisting}
-
-Here's a method that multiplies two numbers by addition.
-\begin{lstlisting}[language=dafny]
-method Product(m:nat, n:nat) returns (res:nat)
-  ensures res == m*n
-{
-  var m1 := m;
-  res := 0;
-  while m1 != 0
-  {
-    var n1 := n;
-    while n1 != 0
-    {
-      res := res + 1;
-      n1 := n1 - 1;
-    }
-    m1 := m1 - 1;
-  }
-}
-\end{lstlisting}
-We need invariants for both \textsf{while} loops. We can start with the outer loop.
-We could write an invariant about the range of \textsf{m1} but it turns out that this is not
-mandatory. The invariant that actually is mandatory is about the value of \textsf{res}.
-It looks like magic, but you can examine the postcondition and the fact that \textsf{m1}
-is the induction variable here, and conclude that your invariant should be:
-\begin{lstlisting}[language=dafny]
-  invariant res == (m-m1) * n
-\end{lstlisting}
-When the loop starts, it has gone around the loop zero times, so
-$\mathsf{m} == \mathsf{m1}$ and their difference is 0, as is
-$\mathsf{res}$.  In terms of maintaining the invariant, each time around
-the outer loop, the program is adding one \textsf{n} to $\mathsf{res}$
-and subtracting 1 from \textsf{m1}, and the invariant does that.
-
-As for the second invariant, we are now doing the adding of \textsf{n} to \textsf{res} one at a time.
-Through this loop, \textsf{m} and \textsf{m1} are both constant, and we are changing \textsf{res}
-from $(\mathsf{m}-\mathsf{m1}) \times n$ to $(\mathsf{m}-\mathsf{m1}) + 1 \times n$. We have that \textsf{n} stays constant
-and \textsf{n1} goes down. Every time that \textsf{n1} goes down by 1, \textsf{res} goes up by 1,
-so putting $-\mathsf{n1}$ is a good bet.
-The invariant is thus
+\paragraph{Another out-of-bounds example.} Maybe we should have just started
+with this example! Anyway, here it is. It returns the $n$th-from-the-end element
+of the input array.
 \begin{lstlisting}
-  invariant res == (m-m1)*n + (n-n1)
-\end{lstlisting}
-and Dafny will verify this.
-
-Let's implement the Fibonacci method.
-\begin{lstlisting}[language=dafny]
-method ComputeFib(n: nat) returns (b: nat)
-  ensures b == fib(n)
-{
-  var i := 1;
-  var a := 0;
-  b := 1;
-  while i < n
-  {
-    a, b := b, a + b;
-    i := i + 1;
-  }
+fn nth_rev(arr: &[i32], index: usize) -> Option<i32> {
+    if index < arr.len() {
+        let rev_index = arr.len() - index /* - 1 */;
+        return Some(arr[rev_index]);
+    }
+    None
 }
 \end{lstlisting}
-(Note that Dafny allows assignment to \textsf{a} and \textsf{b} simultaneously).
+and we can write a Bolero harness:
+\begin{lstlisting}
+const N: usize = 5;
 
-We have postcondition $b = \mathsf{fib}(n)$, and we also know
-that $i == n$, so it must be that $b == \mathsf{fib}(i)$ which we can have as a loop invariant. This
-is promising as part of the loop invariant: it talks about the loop counter. Hence, we have what we had before,
-plus this.
-\begin{lstlisting}[language=dafny]
-  invariant 0 <= i <= n
-  invariant b == fib(i)
-\end{lstlisting}
-We also know that $a$ is the previous Fibonacci number. So,
-\begin{lstlisting}[language=dafny]
-  invariant a == fib(i - 1)
-\end{lstlisting}
-Finally, since Dafny \textsf{nat} starts at 0, we include:
-\begin{lstlisting}[language=dafny]
-  if n == 0 { return 0; }
-\end{lstlisting}
-All together:
-\begin{lstlisting}[language=dafny]
-function fib(n:nat): nat
-{
-  if n == 0 then 0
-  else if n == 1 then 1
-  else fib(n-1) + fib(n-2)
-}
-
-method ComputeFib(n:nat) returns (b:nat)
-  ensures b == fib(n)
-{
-  if n == 0 { return 0; }
-  var i := 1;
-  var a := 0;
-  b := 1;
-  while i < n
-    invariant 0 < i <= n
-    invariant a == fib(i - 1)
-    invariant b == fib(i)
-  {
-    a, b := b, a + b;
-    i := i + 1;
-  }
+#[test]
+#[cfg_attr(kani, kani::proof)]
+fn check_rev() {
+    bolero::check!()
+        .with_type::<([i32; N], usize)>()
+        .cloned()
+        .for_each(|(arr, index)| {
+            let x = nth_rev(&arr, index);
+            if index < arr.len() {
+                assert!(x.is_some());
+            }
+        });
 }
 \end{lstlisting}
+The \texttt{cfg\_attr} line marks this as a proof harness only under Kani; if using it normally with
+Bolero, it's just a test.
 
-% stopped about here after 90minutes
+We are in bounded model checking land, so there is a limit to the array (5). The test/proof harness
+creates an array of length 5 and checks that calling \texttt{nth\_rev} on each array element works.
+We can use this as a test for Bolero:
+\begin{verbatim}
+$ cargo bolero test check_rev --engine libfuzzer
+[...]
+test failed; shrinking input...
 
-\paragraph{Exercise 8.} It is possible to simplify \textsf{ComputeFib}.
-Write a simpler program by not introducing \textsf{a} as the Fibonacci number
-that precedes \textsf{b}, but instead introducing \textsf{c} as the variable that
-succeeds \textsf{b}. Verify that your program is correct according to the mathematical
-definition of Fibonacci.
+======================== Test Failure ========================
 
-(I'm omitting Exercise 9 from the tutorial because it's not really that useful.)
+Input: 
+(
+    [
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    0,
+)
 
-As you know, an issue with just verifying partial correctness is that it doesn't tell you
-anything at all if the program doesn't terminate. When you run the program, you can see it not
-terminating, but if you're just proving it, you might write non-terminating code.
+Error: 
+panicked at src/main.rs:8:21:
+index out of bounds: the len is 5 but the index is 5
+\end{verbatim}
+which says that the index is higher than it should be (the array has elements from 0 to 4).
+Kani also finds the bug.
+\begin{verbatim}
+$ cargo bolero test check_rev --engine kani
+[...]
+SUMMARY:
+ ** 1 of 698 failed (8 unreachable)
 
-\section*{Termination}
-Dafny does prove termination for loops and recursion. It does so by proving that there is something
-that decreases and that is bounded. Usually Dafny manages to guess what is decreasing. When that is
-something over natural numbers, the lower bound is often 0. You can hover over
-the loop to see the inferred decreases clause. Sometimes Dafny can't guess, and you have to provide an annotation.
+ ** 1 of 1 cover properties satisfied
 
-\begin{lstlisting}[language=dafny]
-method Decreases()
-{
-  var i := 20;
-  while 0 < i
-    invariant 0 <= i
-    decreases i // could be inferred
-    {
-      i := i - 1;
+Failed Checks: index out of bounds: the length is less than or equal to the given index
+ File: "src/main.rs", line 8, in nth_rev
+
+VERIFICATION:- FAILED
+Verification Time: 1.0711443s
+\end{verbatim}
+and if we fix the program, both the fuzzer and Kani succeed. The fuzzer seems to be willing to run forever;
+I ran it overnight and it didn't terminate.
+\begin{verbatim}
+SUMMARY:
+ ** 0 of 699 failed (8 unreachable)
+
+ ** 1 of 1 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 1.0993001s
+\end{verbatim}
+
+\paragraph{Why both?} The blog post talks about it. Here's my take.
+Our example here showed overlap: they succeeded and failed on the same
+programs. But that's not true in general. Fuzzing might not find an issue
+in a case where Kani does. Or, for instance, due to bounds, Kani might
+not find an issue, where fuzzing does.
+
+When either fuzzing or Kani give you a test case, then that's real,
+and you can fix it. When Kani reports an unwinding error, then you don't know.
+If Kani says that your program is correct, then it is (modulo the bound),
+assuming everything else on the system (e.g. the Rust implementation)
+is also correct. Sometimes there are bit flips\footnote{\url{https://mas.to/@gabrielesvelto/116171750653898304}}.
+When fuzzing reports that it can't find anything, you also don't really know
+that your program is correct, but you have some warm and fuzzy feelings (sorry).
+
+\paragraph{Under the hood.} The blog post talks about this in
+just a bit of detail, and it's nothing that we haven't seen.
+Bolero uses \texttt{kani::any()} to generate a symbolic value, and
+\texttt{kani::assume()} to restrict the range of that value, if needed,
+e.g.
+\begin{lstlisting}
+  bolero::check!().with_generator(5..37).for_each( // snip... );
+\end{lstlisting}
+becomes
+\begin{lstlisting}
+  let value = kani::any();
+  kani::assume((min..max).contains(&value));
+  value
+\end{lstlisting}
+
+\section*{Kani (BMC) to Dafny (auto-active program verification)}
+Next, we are going to start talking about Dafny, which is a tool for
+automatically verifying annotations in program code. As I've alluded to
+before, Dafny makes it possible to mostly-automatically do what you have
+done manually in SE 212. Some people call it an ``auto-active'' system
+(versus interactive theorem provers).
+
+% https://www.cs.cmu.edu/~15414/s21/lectures/15-bmc.pdf
+
+We'll compare Dafny and Kani, using a different example\footnote{\url{https://model-checking.github.io/kani-verifier-blog/2022/05/04/announcing-the-kani-rust-verifier-project.html}}.
+
+Here's a Rust \textsf{Rectangle} implementation.
+
+\begin{lstlisting}[language=Rust]
+#[derive(Debug, Copy, Clone)]
+struct Rectangle {
+    width: u64,
+    height: u64,
+}
+
+impl Rectangle {
+    fn can_hold(&self, other: &Rectangle) -> bool {
+        self.width > other.width && self.height > other.height
+    }
+
+    fn stretch(&self, factor: u64) -> Option<Self> {
+        let w = self.width.checked_mul(factor)?;
+        let h = self.height.checked_mul(factor)?;
+        Some(Rectangle {
+            width: w,
+            height: h,
+        })
     }
 }
 \end{lstlisting}
-Note that the thing that is decreasing might be the negation of something that's increasing.
+
+Pretty standard code. We are going to see Dafny. Here's a Dafny version.
+
 \begin{lstlisting}[language=dafny]
-method Decreases2()
+class Rectangle {
+    var width:int
+    var height:int
+}
+
+predicate can_hold(self:Rectangle, other:Rectangle)
+    reads self, other
 {
-  var i, n := 0, 20;
-  while i < n
-    invariant 0 <= i <= n
-    decreases n - i
-    {
-      i := i + 1;
+    self.width > other.width && self.height > other.height
+}
+
+method stretch(self:Rectangle, factor:nat) returns (rv : Rectangle) {
+    rv := new Rectangle;
+    rv.width := self.width * factor;
+    rv.height := self.height * factor;
+    return rv;
+}
+\end{lstlisting}
+It would probably be more idiomatic object-oriented code to put \textsf{stretch}
+on the \textsf{Rectangle}, but it doesn't really matter for our purposes.
+In terms of proofs, we could state and maintain class invariants, which you should
+have seen in CS 247.
+
+Going back to Rust, we can write a test case:
+\begin{lstlisting}[language=Rust]
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stretched_rectangle_can_hold_original() {
+        let original = Rectangle {
+            width: 8,
+            height: 7,
+        };
+        let factor = 2;
+        let larger = original.stretch(factor);
+        assert!(larger.unwrap().can_hold(&original));
     }
 }
 \end{lstlisting}
-Dafny can guess this one too, from the loop condition $i < n$.
-The lower bound is from $i \leq n$ in the invariant, which implies
-$n - i \geq 0$. The bound doesn't have to be constant, as in binary search.
+This is a test case which checks one specific input to \textsf{can\_hold}.
+It succeeds, which is nice, but doesn't tell us that much.
 
-\paragraph{Exercise 10.} In the loop above, the invariant $i \leq n$
-and the negation of the loop guard allow us to conclude $i == n$ after the loop,
-as we've previously checked with an \textsf{assert}. If the loop guard was instead
-$i \neq n$ (as in Exercise 7), then the negation of the guard immediately gives $i == n$,
-without needing the loop invariant. Change the loop guard to $i \neq n$ and delete the invariant.
-What happens?
-
-We have also seen the recursive function \textsf{fib}. Dafny also guesses the decreases
-annotation here. We could specify it explicitly:
-
+We can also write Dafny test cases:
 \begin{lstlisting}[language=dafny]
-function fib(n:nat): nat
-  decreases n
-{
-  if n == 0 then 0
-  else if n == 1 then 1
-  else fib(n-1) + fib(n-2)
+method {:test} TestStretchedRectangleCanHoldOriginal() {
+    var original := new Rectangle;
+    original.width := 8; original.height := 7;
+    var factor := 2;
+    var larger := stretch(original, factor);
+    expect can_hold(larger, original);
 }
 \end{lstlisting}
 
-There is a longer Dafny tutorial on termination, and we'll probably go through that one as well.
+We can replace the \textsf{expect} with an \textsf{assert}, but that won't
+verify, because there is no postcondition for method \textsf{stretch}.
+If we add a postcondition, then the proof for the test case goes through,
+but that's still not a general result. It's just about that particular rectangle.
 
-\section*{Arrays}
-In Dafny we have one-dimensional arrays $\mathsf{array}\langle T \rangle$ for any $T$ (though here we'll only consider
-$\mathsf{array}\langle int \rangle$), as well as $\mathsf{array}?\langle T \rangle$ which includes possibly-null arrays.
+This part of the lecture notes uses \texttt{proptests} rather than Bolero. We can run both of these tests using \textsf{cargo test}.
+\begin{lstlisting}[language=Rust]
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+    use proptest::num::u64;
 
-Array access is as you might expect, $a[i]$, and there is a built-in
-length field: $\mathsf{a}.\mathsf{Length}$.  Part of Dafny's
-compile-time verification includes showing that all array accesses are
-in-bounds, i.e.  betweeen 0 and $\textsf{Length}-1$ inclusive.
-
-We saw array allocation right at the beginning of this document:
-\begin{lstlisting}[language=dafny]
-    var arr := new int[2];
-\end{lstlisting}
-
-Let's express the easy part of the contract for the \textsf{Find} method.
-\begin{lstlisting}[language=dafny]
-method FindPartialContract(a: array<int>, key:int) returns (index:int)
-  // partial contract
-  ensures 0 <= index ==> index < a.Length && a[index] == key
-{
-  // can you write code that satisfies this postcondition?
-  // it can be done with one statement.
-}
-\end{lstlisting}
-This is the case where the key is in the array. It's at index \textsf{index}.
-The conjunct $\mathsf{index} < a.\mathsf{Length}$ guards against out-of-bounds array
-accesses that might be caused by \textsf{a[index]}, and works because Dafny has short-circuit
-logical ands/ors (like C and many other languages).
-
-For the other case, we need to say that \textsf{key} does not exist at \emph{any}
-index in the array, so we need quantifiers.
-
-\paragraph{Quantifiers.} Dafny supports quantifiers in expressions. Use a double-colon (::)
-after the variable name; it shows up as a dark $\cdot$ in Emacs and VS Code.
-
-\begin{lstlisting}[language=dafny]
-method WithQuantifier()
-{
-  assert forall k :: k < k + 1;
-}
-\end{lstlisting}
-(This verifies, but there's a warning about triggers. We won't talk about this here.)
-
-Typically we quantify over some more limited set than ``all integers'' (Dafny infers the type of
-$k$, though you can specify it if you want). For instance, all integers that are valid indices into an array,
-i.e. between 0 and $a.\mathsf{Length}$.
-\begin{lstlisting}[language=dafny]
-  forall k :: 0 <= k <= a.Length => a[k] != key
-\end{lstlisting}
-We can thus write the whole contract:
-\begin{lstlisting}[language=dafny]
-method Find(a: array<int>, key:int) returns (index:int)
-  ensures 0 <= index ==> index < a.Length && a[index] == key
-  ensures index < 0 ==> forall k :: 0 <= k < a.Length ==> a[k] != key
-{
-    // TODO implement this
-}
-\end{lstlisting}
-Linear search is the easiest way to implement \textsf{Find}:
-\begin{lstlisting}[language=dafny]
-  index := 0;
-  while index < a.Length {
-    if a[index] == key {
-      return;
+    proptest! {
+        #[test]
+        fn stretched_rectangle_can_hold_original(width in u64::ANY,
+            height in u64::ANY,
+            factor in u64::ANY) {
+            let original = Rectangle {
+                width: width,
+                height: height,
+            };
+            if let Some(larger) = original.stretch(factor) {
+                assert!(larger.can_hold(&original));
+            }
+        }
     }
-    index := index + 1;
-  }
-  index := -1;
-\end{lstlisting}
-and when we plug that into the contract, we see that Dafny can't prove the postcondition
-saying that if \textsf{index} is negative, then \textsf{key} is not in the array. Makes sense:
-all we know upon leaving the loop is that \textsf{index} has reached the end of the array.
-We need to add an invariant showing that the part of the array we've visited so far does not
-contain \textsf{key}.
-\begin{lstlisting}[language=dafny]
-  invariant forall k :: 0 <= k < index ==> a[k] != key
-\end{lstlisting}
-Dafny complains: it doesn't know that \textsf{index} doesn't go off the end of the array.
-This invariant works.
-\begin{lstlisting}[language=dafny]
-  invariant 0 <= index <= a.Length
-\end{lstlisting}
-We often see loop invariants where we build the property that we need one element at a time,
-as we do here. In this case, the property is that the visited part of the array doesn't contain
-the key that we're looking for.
-
-\paragraph{Exercise 11.} Write a method that takes an integer array, which it requires to have
-at least one element, and returns an index to the maximum of the array's elements. Annotate
-the method with pre- and postconditions that state the intent of the method, and annotate
-its body with a loop invariant to verify it.
-\begin{lstlisting}[language=dafny]
-method FindMax(a: array<int>) returns (index:int)
-  // TODO put preconditions and postconditions here  
-{
-  // TODO implement this
 }
 \end{lstlisting}
+This succeeds too. But we can go one step further and verify that the property that we've tested holds for any input, by running
+\textsf{cargo kani -{}-harness stretched\_rectangle\_can\_hold\_original}.
+\begin{lstlisting}[language=Rust]
+#[cfg(kani)]
+mod verification {
+    use super::*;
 
-Linear search is fine, but if the array is sorted, then binary search is faster. We can't
-prove that binary search is correct unless we can somehow express a property about the array
-being sorted. Which we can. But let's see if we can refactor this property, using predicates.
-
-\paragraph{Predicates.} Dafny has functions, which can return anything. Dafny also has
-predicates, which return booleans. We are going to define the \textsf{sorted} predicate
-which will return true if and only iff its array argument is sorted. Using this predicate
-makes our expressions shorter and more readable (as long as the name of the predicate
-corresponds to its meaning).
-
-\begin{lstlisting}[language=dafny]
-predicate sorted(a: array<int>)
-{
-  forall j, k :: 0 <= j < k < a.Length ==> a[j] <= a[k]
-}
-\end{lstlisting}
-A predicate is like a function, but the return type must be boolean, and so you don't have to write this.
-
-Dafny won't compile this, and says that there is an insufficient \textsf{reads} clause.
-
-\paragraph{Framing.} Dafny needs to know when heap locations might change.
-
-We know that functions and predicates can't change the heap. But
-Dafny isn't a purely functional language---methods can change the heap.
-
-So, Dafny wants to know when the value of \textsf{sorted} might change
-between calls. In a world where there are two arrays, and a method
-writes to one of the arrays, a \textsf{reads} annotation tells
-Dafny \emph{which} array \textsf{sorted} is reading from, and whether
-that array might have been changed by the method. If not, then the
-array has the same sortedness before and after the method was called.
-
-\begin{lstlisting}[language=dafny]
-predicate sorted(a: array<int>)
-  reads a
-{
-  forall j, k :: 0 <= j < k < a.Length ==> a[j] <= a[k]
-}
-\end{lstlisting}
-The \textsf{reads} annotation specifies a set of memory
-locations that the function is allowed to access. Here, it is
-an array, which means that \textsf{sorted} can access all
-of the elements of the array. It could also be object fields and
-sets of objects. We'll probably check that later.
-
-As we've seen, Dafny checks that the \textsf{reads} clause
-specifies everything that the function might read. This includes
-any functions that the function transitively calls.
-
-Conversely, as we've seen, methods can read anything they want.
-But they must declare any changes to memory using a \textsf{modifies}
-clause.
-
-These clauses allow Dafny to reason about methods and functions
-in isolation, and hence they make verification much more tractable.
-
-Dafny only requires framing information for memory on the heap,
-which includes arrays and objects, but not sets, sequences, or multisets
-(which we'll talk about later).
-
-\paragraph{Exercise 12.} Create a \textsf{sortedAndDistinct}
-predicate that returns true exactly when the array is sorted and all its
-elements are distinct.
-
-\paragraph{Exercise 13.} Create a \textsf{sortedAndNonNull}
-predicate that accepts references to a possibly-null array and that
-returns true exactly when the array is sorted and not null.
-
-\paragraph{Binary Search.} Predicates: software engineering principles for
-annotations. Here we use the \textsf{sorted} predicate in the precondition
-for \textsf{BinarySearch}. Dafny thus knows that the array is sorted
-when verifying the method body.
-
-\begin{lstlisting}[language=dafny]
-method BinarySearch(a: array<int>, value: int) returns (index:int)
-  requires 0 <= a.Length && sorted(a)
-  ensures 0 <= index ==> index < a.Length && a[index] == value
-  ensures index < 0 ==> forall k :: 0 <= k < a.Length ==> a[k] != value
-{
-    // ...
-}
-\end{lstlisting}
-
-Here's an implementation of binary search.
-\begin{lstlisting}[language=dafny]
-  var low, high := 0, a.Length;
-  while low < high
-    invariant 0 <= low <= high <= a.Length
-    invariant forall i ::
-      0 <= i < a.Length && !(low <= i < high) ==> a[i] != value
-    {   
-      var mid := (low + high) / 2;
-      if a[mid] < value {
-        low := mid + 1;
-      } else if value < a[mid] {
-        high := mid;
-      } else {
-        return mid;
-      }
+    #[kani::proof]
+    pub fn stretched_rectangle_can_hold_original() {
+        let original = Rectangle {
+            width: kani::any(),
+            height: kani::any(),
+        };
+        let factor = kani::any();
+        if let Some(larger) = original.stretch(factor) {
+            assert!(larger.can_hold(&original));
+        }
     }
-    return -1;
+}
 \end{lstlisting}
-Let's look at the implementation and the invariants.
+This proof harness tells Kani to test the behaviour for \emph{any}
+width, height, and factor.  When we invoke Kani, we see that it runs a
+whole bunch of tests, looking mostly for safety violations (in unsafe
+Rust, of which there is none here).  However, Kani also reports that
+the assertion fails. Why?
+
+It turns out that we're missing some preconditions. Kani does support
+contracts like those we've seen in Dafny, but we'll just encode them
+directly in the test harness.
+
+\begin{lstlisting}[language=Rust]
+        kani::assume(0 != original.width);  //< explicit requirements
+        kani::assume(0 != original.height); //<
+        kani::assume(1 < factor);           //<
+\end{lstlisting}
+
+With these \textsf{assume}s (effectively preconditions), Kani verifies the code.
+
+Similarly, in Dafny:
 \begin{lstlisting}[language=dafny]
-    invariant 0 <= low <= high <= a.Length
-    invariant forall i ::
-      0 <= i < a.Length && !(low <= i < high) ==> a[i] != value
+method stretch(self:Rectangle, factor:nat) returns (rv : Rectangle)
+    ensures rv.width == self.width * factor && rv.height == self.height * factor
+{
+    rv := new Rectangle;
+    rv.width := self.width * factor;
+    rv.height := self.height * factor;
+    return rv;
+}
+
+method stretched_rectangle_can_hold_original(original:Rectangle, factor:nat)
+    requires original.width > 0 && original.height > 0 && factor > 1
+{
+    var larger := stretch(original, factor);
+    assert can_hold(larger, original);
+}
 \end{lstlisting}
-The first invariant says that the search is looking between
-$[\mathsf{low}, \mathsf{high})$, and the second invariant
-says that the searched-for value is not anywhere outside
-that range.
 
-Reasoning about how the first invariant continues to hold is
-straightforward.
 
-For the second invariant, Dafny needs to show that changing
-\textsf{low} or \textsf{high} doesn't miss the value that we are
-searching for. It can use the fact that predicate \textsf{sorted}
-holds. Taking the first \textsf{if} case, we are bumping up
-\textsf{low} to above \textsf{mid}, based on sortedness and the fact
-that $\mathsf{a}[\mathsf{mid}] < \mathsf{value}$, which ensure that
-the value isn't in that part of the range.
+\section*{Dafny Application: Cedar authorization-policy language}
 
-Off-by-one errors are easy to write. Dafny catches them in this case.
+I think some people are using Dafny ``for real''. Here's an example I managed to find,
+about the Cedar authorization-policy language\footnote{\url{https://www.cedarpolicy.com/en}} at Amazon. It looks like the formalization
+was later migrated from Dafny's automatic verification to another system, Lean, which
+supports interactive theorem proving (not as automatic, but more powerful), and there
+is a description of Cedar and Lean in \cite{cutler24:_cedar}.
 
-\paragraph{Exercise 14.} Change the assignments in the body of
-\textsf{BinarySearch} to set \textsf{low} to \textsf{mid} or
-to set \textsf{high} to $\mathsf{mid}-1$. What goes wrong?
+Here is the blog post about Dafny and Cedar.
+\begin{center}
+\scriptsize \url{https://www.amazon.science/blog/how-we-built-cedar-with-automated-reasoning-and-differential-testing}
+\end{center}
 
-\section*{Conclusion}
-We've seen a bunch of the major features of Dafny and used it to verify
-some simple code, up to a binary search implementation. There are more
-features: objects, sequences and sets, data structures, lemmas, modules, etc.
-We'll probably talk about them in the next few lectures. You don't
-really need them to do the assignment this year. Maybe next year.
+\paragraph{What Cedar does.} A Cedar user writes policies in a domain-specific language
+and then can execute queries on the policies, which may have response ``allow'' or ``deny''.
+Consider a hypothetical todo list manager TinyTodo. It may have the following policies, written
+in Cedar's language:
 
-There is a lot of information about Dafny online, including other
-tutorials and the reference.
+\begin{verbatim}
+// policy 1
+permit(principal, action, resource)
+when {
+  resource has owner && resource.owner == principal
+};
+\end{verbatim}
+From the blog post: ``This policy states that any principal (a TinyTodo \textbf{User}) can perform any action on any resource (a TinyTodo \textbf{List}) as long as the resource’s creator, defined by its \textbf{owner} attribute, matches the requesting principal.'' This above policy that enables access in some cases. Here's one below that forbids access.
+\begin{verbatim}
+// policy 3
+forbid (
+	principal in Team::"interns",
+	action == Action::"CreateList",
+	resource == Application::"TinyTodo"
+);
+\end{verbatim}
+What we have here is that interns can't create new lists for application TinyTodo.
 
-SE 465 is not actually the course on specifications. That's SE 463.
-But we use formal specifications in this part of SE 465 to prove
-that implementations conform to these specifications, and that
-they are using other code consistently with that code's specifications.
-Both tests and verification are tools that you can use to verify
-that your code does what it's supposed to do. Tests are more
-practical, while verification is conceptually more powerful.
+Given a complete set of policies, then TinyTodo doesn't need to do the reasoning about authorization; it can just
+ask Cedar whether a given action is to be allowed or denied, and proceed accordingly.
+
+\paragraph{Verification-guided development.} The point of Dafny (and Lean) is to be able to prove
+things about software. We write some properties and some code and
+formally verify that the code respects the properties.  It's better
+than testing, in that the property is guaranteed to be true of the
+code.
+
+Maybe we don't actually want to deploy Dafny code in
+production. (Actually, it is possible to compile Dafny to other
+languages and deploy that). In this application, the Dafny code we're talking about is best thought of as a
+model of code written in some other language (in this case, Rust). It
+is still useful to verify the properties on the Dafny implementation,
+because we'll know that it is possible to write code respecting
+them. Plus, the Dafny code can serve as an oracle, which is useful,
+and we can look for divergences between the Dafny code and the Rust
+code.
+
+But, really, we want to know that the Rust code satisfies the properties.
+Safe Rust is going to ensure that there is no undefined behaviour, so that's
+useful, but you do not get any guarantees that the behaviour respects the contracts.
+
+You can put in assertions, but what do you do if they fail?
+
+The approach here is to use \emph{differential random testing} to make sure that the
+Rust implementation matches the Dafny model. This is like fuzzing: generate millions of inputs
+and check that Rust and Dafny do the same thing.
+
+\paragraph{Properties of Cedar.} There are two overarching properties that Cedar must satisfy
+when it responds to queries. Quoting the post again:
+\begin{itemize}[noitemsep]
+\item \emph{explicit permit}: permission is granted only by individual \textbf{permit} policies and is not gained by error or default;
+\item \emph{forbid overrides permit}: any applicable \textbf{forbid} policy always denies access, even if there is a \textbf{permit} policy that allows it.
+\end{itemize}
+So, authorization has to be explicitly granted by some specific policy, and if there is any forbid policy that affects a request, then access is forbidden.
+
+For instance, a request might be \textit{principal=}\textbf{User::``Alice"}, \textit{action=}\textbf{Action::``GetList"}, and \textit{resource=}\textbf{List::``AliceList"}. Applying that to policy 1, we get expression \textbf{List::``AliceList" has owner \&\& List::``AliceList".owner == User::``Alice"}. This is probably going to be true, in which case the request \emph{satisfies} the policy. More generally, the authorization engine computes the request over all of its policies and returns an overall decision.
+
+\paragraph{Some Bad Code.} OK, let's look at some buggy Dafny code that tries to compute whether a request is authorized.
+\begin{lstlisting}[language=dafny]
+function method isAuthorized(): Response { // BUGGY VERSION
+  var f := forbids();
+  var p := permits();
+  if f != {} then
+    Response(Deny, f)
+  else
+    Response(Allow, p)
+}
+\end{lstlisting}
+Can you see why this code is wrong? Well, it does correctly capture forbidding a request if there is some reason to forbid it. But we also want a policy that says that there has to be an explicit permit for a request to be allowed, and this code doesn't respect such a policy. We can encode that policy as a predicate (which uses a lemma).
+\begin{lstlisting}[language=dafny]
+// A request is explicitly permitted when a permit policy is satisfied
+predicate IsExplicitlyPermitted(request: Request, store: Store) {
+  exists p ::
+    p in store.policies.policies.Keys &&
+    store.policies.policies[p].effect == Permit &&
+    Authorizer(request, store).satisfied(p)
+}
+
+lemma AllowedIfExplicitlyPermitted(request: Request, store: Store)
+ensures // A request is allowed if it is explicitly permitted
+	(Authorizer(request, store).isAuthorized().decision == Allow) ==>
+	IsExplicitlyPermitted(request, store)
+{ ... }
+\end{lstlisting}
+The predicate is saying that there has to be a specific policy \texttt{p} which permits \texttt{request}.
+The lemma is something that needs to be shown true; here, it is saying that if the authorizer says yes,
+then the predicate \texttt{IsExplicitlyPermitted} has to be true. When Dafny verifies the
+function \texttt{isAuthorized}, it tries to check that the lemma holds. But it doesn't, and
+supposedly Dafny reports ``A postcondition might not hold on this return path'' pointing at the
+ensures clause.
+\begin{center}
+\begin{minipage}{.45\textwidth}
+\begin{lstlisting}[language=dafny]
+  // BUGGY VERSION
+  function method isAuthorized(): Response { 
+  var f := forbids();
+  var p := permits();
+  if f != {} then
+    Response(Deny, f)
+  else
+    Response(Allow, p)
+}
+\end{lstlisting} \end{minipage} \begin{minipage}{.45\textwidth}
+  \begin{lstlisting}[language=dafny]
+  // FIXED VERSION
+  function method isAuthorized(): Response {
+    var f := forbids();
+    var p := permits();
+    if f == {} && p != {} then
+      Response(Allow, p)
+    else
+      Response(Deny, f)
+}
+  \end{lstlisting}
+\end{minipage}
+\end{center}
+Dafny verifies the fixed version, and also the mirror property \emph{forbid overrides permit}, which we don't show.
+
+Dafny also can show other properties, including that the Cedar \emph{validator} is \emph{sound}: as they put it,
+``if the validator accepts a policy, evaluating the policy should never result in certain classes of error''.
+Making this proof go through in Dafny enabled the developers to fix subtle bugs in the design, which would otherwise
+have carried over into the implementation.
+
+The specification is useful for automated reasoning by Dafny, but also for manual reasoning
+by people. Even good Rust is still an implementation language with lots of implementation details.
+Reading the Dafny (or Lean) is much easier, since it has much less code (1/6th at the time of report).
+
+\paragraph{Dafny and Rust.} OK, so we can formally verify the Dafny. The thing about models is that
+I have always worried about making sure that the actual implementation conforms to the model. If you have
+no proof of correspondence, then, sure, the model can help, but bugs can sneak into the implementation as well.
+The solution here is \emph{differential random testing}.
+
+The Amazon people used techniques that we've talked about in this class to overcome this problem.
+They randomly generated millions of inputs (access requests, data, and policies) and check that Dafny (now Lean)
+and Rust produce the same output. If they disagree, there is a bug.
+
+The inputs aren't completely randomly generated. They used the same techniques that we've talked about in
+this class---they use input generators to create ``policies, data and requests that are consistent with one another''.
+They report 6 hours nightly of DRT and 100 million total tests. They found errors in their libraries
+(IP address operations and parsing, as well as the policy parser).
+
+
+\bibliographystyle{alpha}
+\bibliography{L17}
 
 \end{document}
