@@ -513,14 +513,16 @@ Given a complete set of policies, then TinyTodo doesn't need to do the reasoning
 ask Cedar whether a given action is to be allowed or denied, and proceed accordingly.
 
 \paragraph{Verification-guided development.} The point of Dafny (and Lean) is to be able to prove
-things about software. We write some properties and some code and
-formally verify that the code respects the properties.  It's better
+properties of software.
+There exist both user-provided properties (you write those), as well as implicit properties.
+Dafny
+formally verifies that the code respects the properties.  It's better
 than testing, in that the property is guaranteed to be true of the
 code.
 
 Maybe we don't actually want to deploy Dafny code in
-production. (Actually, it is possible to compile Dafny to other
-languages and deploy that). In this application, the Dafny code we're talking about is best thought of as a
+production. (Actually, it is possible to compile Dafny to
+other languages, eg C\#, Java, JavaScript, Go, and Python, and deploy that). In this application, the Dafny code we're talking about is best thought of as a
 model of code written in some other language (in this case, Rust). It
 is still useful to verify the properties on the Dafny implementation,
 because we'll know that it is possible to write code respecting

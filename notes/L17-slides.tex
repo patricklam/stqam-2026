@@ -652,4 +652,301 @@ method stretched_rectangle_can_hold_original
 \end{lstlisting}
 \end{frame}
 
+\usebackgroundtemplate{\tikz\node[opacity=0.3]{\includegraphics[width=\paperwidth]{L17/PXL_20220729_181423529.jpg}};}
+\part{Dafny application: Cedar authorization-policy}
+\begin{frame}
+  \partpage
+\end{frame}
+\usebackgroundtemplate{}
+
+\begin{frame}[fragile]
+  \frametitle{Cedar: a use of Dafny in practice}
+    \Large
+  \begin{changemargin}{1cm}
+    At Amazon: Cedar authorization-policy language in Dafny.\\[1em]
+    Later: migrated to Lean, interactive theorem proving---more powerful.\\[1em]
+  \end{changemargin}
+    {\scriptsize \url{https://www.amazon.science/blog/how-we-built-cedar-with-automated-reasoning-and-differential-testing}\\[1em]}
+
+  \begin{changemargin}{1cm}
+    Cedar: write policies in domain-specific language;\\
+    execute queries on these policies;\\
+    response: ``allow'' or ``deny''.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Cedar policy: TinyTodo policy 1 (allow)}
+\large
+\begin{verbatim}
+// policy 1: enables access sometimes
+permit(principal, action, resource)
+when {
+  resource has owner &&
+  resource.owner == principal
+};
+\end{verbatim}
+\begin{changemargin}{1cm}
+  principal is a User\\
+  resource is a List\\
+\end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Cedar policy: TinyTodo policy 3 (deny)}
+    \large
+\begin{verbatim}
+// policy 3
+forbid (
+  principal in Team::"interns",
+  action == Action::"CreateList",
+  resource == Application::"TinyTodo"
+);
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{TinyTodo and Cedar}
+    \Large
+    \begin{changemargin}{2cm}
+      Idea: given policies in the DSL,\\
+      TinyTodo doesn't contain reasoning about auth.\\[1em]
+      Just ask Cedar about whether an action is allowed or denied (and listen to it.)
+    \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Verification-guided development}
+    \Large
+    \begin{changemargin}{2cm}
+      Dafny (and Lean): prove properties of software.\\[1em]
+      Specifically: there are
+      \begin{enumerate}
+      \item explicit properties (specified by developers); and
+      \item implicit properties (must always be true).
+      \end{enumerate}
+
+      Get formal guarantees---better than testing, if you can prove them.
+    \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Deployment and models}
+    \Large
+    \begin{changemargin}{2cm}
+      Usually don't want to deploy raw Dafny.\\[1em]
+      Fortunately, Dafny compiles to C\#, Java, JavaScript, Go, and Python.\\[1em]
+      In the Cedar example: Dafny is a model of the Rust code.\\[1em]
+      Verifying the Dafny is still useful; it implies that a correct implementation is possible.
+    \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Using the Dafny}
+    \Large
+    \begin{changemargin}{2cm}
+      Dafny code, especially verified, can serve as an oracle.\\
+      We can look for divergences between Dafny \& Rust.\\[1em]
+
+      Really, we want to know that the Rust code satisfies the properties.\\[1em]
+      Safe Rust: no undefined behaviour.\\
+      But what about contracts?
+    \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Assertions in Rust}
+    \Large
+    \begin{changemargin}{2cm}
+      Sure, but what if they fail?
+    \end{changemargin}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{Idea: \alert{differential random testing}}
+    \Large
+    \begin{changemargin}{2cm}
+      Make sure that the Rust implementation matches the Dafny model.\\[1em]
+      Like fuzzing: generate millions of inputs, check equivalence.
+    \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Key properties of Cedar}
+    \Large
+    \begin{changemargin}{2cm}
+      Two overarching properties:
+      \begin{itemize}
+      \item \alert{explicit permit}: permission granted only by individual \emph{permit} policies, not gained by error or default;
+      \item \alert{forbid overrides permit}: any applicable \emph{forbid} policy always denies access, even if \emph{permit} policy allows it.
+      \end{itemize}
+      That is: authorization has to be explicitly granted by a specific policy; but if there is any forbid policy, then access is forbidden.
+    \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Example Request}
+    \Large
+    \begin{changemargin}{2cm}
+      \textit{principal=}\textbf{User::``Alice"}\\
+      \textit{action=}\textbf{Action::``GetList"}\\
+      \textit{resource=}\textbf{List::``AliceList"}\\[1em]
+
+      Policy 1 yields \textbf{List::``AliceList" has owner \&\& List::``AliceList".owner == User::``Alice"}\\[1em]
+      
+      Say this is true. The request then \emph{satisfies} the policy. \\[1em]
+
+      More generally, the authorization engine computes the request over all of its policies and returns an overall decision.
+    \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Buggy Dafny Code}
+    \Large
+\begin{lstlisting}[language=dafny]
+function method isAuthorized(): Response { // BUGGY VERSION
+  var f := forbids();
+  var p := permits();
+  if f != {} then
+    Response(Deny, f)
+  else
+    Response(Allow, p)
+}
+\end{lstlisting}
+\begin{changemargin}{2cm}
+  Why is this wrong with respect to earlier properties?
+\end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Patching with a predicate}
+    \Large
+\begin{lstlisting}[language=dafny]
+// A request is explicitly permitted when a permit policy is satisfied
+predicate IsExplicitlyPermitted(request: Request, store: Store) {
+  exists p ::
+    p in store.policies.policies.Keys &&
+    store.policies.policies[p].effect == Permit &&
+    Authorizer(request, store).satisfied(p)
+}
+
+lemma AllowedIfExplicitlyPermitted(request: Request, store: Store)
+ensures // A request is allowed if it is explicitly permitted
+	(Authorizer(request, store).isAuthorized().decision == Allow) ==>
+	IsExplicitlyPermitted(request, store)
+{ ... }
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Trying to verify isAuthorized}
+  \large
+  \begin{changemargin}{1cm}
+    Predicate \texttt{isExplicitlyPermitted}: there has to be a specific policy \texttt{p} which permits \texttt{request}.\\[1em]
+    
+Lemma \texttt{AllowedIfExplicitlyPermitted} needs to be shown---i.e. if authorizer says yes,
+then predicate \texttt{IsExplicitlyPermitted} has to be true. \\[1em]
+
+When Dafny verifies  \texttt{isAuthorized}, it tries to check that the lemma.\\[1em]
+
+But the lemma doesn't hold, so Dafny will report ``A postcondition might not hold on this return path'', pointing at the
+ensures clause.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Fixing isAuthorized}
+\begin{center}
+\begin{minipage}{.45\textwidth}
+\begin{lstlisting}[language=dafny]
+  // BUGGY VERSION
+  function method isAuthorized():
+       Response { 
+  var f := forbids();
+  var p := permits();
+  if f != {} then
+    Response(Deny, f)
+  else
+    Response(Allow, p)
+}
+\end{lstlisting} \end{minipage} \begin{minipage}{.45\textwidth}
+  \begin{lstlisting}[language=dafny]
+  // FIXED VERSION
+  function method isAuthorized():
+       Response {
+    var f := forbids();
+    var p := permits();
+    if f == {} && p != {} then
+      Response(Allow, p)
+    else
+      Response(Deny, f)
+}
+  \end{lstlisting}
+\end{minipage}
+\end{center}
+Dafny verifies the fixed version, and also the mirror property \emph{forbid overrides permit}, which we don't show.
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{What Dafny shows}
+  \Large
+  \begin{changemargin}{2cm}
+    Other properties, notably that the Cedar validator is sound:\\[1em]
+    ``if the validator accepts a policy, evaluating the policy should never result in certain classes of error.''\\[1em]
+
+    Making this proof go through enabled developers to fix subtle design bugs, which would otherwise be reflected in the implementation.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Usefulness of Dafny}
+  \Large
+  \begin{changemargin}{2cm}
+    We can use the specification for:
+    \begin{itemize}
+      \item automated reasoning, by Dafny; but also
+      \item manual reasoning, by people.
+    \end{itemize}
+
+    Even good Rust is still an implementation language with lots of implementation details.
+
+Reading the Dafny (or Lean) is much easier, since it has much less code (1/6th, at time of report).
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Dafny and Rust}
+  \large
+  \begin{changemargin}{1cm}
+    Are they the same?\\[1em]
+    If you don't know, bugs can sneak into the implementation.\\[1em]
+    Solution: \alert{differential random testing} (DRT).\\[1em]
+
+    That is: randomly generate millions of inputs (access requests, data, and policies);\\
+    check that Dafny (now Lean) and Rust produce the same output.\\
+    If they disagree, that's a bug.\\[1em]
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{More on differential random testing}
+  \large
+  \begin{changemargin}{1cm}
+      Inputs aren't completely randomly generated. \\
+      Same techniques as talked about in this class: input generators to create consistent inputs.\\
+      6 hours nightly of DRT, 100 million total tests.\\[1em]
+      Found errors in libraries (mostly parsers and IP address operations).
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Cedar Summary}
+  \Large
+  \begin{changemargin}{1cm}
+    Cedar policy-authorization language.\\[1em]
+    Modelled in Dafny, showing key properties.\\[1em]
+    Rust implementation shown equivalent to Dafny using differential random testing.
+  \end{changemargin}
+\end{frame}
 \end{document}
