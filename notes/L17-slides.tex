@@ -81,7 +81,7 @@ language=Rust}
   \frametitle{Last time: Proptest vs proof harness}
   \begin{changemargin}{2cm}
 {    \Large
-    Let's compare.}
+    We saw this last time:}
   \end{changemargin}
 
   \begin{tabular}{ll}
@@ -137,7 +137,7 @@ fn update_account_balance(current_balance: i32,
 \end{lstlisting}
 \begin{changemargin}{1cm}
   \Large
-(Blog post code is not executable, ours sort of is.)
+(Blog post code is not executable; \\ ours sort of is.)
 \end{changemargin}
 \end{frame}
 
@@ -179,7 +179,7 @@ fn test_update_account_balance_random() {
 \end{lstlisting}
 \begin{changemargin}{1cm}
   \Large
-But we've seen better: coverage-guided fuzzing.
+(But we've seen better: \\ \qquad coverage-guided fuzzing.)
 \end{changemargin}
 
 \end{frame}
@@ -193,19 +193,21 @@ But we've seen better: coverage-guided fuzzing.
   \begin{changemargin}{2cm}
     (per Wikipedia, attributed to David J. Wheeler)\\[1em]
 
-    Here: Bolero abstracts away from specific fuzzing engine.
+    Bolero: abstracts away from specific fuzzing engine.
   \end{changemargin}
 \end{frame}
 
 \begin{frame}[fragile]
   \frametitle{Bolero at work}
-\begin{lstlisting}[language=Rust]
+\begin{lstlisting}[language=Rust,basicstyle=\scriptsize]
 #[test]
 #[cfg_attr(kani, kani::proof)]
 fn test_update_account_balance_bolero() {
-    bolero::check!().with_type::<(i32, i32)>().cloned().for_each(|(current_balance, amount)| {
+    bolero::check!().with_type::<(i32, i32)>().cloned().
+                  for_each(|(current_balance, amount)| {
         let result = update_account_balance(current_balance, amount);
-        assert!(balance_update_is_correct(current_balance, amount, result));
+        assert!(balance_update_is_correct(current_balance, 
+                  amount, result));
     });
 }
 \end{lstlisting}
@@ -288,7 +290,8 @@ fn nth_rev(arr: &[i32], index: usize) -> Option<i32> {
 const N: usize = 5; // bound for BMC
 
 #[test]
-#[cfg_attr(kani, kani::proof)] // if Kani, mark as proof harness
+#[cfg_attr(kani, kani::proof)]
+    // ^ if Kani, mark as proof harness
 fn check_rev() {
     bolero::check!()
         .with_type::<([i32; N], usize)>()
@@ -380,8 +383,9 @@ libfuzzer also doesn't find any bugs on an overnight run.
     My take:
     \begin{itemize}
     \item Kani and libfuzzer succeeded and failed on same programs.
-      \item This is not true in general.
+      \item but this is not true in general.
     \end{itemize}
+~\\
     Perhaps fuzzing doesn't find anything, \\ but Kani does.\\[1em]
     Or, Kani might not find an issue, \\
     but fuzzing does.
@@ -391,23 +395,39 @@ libfuzzer also doesn't find any bugs on an overnight run.
 \begin{frame}[fragile]
   \frametitle{Outputs from Kani and libfuzzer}
   \begin{changemargin}{1cm}
-    \large
-    Both fuzzing and Kani might give a test case; \\
+    \Large
+    Both fuzzing and Kani might give \\ \qquad a concrete test case; \\
     it's real, and you can fix it.\\[1em]
-    Unwinding assertion failure: must investigate more.\\
-    Kani success: your program is correct modulo the bound,\\
-    assuming everything else on the system correct.\\[1em]
-    Fuzzing says nothing: don't really know that your program is correct,
-    but have some warm and fuzzy feelings.
   \end{changemargin}
 \end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Interpreting Kani result}
+  \begin{changemargin}{1cm}
+    \Large
+    Kani success means: \\ \qquad your program is correct modulo the bound,\\
+    assuming everything else on the system correct.\\[1em]
+  \end{changemargin}
+\end{frame}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.1]{\includegraphics[width=\paperwidth]{L17/05409_mossy_rock_v1.JPG}};}
+\begin{frame}[fragile]
+  \frametitle{Interpreting fuzzing result}
+  \begin{changemargin}{1cm}
+    \Large
+    Fuzzing says nothing: \\ \qquad don't really know that your program is correct,\\
+    \qquad but have some warm and fuzzy feelings.
+  \end{changemargin}
+\end{frame}
+\usebackgroundtemplate{}
 
 \begin{frame}[fragile]
   \frametitle{Under the hood: Bolero \& Kani}
   \begin{changemargin}{1cm}
     \Large
-    Bolero uses \texttt{kani::any()} to get a symbolic value, \\
-    \hspace*{1em} \texttt{kani::assume()} to restrict the range, e.g.
+    Bolero approach: \\
+    \qquad \texttt{kani::any()} to get a symbolic value, \\
+    \qquad \texttt{kani::assume()} to restrict the range, e.g.
     \normalsize
 \begin{lstlisting}
   bolero::check!().with_generator(5..37)
@@ -468,24 +488,25 @@ impl Rectangle {
 \begin{frame}[fragile]
   \frametitle{Dafny Rectangle}
 \large
-\begin{lstlisting}[language=dafny]
+\begin{lstlisting}[language=dafny,basicstyle=\small]
   class Rectangle {
-      var width:int
-      var height:int
+    var width:int
+    var height:int
   }
 
   predicate can_hold(self:Rectangle, other:Rectangle)
       reads self, other
   {
-      self.width > other.width && self.height > other.height
+    self.width > other.width &&
+    self.height > other.height
   }
 
   method stretch(self:Rectangle, factor:nat)
            returns (rv : Rectangle) {
-      rv := new Rectangle;
-      rv.width := self.width * factor;
-      rv.height := self.height * factor;
-      return rv;
+    rv := new Rectangle;
+    rv.width := self.width * factor;
+    rv.height := self.height * factor;
+    return rv;
   }
 \end{lstlisting}
 \end{frame}
@@ -532,11 +553,11 @@ method {:test} TestStretchedRectangleCanHoldOriginal() {
 \end{lstlisting}
 \large
   \begin{changemargin}{1cm}
-    Note: \texttt{expect} is dynamic \texttt{assert}; plain \texttt{assert} is static.\\[1em]
-    More generally: the concrete test case is concrete; \\
-    we can write \texttt{assert}, in which case
+    Note: \texttt{expect} is dynamic \texttt{assert};\\ plain \texttt{assert} is static.\\[1em]
+    More generally: this concrete test case is concrete; \\
+    we can also write \texttt{assert}, in which case
     we need the method to have an \texttt{ensures} clause.\\[1em]
-    If we have \texttt{ensures} then we can verify the whole method under all inputs.
+    If we have \texttt{ensures} then we can statically verify the whole method under all inputs, with \texttt{assert}.
   \end{changemargin}
 \end{frame}
 
@@ -590,7 +611,7 @@ mod verification {
     \Large
     Kani verifies behaviour for \emph{any} width, height, and factor.\\[1em]
     It runs a whole bunch of tests, looking for safety violations (because Unsafe Rust).\\[1em]
-    But, also reports a failure!
+    But, here, also reports a failure!
 { \scriptsize
 \begin{verbatim}
 
@@ -675,6 +696,13 @@ method stretched_rectangle_can_hold_original
   \end{changemargin}
 \end{frame}
 
+\begin{frame}
+  \frametitle{Cedar example: TinyTodo}
+  \begin{center}
+    \includegraphics[width=.6\textwidth]{L17/todo.png}
+  \end{center}
+\end{frame}
+
 \begin{frame}[fragile]
   \frametitle{Cedar policy: TinyTodo policy 1 (allow)}
 \large
@@ -688,6 +716,7 @@ when {
 \end{verbatim}
 \begin{changemargin}{1cm}
   principal is a User\\
+  action is an enum\\
   resource is a List\\
 \end{changemargin}
 \end{frame}
@@ -708,10 +737,10 @@ forbid (
 \begin{frame}[fragile]
   \frametitle{TinyTodo and Cedar}
     \Large
-    \begin{changemargin}{2cm}
+    \begin{changemargin}{1cm}
       Idea: given policies in the DSL,\\
-      TinyTodo doesn't contain reasoning about auth.\\[1em]
-      Just ask Cedar about whether an action is allowed or denied (and listen to it.)
+      TinyTodo doesn't contain auth reasoning code.\\[1em]
+      It uses Cedar to say whether an action is allowed or denied.
     \end{changemargin}
 \end{frame}
 
@@ -722,8 +751,8 @@ forbid (
       Dafny (and Lean): prove properties of software.\\[1em]
       Specifically: there are
       \begin{enumerate}
-      \item explicit properties (specified by developers); and
-      \item implicit properties (must always be true).
+      \item explicit properties \\ \quad (specified by developers); and
+      \item implicit properties \\ \quad (must always be true).
       \end{enumerate}
 
       Get formal guarantees---better than testing, if you can prove them.
@@ -736,11 +765,12 @@ forbid (
     \begin{changemargin}{2cm}
       Usually don't want to deploy raw Dafny.\\[1em]
       Fortunately, Dafny compiles to C\#, Java, JavaScript, Go, and Python.\\[1em]
-      In the Cedar example: Dafny is a model of the Rust code.\\[1em]
+      In the Cedar example: Dafny is a model of a parallel Rust codebase.\\[1em]
       Verifying the Dafny is still useful; it implies that a correct implementation is possible.
     \end{changemargin}
 \end{frame}
 
+\usebackgroundtemplate{\tikz\node[opacity=0.2]{\includegraphics[width=\paperwidth]{L05/960px-Delphi_Temple_of_Apollo.jpeg}};}
 \begin{frame}[fragile]
   \frametitle{Using the Dafny}
     \Large
@@ -753,12 +783,14 @@ forbid (
       But what about contracts?
     \end{changemargin}
 \end{frame}
+\usebackgroundtemplate{}
 
 \begin{frame}[fragile]
   \frametitle{Assertions in Rust}
     \Large
     \begin{changemargin}{2cm}
-      Sure, but what if they fail?
+      We can write the properties from the model.\\[1em]
+      But what to do if they fail?
     \end{changemargin}
 \end{frame}
 
@@ -768,10 +800,11 @@ forbid (
     \Large
     \begin{changemargin}{2cm}
       Make sure that the Rust implementation matches the Dafny model.\\[1em]
-      Like fuzzing: generate millions of inputs, check equivalence.
+      Like fuzzing, generate millions of inputs; \\ \qquad then check equivalence.
     \end{changemargin}
 \end{frame}
 
+\usebackgroundtemplate{\tikz\node[opacity=0.3]{\includegraphics[width=\paperwidth]{L17/PXL_20220729_181423529.jpg}};}
 \begin{frame}[fragile]
   \frametitle{Key properties of Cedar}
     \Large
@@ -784,6 +817,7 @@ forbid (
       That is: authorization has to be explicitly granted by a specific policy; but if there is any forbid policy, then access is forbidden.
     \end{changemargin}
 \end{frame}
+\usebackgroundtemplate{}
 
 \begin{frame}[fragile]
   \frametitle{Example Request}
@@ -795,7 +829,7 @@ forbid (
 
       Policy 1 yields \textbf{List::``AliceList" has owner \&\& List::``AliceList".owner == User::``Alice"}\\[1em]
       
-      Say this is true. The request then \emph{satisfies} the policy. \\[1em]
+      If this is true, the request then \emph{satisfies} the policy. \\[1em]
 
       More generally, the authorization engine computes the request over all of its policies and returns an overall decision.
     \end{changemargin}
@@ -815,23 +849,23 @@ function method isAuthorized(): Response { // BUGGY VERSION
 }
 \end{lstlisting}
 \begin{changemargin}{2cm}
-  Why is this wrong with respect to earlier properties?
+  Why is this wrong with respect to key properties?
 \end{changemargin}
 \end{frame}
 
 \begin{frame}[fragile]
-  \frametitle{Patching with a predicate}
+  \frametitle{Patching the bug with a predicate}
     \Large
 \begin{lstlisting}[language=dafny]
 // A request is explicitly permitted when a permit policy is satisfied
-predicate IsExplicitlyPermitted(request: Request, store: Store) {
+predicate isExplicitlyPermitted(request: Request, store: Store) {
   exists p ::
     p in store.policies.policies.Keys &&
     store.policies.policies[p].effect == Permit &&
     Authorizer(request, store).satisfied(p)
 }
 
-lemma AllowedIfExplicitlyPermitted(request: Request, store: Store)
+lemma allowedIfExplicitlyPermitted(request: Request, store: Store)
 ensures // A request is allowed if it is explicitly permitted
 	(Authorizer(request, store).isAuthorized().decision == Allow) ==>
 	IsExplicitlyPermitted(request, store)
@@ -843,15 +877,15 @@ ensures // A request is allowed if it is explicitly permitted
   \frametitle{Trying to verify isAuthorized}
   \large
   \begin{changemargin}{1cm}
-    Predicate \texttt{isExplicitlyPermitted}: there has to be a specific policy \texttt{p} which permits \texttt{request}.\\[1em]
+    Predicate \texttt{isExplicitlyPermitted}: must be a specific policy \texttt{p} permitting \texttt{request} (key property 1).\\[1em]
     
-Lemma \texttt{AllowedIfExplicitlyPermitted} needs to be shown---i.e. if authorizer says yes,
-then predicate \texttt{IsExplicitlyPermitted} has to be true. \\[1em]
+Lemma \texttt{allowedIfExplicitlyPermitted} needs to be shown---i.e. if authorizer says yes,
+then predicate \texttt{isExplicitlyPermitted} has to be true. \\[1em]
 
-When Dafny verifies  \texttt{isAuthorized}, it tries to check that the lemma.\\[1em]
+When Dafny verifies  \texttt{isAuthorized}, it checks that the lemma holds.\\[1em]
 
 But the lemma doesn't hold, so Dafny will report ``A postcondition might not hold on this return path'', pointing at the
-ensures clause.
+lemma's ensures clause.
   \end{changemargin}
 \end{frame}
 
@@ -892,7 +926,7 @@ Dafny verifies the fixed version, and also the mirror property \emph{forbid over
   \frametitle{What Dafny shows}
   \Large
   \begin{changemargin}{2cm}
-    Other properties, notably that the Cedar validator is sound:\\[1em]
+    Notably, that the Cedar validator is sound:\\[1em]
     ``if the validator accepts a policy, evaluating the policy should never result in certain classes of error.''\\[1em]
 
     Making this proof go through enabled developers to fix subtle design bugs, which would otherwise be reflected in the implementation.
@@ -905,11 +939,14 @@ Dafny verifies the fixed version, and also the mirror property \emph{forbid over
   \begin{changemargin}{2cm}
     We can use the specification for:
     \begin{itemize}
-      \item automated reasoning, by Dafny; but also
+    \item automated reasoning, by Dafny;
+      \end{itemize}
+      but also
+    \begin{itemize}
       \item manual reasoning, by people.
     \end{itemize}
 
-    Even good Rust is still an implementation language with lots of implementation details.
+    Even good Rust is still an implementation language with lots of implementation details.\\[1em]
 
 Reading the Dafny (or Lean) is much easier, since it has much less code (1/6th, at time of report).
   \end{changemargin}
@@ -933,10 +970,10 @@ Reading the Dafny (or Lean) is much easier, since it has much less code (1/6th, 
   \frametitle{More on differential random testing}
   \large
   \begin{changemargin}{1cm}
-      Inputs aren't completely randomly generated. \\
-      Same techniques as talked about in this class: input generators to create consistent inputs.\\
+      Inputs aren't completely randomly generated. \\[1em]
+      Same techniques as talked about in this class:\\ input generators to create consistent inputs.\\[1em]
       6 hours nightly of DRT, 100 million total tests.\\[1em]
-      Found errors in libraries (mostly parsers and IP address operations).
+      Found errors in libraries \\ \qquad (mostly parsers and IP address operations).
   \end{changemargin}
 \end{frame}
 

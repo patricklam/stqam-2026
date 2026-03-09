@@ -564,14 +564,14 @@ function method isAuthorized(): Response { // BUGGY VERSION
 Can you see why this code is wrong? Well, it does correctly capture forbidding a request if there is some reason to forbid it. But we also want a policy that says that there has to be an explicit permit for a request to be allowed, and this code doesn't respect such a policy. We can encode that policy as a predicate (which uses a lemma).
 \begin{lstlisting}[language=dafny]
 // A request is explicitly permitted when a permit policy is satisfied
-predicate IsExplicitlyPermitted(request: Request, store: Store) {
+predicate isExplicitlyPermitted(request: Request, store: Store) {
   exists p ::
     p in store.policies.policies.Keys &&
     store.policies.policies[p].effect == Permit &&
     Authorizer(request, store).satisfied(p)
 }
 
-lemma AllowedIfExplicitlyPermitted(request: Request, store: Store)
+lemma allowedIfExplicitlyPermitted(request: Request, store: Store)
 ensures // A request is allowed if it is explicitly permitted
 	(Authorizer(request, store).isAuthorized().decision == Allow) ==>
 	IsExplicitlyPermitted(request, store)
