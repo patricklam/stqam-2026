@@ -19,6 +19,7 @@ being reduced, and what it is replaced by. This is also a Crowdmark answer.
 
 \item (14 points) (From the \emph{Fuzzing Book}):
 
+% suggestion for improvement: it'd make more sense in context to have the input we're reducing fail on the given runner we have so that its an actual reduction, and then have a case still where having a generated NaN on a RHS of an expression or something can help us get to a minimum working example faster
 Grammar-based input reduction, as sketched above, might be a good algorithm, but is by no means the only alternative. One interesting question is whether ``reduction'' should only be limited to elements already present, or whether one would be allowed to also create new elements. These would not be present in the original input, yet still allow producing a much smaller input that would still reproduce the original failure.
 
 As an example, consider the following grammar:
