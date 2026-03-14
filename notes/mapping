@@ -15,10 +15,10 @@
 15 Bounded-Model-Checking-CBMC-and-Kani
 16 Blank
 17 Bolero-Kani-and-Dafny--Cedar
-18 Dafny
-19 Dafny-VC-and-Lemmas
-20 Bubblesort-in-Dafny
-21 Dafny-sequences-and-VCgen
+18 Dafny-Part-1
+19 Dafny-Part-2-VC-and-Lemmas
+20 Dafny-Part-3-VC-and-Lemmas
+21 Dafny-Part-4-Bubblesort-in-Dafny-sequences-and-VCgen
 22 Formal-Verification-and-Software-Development
 23 Reasoning-About-Software-Quality
 24 Review
