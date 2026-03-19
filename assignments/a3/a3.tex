@@ -1,0 +1,121 @@
+\documentclass[10pt,hidelinks]{article}
+\usepackage[letterpaper, hmargin=0.75in, vmargin=0.75in]{geometry}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage[hyphens]{url}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{pgf}
+\usepackage{courier}
+\usepackage{inconsolata}
+\usepackage{dafny}
+\usepackage{amssymb}
+
+\parindent 0in
+\parskip 1.5ex
+
+
+\lstset{ %
+language=Java,
+basicstyle=\ttfamily\scriptsize,commentstyle=\scriptsize\itshape,showstringspaces=false,breaklines=true}
+
+\lstdefinelanguage{While}{
+  keywords={while,do,if,else, assume, assert, proc, havoc, skip, then},
+  keywordstyle=\color{blue}\bfseries,
+  ndkeywords={},
+  ndkeywordstyle=\color{darkgray}\bfseries,
+  identifierstyle=\color{black},
+  sensitive=false,
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  commentstyle=\color{purple}\ttfamily,
+  stringstyle=\color{red}\ttfamily,
+  morestring=[b]',
+  morestring=[b]"
+}
+
+\newcommand{\brac}[1]{\texttt{\textless #1\textgreater}}
+
+\begin{document}
+
+\title{
+SE465/ECE653 \\
+Software Testing and Quality Assurance\\
+Assignment 3, version 1\footnote{version 1: initial release}}
+\author{Patrick Lam \\
+{Release Date:  March 16, 2026} \\
+}
+\renewcommand{\today}{}
+\maketitle
+
+\begin{center}
+
+{\bf Due:  11:59 PM, Monday, April 6, 2026} \\
+{\bf Submit: via git.uwaterloo.ca and Crowdmark}\\
+\end{center}
+
+\section*{Getting set up}
+We will create a copy of the starter repo for you in your {\tt git.uwaterloo.ca} account. You need to log in to {\tt git.uwaterloo.ca} for that to work.
+
+%% An account on {\tt ecelinux.uwaterloo.ca} is available to you.
+%% Several of the resources required for this assignment are already installed on these servers. If you are attempting to connect to a server from off campus, remember you will need to connect to the University's VPN first: \url{https://uwaterloo.ca/information-systems-technology/services/virtual-private-network-vpn/about-virtual-private-network-vpn}
+
+%% However, probably the Vagrant image is easiest to work with in terms of having software installed. How you choose to install your software stack is up to you. I think that there is an ample supply of options. The file {\tt a1-technotes.pdf} contains hints on getting Vagrant working.
+
+I expect each of you to do the assignment independently. As stated in the course outline, you can ask questions of generative AI, but you cannot submit text or code that comes from GenAI. I will follow UW's Policy 71 for all cases of plagiarism.
+ 
+ \section*{Submission instructions:} 
+Commit {\bf and push} your modifications back to your fork on {\tt
+  git.uwaterloo.ca}.  It's git, so you can submit multiple times. After
+submission, {\bf please make a fresh clone of your submission to make sure you
+  have uploaded all necessary files}.
+ 
+\section*{Submission summary}
+Here's what you need to submit in your fork of the repo. Be sure to commit
+and push your changes back to {\tt git.uwaterloo.ca}.
+
+\begin{itemize}
+\item Q1: \texttt{kani-slow-max/src/lib.rs}
+\item Q2: \texttt{kani-failures/src/main.rs} and \texttt{kani-failures-discussion.md}
+\item Q3: \texttt{dafny/FindRecursive.dfy}
+\item Q4: \texttt{dafny/Sqrt.dfy}; \texttt{dafny/CalcTerm.dfy}; \texttt{dafny/SlowMax.dfy}
+\item Q5: \texttt{dafny/StringRevArray.dfy}
+\item Q6: \texttt{dafny/pancakesort/findmax.dfy}; \texttt{dafny/pancakesort/flip.dfy}; \texttt{dafny/pancakesort/PancakeSort.dfy}; \texttt{dafny/quicksort/part.dfy}; (bonus: \texttt{dafny/quicksort/QuickSort.dfy}.
+\end{itemize}
+  
+\newpage
+For Questions 1 and 2 you'll need to install Rust and Kani. 
+\begin{itemize}
+  \item Rust installation instructions: \url{https://doc.rust-lang.org/book/ch01-01-installation.html}
+  \item Kani installation instructions: \url{https://model-checking.github.io/kani/install-guide.html}
+\end{itemize}
+You can install Kani 0.57.0 on the \texttt{eceubuntu} machines in your personal account.
+\begin{verbatim}
+  cargo install --locked kani-verifier --version 0.57.0 -Znext-lockfile-bump
+\end{verbatim}
+
+\section*{Question 1: Kani proof harness (10 points)}
+\input{a3-proof-harness}
+
+\section*{Question 2: Kani and program errors (10 points)}
+\input{a3-kani-errors}
+
+\newpage
+For the remaining questions, you'll need to use Dafny.
+\begin{itemize}
+\item Dafny installation instructions: \url{https://dafny.org/latest/Installation}
+\end{itemize}
+
+\section*{Question 3: Dafny FindRecursive Contract (5 points)}
+\input{a3-find-recursive}
+
+\section*{Question 4: Small Dafny Problems (15 points)}
+\input{a3-calcterm-and-slowmax}
+
+\section*{Question 5: String Reversal (10 points)}
+\input{a3-string-rev}
+
+\section*{Question 6: Sorting (30 points)} % done; reused from last year
+\input{a3-sorting}
+
+\end{document}

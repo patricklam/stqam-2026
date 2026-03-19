@@ -1,0 +1,14 @@
+In the \texttt{kani-slow-max} directory you will find \texttt{src/lib.rs}, which contains a Rust
+function \texttt{slow\_max()}. (This function comes up again later, but implemented in Dafny).
+There is also a normal Rust test \texttt{test\_slow\_max()}.
+
+Write Kani proof harnesses for \texttt{slow\_max()}. There should be a harness where
+parameter \texttt{a} to \texttt{slow\_max()} is larger, and one where \texttt{b} is larger.
+
+I've provided a skeleton for \texttt{proof\_harness\_slow\_max\_a}.
+Since Kani does bounded model checking, you have to set an unwinding
+limit. You may also tell Kani to assume bounds for \texttt{a} and
+\texttt{b}.
+
+Add a comment in \texttt{lib.rs} saying what you can conclude from
+your proof harnesses.

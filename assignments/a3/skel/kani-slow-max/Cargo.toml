@@ -1,0 +1,9 @@
+[package]
+name = "kani-slow-max"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+[dev-dependencies]
+kani-verifier = "0.67.0"

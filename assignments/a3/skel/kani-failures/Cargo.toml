@@ -1,0 +1,9 @@
+[package]
+name = "a3-integer-overflow"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+[dev-dependencies]
+kani-verifier = "0.67.0"

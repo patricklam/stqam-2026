@@ -1,0 +1,28 @@
+For this question, you will have to verify three methods
+in Dafny.
+
+All files for this question are in the \texttt{dafny} folder of
+the repository.
+
+\begin{enumerate}[label=(\alph*)]
+\item \textbf{\texttt{Sqrt.dfy}}: (5 points) The file contains two methods
+  \[\texttt{SqrtRoot1(N: nat) returns (r:nat)}\] and \[\texttt{SqrtRoot2(N: nat) returns (r:nat)}\]
+  which compute the largest $r$ such that $r \in \mathbb{Z} \wedge r \le \sqrt{N}$.
+
+  Provide the missing invaraints so that the methods verify (2.5 points for each method).
+\item \textbf{\texttt{CalcTerm.dfy}}: (5 points) The file contains a method
+  \[\texttt{CalcTerm(m:int, n:nat) returns (res:int)}\]
+  The method computes $5\times m - 3\times n$ using a loop and
+  operations to add 5, and subtract 1 and 3.
+
+  Provide the missing invariants so that the
+  method verifies.
+\item \textbf{\texttt{SlowMax.dfy}}: (5 points) The file contains a
+  method \[\texttt{SlowMax(a:nat, b:nat) returns (z:nat)}\] that computes $z =
+  \max(a, b)$ via a series of increments and decrements.
+
+  Provide the missing invariants so that the
+  method verifies.
+
+\end{enumerate}
+

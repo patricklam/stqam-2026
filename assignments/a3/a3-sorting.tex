@@ -1,0 +1,32 @@
+For this question, you will have to verify two implementations of
+sorting methods in Dafny. 
+
+All files for this question are also in the \texttt{dafny} folder of
+your repository.
+
+\begin{enumerate}[label=(\alph*)]
+\item (15 points) Pancake
+  sorting\footnote{\url{https://en.wikipedia.org/wiki/Pancake_sorting}}
+  is a sorting technique that uses only a flip operation, in which
+  elements of an array are reversed (flipped) at some position. The
+  subdirectory \texttt{pancakesort} contains an implementation of the pancake
+  sorting algorithm in Dafny.
+  \begin{itemize}
+  \item Specify and verify method \texttt{findMax} in \texttt{findmax.dfy}
+  \item Specify and verify method \texttt{flip} in \texttt{flip.dfy}
+  \item Specify and verify method \texttt{pancakeSort} in \texttt{PancakeSort.dfy}
+  \end{itemize}
+  \item
+    (15 points) Quicksort\footnote{\url{https://en.wikipedia.org/wiki/Quicksort}}
+    is an efficient sorting technique developed by the late Tony Hoare. The
+    subdirectory \texttt{quicksort} contains an implementation of quick
+    sort in Dafny.
+    \begin{itemize}
+      \item Write a loop invariant to complete the verification of
+        \texttt{partition} method in \texttt{part.dfy}
+      \item \emph{(Bonus question, max 15 points)} Complete and verify the implementation of
+        \texttt{qsort} method in \texttt{QuickSort.dfy}. You might
+        find Chapter~6 of \emph{The Calculus of Computation}\footnote{\url{https://link.springer.com/book/10.1007/978-3-540-74113-8}} useful for this
+        problem.
+    \end{itemize}
+\end{enumerate}
