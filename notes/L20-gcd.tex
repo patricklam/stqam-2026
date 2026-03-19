@@ -1,0 +1,159 @@
+\documentclass[11pt]{article}
+\usepackage{mathpartir}
+\usepackage{pifont}
+\usepackage{multicol}
+\usepackage{listings}
+\usepackage{pgf}
+\usepackage{tikz}
+\usepackage{alltt}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{dafny}
+\usepackage{fancyvrb}
+\usetikzlibrary{arrows,automata,shapes,positioning}
+\tikzstyle{block} = [rectangle, draw, fill=blue!20, 
+    text width=5em, text centered, rounded corners, minimum height=2em]
+\tikzstyle{bt} = [rectangle, draw, fill=blue!20, 
+    text width=1em, text centered, rounded corners, minimum height=2em]
+\newcommand{\xmark}{\ding{55}}
+
+\newtheorem{defn}{Definition}
+\newtheorem{crit}{Criterion}
+\newcommand{\true}{\mbox{\sf true}}
+\newcommand{\false}{\mbox{\sf false}}
+
+\newcommand*\circled[1]{\tikz[baseline=(char.base)]{
+            \node[shape=circle,draw,inner sep=2pt] (char) {#1};}}
+
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf Software Testing, Quality Assurance and Maintenance } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{#4}{Lecture #1}}
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+%\renewcommand{\baselinestretch}{1.25}
+
+\usepackage{enumitem}
+
+\newtheorem{prop}{Proposition}
+\newtheorem{lemma}{Lemma}
+\usepackage{ebproof}
+\newcommand{\qedsymbol}{\rule{1ex}{1ex}}
+\newcommand{\sem}[3]{\langle #1, #2 \rangle \Downarrow #3}
+
+\lstset{ %
+language=Java,
+basicstyle=\ttfamily,commentstyle=\scriptsize\itshape,showstringspaces=false,breaklines=true,numbers=left}
+
+%\usepackage{fontspec}
+%\setmonofont{Cousine}[Scale=MatchLowercase]
+
+\begin{document}
+
+\lecture{20X --- March 23, 2026}{Winter 2026}{Patrick Lam}{version 1}
+
+Here's some bonus content on computing greatest common divisors, from
+the \textsf{stqam-1261-dafny} repo, which you can find at
+\url{https://git.uwaterloo.ca/stqam-1261/dafny}.
+
+First, consider the greatest common divisor. We will take the textual specification to be this:
+\begin{lstlisting}[language=dafny]
+ /*
+   Define a recursive function, called gcd, that computes a GCD of two numbers.
+   Use the following properties of gcd.
+   (a) gcd(n, n) == n
+   (b) gcd(m, n) == gcd(m-n, n) whenever m > n
+   (c) gcd(m, n) == gcd(m, n-m) whenever n > m
+ */
+\end{lstlisting}
+
+We can then write this specification as a (recursive) Dafny function:
+\begin{lstlisting}[language=dafny]
+function gcd(m: nat, n: nat): nat
+  requires m > 0 && n > 0
+{
+  if (m == n) then m
+  else if (m > n) then gcd(m - n, n)
+  else gcd(m, n - m)
+}
+\end{lstlisting}
+For our purposes, we take this to be the definition of gcd. I don't think Dafny can prove that the
+declarative definition of gcd is equal to this recursive definition. Since Dafny's natural numbers
+start at 0, we specifically define \textsf{gcd} to start at 1 to ensure termination: we are subtracting
+numbers and we need to subtract at least 1 to $m+n$ on each recursive call if we are to make progress.
+
+The contract of \textsf{GcdCalc} can be as follows:
+\begin{lstlisting}[language=dafny]
+method GcdCalc(m: nat, n: nat) returns (res: nat)
+  requires m > 0 && n > 0;
+  ensures res == gcd(m, n)
+\end{lstlisting}
+That is, we use the \textsf{gcd} function we've defined. And we mirror the precondition of the function.
+
+The implementation is straightforward:
+
+\begin{lstlisting}[language=dafny]
+{
+  var n1, m1 := n, m;
+  while (n1 != m1)
+  {
+    if (m1 < n1) {
+     n1 := n1 - m1;
+    } else {
+     m1 := m1 - n1;
+    }
+  }
+  assert(m1 == n1);
+  return n1;
+}
+\end{lstlisting}
+
+We don't absolutely need the final assert, but it also doesn't hurt to put it there as documentation.
+What we do need, though, is an invariant. Without an invariant, Dafny doesn't know what to make of the loop.
+So, here, you can read along, and agree with what I'm writing, but really, you need to practice writing
+some invariants to be able to actually do this. Go do some invariant writing. More than on the assignment.
+
+Anyway, the sensible first invariant to put in is mirroring the precondition. (Indeed, Dafny complains that
+it can't show the function precondition for function \textsf{gcd} with no precondition). We need both \textsf{m}
+and \textsf{n} to be positive.
+\begin{lstlisting}[language=dafny]
+  invariant m > 0 && n > 0
+\end{lstlisting}
+That does help, but Dafny still can't prove termination, nor can it prove the postcondition. Of course.
+We don't know anything about what the loop is actually computing at this point, just that \textsf{m} and
+\textsf{n} are strictly positive.
+
+A good guess for the additional invariant is
+\begin{lstlisting}[language=dafny]
+  invariant gcd(m, n) == gcd(m1, n1)
+\end{lstlisting}
+I don't really know how to give you intuition about this. The
+invariant has to somehow \textsf{gcd} and you should have some idea
+that this gcd algorithm is preserving the gcd. For you, it can be
+based on something you vaguely remember from MATH 135.
+\end{document}
