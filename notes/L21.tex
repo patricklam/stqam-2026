@@ -77,6 +77,847 @@ basicstyle=\ttfamily,commentstyle=\scriptsize\itshape,showstringspaces=false,bre
 
 \lecture{21 --- March 23, 2026}{Winter 2026}{Patrick Lam}{version 1}
 
+
+\section*{Under the hood with Dafny}
+Some of the things that Dafny does are a form of syntactic sugar which
+increase its usability. Let's look at this method again and desugar it, using
+what we know about Hoare Logic.
+\begin{lstlisting}[language=dafny]
+method add_by_inc(n: nat, m: nat) returns (r: nat)
+  requires true
+  ensures r == m + n
+{
+  r := n;
+  var i := 0;
+  while i < m
+    invariant i <= m
+    invariant r == n + i
+  {
+    i := i + 1;
+    r := r + 1;
+  }
+  return r;
+}
+\end{lstlisting}
+Dafny converts this into a bunch of verification conditions which it passes along to z3.
+So, first, let's convert the \textsf{requires} and \textsf{ensures} clauses into \textsf{assume}s/\textsf{assert}s.
+Also, to make our life easier, we'll combine the two invariants.
+
+\begin{lstlisting}[language=dafny]
+method add_by_inc(n: nat, m: nat) returns (r: nat)
+{
+  assume {:axiom} true;
+  r := n;
+  var i := 0;
+  while i < m
+    invariant i <= m && r == n + i
+  {
+    i := i + 1;
+    r := r + 1;
+  }
+  assert r == m + n;
+  return r;
+}
+\end{lstlisting}
+Remember that we had to show that the invariant held upon entry, that it was preserved by the loop; and we
+exit the loop with the invariant and not the loop condition. Let's do that manually here. First, that the invariant holds upon entry.
+\begin{lstlisting}[language=dafny]
+method add_by_inc(n: nat, m: nat) returns (r: nat)
+{
+  assume {:axiom} true;
+  r := n;
+  var i := 0;
+  assert i <= m && r == n + i;
+  while i < m
+    invariant i <= m && r == n + i
+  {
+    i := i + 1;
+    r := r + 1;
+  }
+  assert r == m + n;
+  return r;
+}
+\end{lstlisting}
+Next, we want to show that the invariant holds at the end of the loop body, if we know nothing but the invariant upon entry to the loop (at least about \textsf{i} and \textsf{r}).
+We stop the verification after the end of the loop body by putting \textsf{assume false}; no paths escape that assumption, so the verifier just does nothing further there.
+\begin{lstlisting}[language=dafny]
+method add_by_inc(n: nat, m: nat) returns (r: nat)
+{
+  assume {:axiom} true;
+  r := n;
+  var i := 0;
+  assert i <= m && r == n + i;
+  // havoc i, r;
+  i, r := *, *;
+  assume {:axiom} i <= m && r == n + i
+  if i < m
+  {
+    i := i + 1;
+    r := r + 1;
+    assert i <= m && r == n + i
+    assume {:axiom} false;
+  }
+  assert r == m + n;
+  return r;
+}
+\end{lstlisting}
+Let's think about what we've done here. In fact, we've made Dafny
+check the three properties of inductive loop invariants.
+\begin{enumerate}[noitemsep] \item Clearly,
+the first \textsf{assert} checks that it holds upon entry to the
+loop.
+
+\item The havoc and \textsf{assume} erase knowledge of everything (havoc)
+but the loop invariant (\textsf{assume}) before the body of the loop executes. The loop
+body executes if the loop condition is true (and Dafny tracks the fact that the loop condition is true),
+and keeps the loop invariant. Then, Dafny checks that the loop
+invariant is preserved by the loop body.  That's all that it checks
+for the loop body; it must not propagate facts further.
+
+\item   Finally,
+the do-nothing else branch of the if takes the invariant once again,
+and conjoins it with the negation of the loop condition, and continues
+from there; Dafny goes on and checks what happens after the loop
+exits---in particular, whether the postcondition exiting the loop is
+strong enough.
+\end{enumerate}
+
+There was also an inferred \textsf{decreases} clause. We can use $\mathsf{m}-\mathsf{i}$ as
+the thing that decreases. It's easy to desugar that. We're going to use ghost variables; ghost means that a variable is
+specification-only---it doesn't need to be included in the executable.
+Nothing bad happens if you make them normal variables, but it's not as tidy.
+
+We check that $\mathsf{m}-\mathsf{i}$ is smaller at the end of the loop than it was at the beginning of the loop,
+and also that it is nonnegative (the integers have infinite decreasing chains while the naturals don't; no infinite
+decreasing chain and strict decreasing together imply termination).
+
+\begin{lstlisting}[language=dafny]
+  // as before...
+  {
+    ghost var rank0 := m - i;
+    i := i + 1;
+    r := r + 1;
+    ghost var rank1 := m - i;
+    assert rank1 < rank0;
+    assert rank1 >= 0;
+    assert i <= m && r == n + i
+    assume {:axiom} false;
+  }
+\end{lstlisting}
+
+You can use this desugaring to help prove things. When Dafny is complaining about something, you
+can explicitly put in the assertions that it's trying to show, look at the code, and understand why the
+assertion fails. You can also put other assertions to figure out what else Dafny knows. And you can
+put in assumes to see which case Dafny can't show (we'll talk more about that).
+
+In the \textsf{dafny} repository, you can find the above example as well as one with nested loops
+(file \textsf{vcc.sol.dfy}).
+
+\section*{Fast exponentiation}
+
+This example is in \textsf{fast\_exp.prob.dfy} and solved in \textsf{fast\_exp.sol.dfy} in the Dafny repository. We will work through how
+we specify and verify the fast exponentiation algorithm, which uses repeated squaring to compute exponents; it uses the fact
+that
+\[ e^{2n} = (e^n)^2 \]
+i.e. to compute $e^{2n}$ you can compute $e^n$ and then square the result.
+
+First, let's define a function \textsf{exp}. This part is straightforward; nothing to see here. The comments in the provided Dafny file provide the definition of
+\textsf{exp} that we're working from. This is a recursive definition.
+\begin{lstlisting}[language=dafny]
+function exp(x: real, n:nat) : real
+{
+  if n == 0 then 1.0
+  else x * exp(x, n-1)
+}
+\end{lstlisting}
+
+Next, we'd like to provide a specification for the provided implementation. Let's first look at the implementation and convince ourselves that it works.
+\begin{lstlisting}[language=dafny]
+method exp_by_sqr (x0: real, n0: nat) returns (r: real)
+{
+  if (n0 == 0) { return 1.0; }
+  if (x0 == 0.0) { return 0.0; }
+  var x, n, y := x0, n0, 1.0;
+  while (n > 1)
+  {
+    if (n % 2 == 0)
+    {
+      x := x * x;
+      n := n / 2;
+    }
+    else
+    {
+      y := x * y;
+      x := x * x;
+      n := (n-1)/2;
+    }
+  }
+
+  return x * y;
+}
+\end{lstlisting}
+We put aside the base cases, which are clear.
+In the even case, we see that we are repeatedly squaring $x$ and halving $n$, which is exactly in line with the identity we saw above.
+In the odd case, we now have a variable $y$, which stores extra $x$s. Here, let's look.
+\[ x^{2n+1} = x \times x^{2n} \]
+So we're assigning $x \times y$ to $y$, i.e. storing an extra factor of $x$ here. And, in the end, we return $x$ times the leftover $y$s
+that we've stored.
+
+Dafny now has test cases, so let's also run a few test cases to convince ourselves that this implementation works.
+It can be useful to do that before we try to prove something that turns out to be not true. Instead of \textsf{assert},
+which is statically verified, we use \textsf{expect} to write what we expect (shout-out to Kieran for finding this; the documentation on Dafny tests
+is hard to find.)
+
+  \begin{minipage}{.45\textwidth}
+\begin{lstlisting}[language=dafny]
+method {:test} TestExpBaseCases()
+{
+  var res1 := exp_by_sqr(17.0, 0);
+  expect res1 == 1.0;
+  var res2 := exp_by_sqr(2.2, 1);
+  expect res2 == 2.2;
+  var res3 := exp_by_sqr(0.0, 11);
+  expect res3 == 0.0;
+}
+
+method {:test} TestExpEven()
+{
+  var res1 := exp_by_sqr(1.0, 4);
+  expect res1 == 1.0;
+  var res2 := exp_by_sqr(2.0, 4);
+  expect res2 == 16.0;
+  var res3 := exp_by_sqr(3.0, 2);
+  expect res3 == 9.0;
+}
+\end{lstlisting}
+\end{minipage}
+  \begin{minipage}{.45\textwidth}
+\begin{lstlisting}[language=dafny]
+method {:test} TestExpOdd()
+{
+  var res1 := exp_by_sqr(1.0, 5);
+  expect res1 == 1.0;
+  var res2 := exp_by_sqr(2.0, 5);
+  expect res2 == 32.0;
+  var res3 := exp_by_sqr(3.0, 3);
+  expect res3 == 27.0;
+}
+\end{lstlisting}
+  \end{minipage}
+
+We can run these test cases. Here I run them on a version of the program that I've verified, but
+you can also run tests on not-yet-verified code if you annotate relevant methods with
+\textsf{\{:verify false\}} and call \textsf{dafny test -{}-allow-warnings -{}-no-verify}.
+\begin{verbatim}
+$ dafny test fast_exp.dfy
+
+Dafny program verifier finished with 9 verified, 0 errors
+TestExpBaseCases: PASSED
+TestExpEven: PASSED
+TestExpOdd: PASSED
+\end{verbatim}
+
+What's the specification? Well, we are returning \textsf{r} and it had better be equal to
+\textsf{exp(x0, n0)}, so here we are:
+\begin{lstlisting}[language=dafny]
+  ensures r == exp(x0, n0)
+\end{lstlisting}
+
+\paragraph{Onwards to verification.}
+As always, we at least need loop invariants (if not more). What could they be?
+Once again, we look at the postcondition, which essentially says
+\textsf{x * y == exp(x0, n0)}. Then, Dafny gives two errors: (1) this invariant
+is not strong enough to prove the postcondition; and (2) the invariant is also
+not maintained by the loop. So now we have to debug verification issues.
+
+It seems like it's a better bet to make sure the invariant is strong enough---might as
+well do that before we try to make it go through. Even if we expect it to be true,
+let's explicitly write out what we have upon exit to the loop, i.e. the negation of the
+loop condition plus the invariant. We can also explicitly write the postcondition as an assertion.
+\begin{lstlisting}[language=dafny]
+  assert n <= 1 && exp(x0, n0) == exp(x, n) * y;
+  assert x * y == exp(x0, n0)
+\end{lstlisting}
+Dafny can of course prove the first assertion but not the second one.
+
+If we look at that first assertion, and we remember that Dafny starts its \textsf{nat}
+type at 0, then we might have $n = 0$. Is that indeed the case that is causing trouble?
+We can add an \textsf{assume n == 1} to see. If we do that, then we see that Dafny is fine
+with the postcondition. Or, we can add \textsf{assert n == 1} and see that Dafny can't prove that.
+We don't ever actually want to have $n = 0$ here, and we can realize that
+the loop invariant did not constrain $n$. This reminds us to add the usual kind of invariant
+on the loop variable:
+\begin{lstlisting}[language=dafny]
+  invariant 1 <= n <= n0
+\end{lstlisting}
+and we can see that Dafny then only complains about the invariant being maintained by the loop body,
+but not about the postcondition.
+
+Recall that what Dafny is effectively doing is putting an \textsf{assume} at the beginning of the loop body
+and an \textsf{assert} at the end. We can be explicit and put these, and indeed, Dafny complains at the end.
+
+In the loop body, there is the $n$ even case and the $n$ odd case. We can focus on just one case
+by putting \textsf{assume false} on the other case, so that Dafny doesn't go on and
+try to verify that the invariant is maintained on that case. Let's handle the even case and put the assume
+on the odd case. (If we put it on both cases, then Dafny thinks it can verify the thing.)
+We can move our \textsf{assert} to the then case as well.
+
+\begin{lstlisting}[language=dafny]
+    assume exp(x0, n0) == exp(x, n) * y;
+    if (n % 2 == 0)
+    {
+      x := x * x;
+      n := n / 2;
+      assert exp(x0, n0) == exp(x, n) * y;
+    }
+    else
+    {
+      assume false;
+      y := x * y;
+      x := x * x;
+      n := (n-1)/2;
+    }
+\end{lstlisting}
+
+What about at the beginning of the then-clause? Of course we can put the loop invariant there. That will work, but
+it doesn't get us anywhere. But, do we know that \textsf{exp(x0, n0) == exp(x*x, n/2) * y}? We should! (This is
+what the loop body does). If we assert that, then Dafny says no. What if we move the \textsf{assume} into the body
+of the then-clause? Dafny still says no.
+
+We can simplify this even more and just assert
+\begin{lstlisting}[language=dafny]
+  assert exp(x, n) == exp(x*x, n/2);
+\end{lstlisting}
+and see that Dafny doesn't know about the key property of the \textsf{exp} function that we started this verification with.
+
+We can go and remove extra asserts and assumes; we continue the verification of \textsf{exp\_by\_sqr}
+with just one \textsf{assume}:
+\begin{lstlisting}[language=dafny]
+  if n % 2 == 0 {
+    assume exp(x, n) == exp(x*x, n/2)
+    // ...
+\end{lstlisting}
+
+We can do the same process on the else branch to get the \textsf{assume}:
+\begin{lstlisting}[language=dafny]
+  } else {
+    assume exp(x, n) == exp(x*x, (n-1)/2) * x;
+    // ...
+\end{lstlisting}
+
+\paragraph{Using lemmas.} Our proof so far has some \textsf{assumes}, which mean that we haven't quite proven correctness yet.
+We can look at the assume and say, well, of course it's true, but we don't really know.
+I'm going to deus ex machina some lemmas which we are going to use. Lemmas are functions that tell Dafny some additional facts about their parameters.
+
+\begin{lstlisting}[language=dafny]
+lemma exp_even (x:real, n:nat)
+  requires n % 2 == 0
+  ensures exp (x, n) == exp (x*x, n/2)
+{
+  // needs some code here rather than assume false
+  assume false;
+}
+
+lemma exp_odd(x:real, n:nat)
+  requires n % 2 == 1
+  ensures exp (x, n) == exp (x*x, (n-1)/2)*x
+{
+  // needs some code here rather than assume false
+  assume false;
+}
+\end{lstlisting}
+
+Let's look at \textsf{exp\_even}. If we call it from some other Dafny code, then, just like with a function, the precondition
+has to hold (i.e. \textsf{n} has to be even). Upon return from this lemma, we know the postcondition---the fact that
+\textsf{exp (x, n) == exp (x*x, n/2)}. Which is just the property that we started with.
+
+Lemmas are ghost code and don't get compiled into the executable. They exist only for their effects on the proof.
+Dafny takes them into account when it's verifying code. You also have to prove that the postcondition is actually true,
+but we will first use the lemma and then prove it. Here's what that looks like.
+
+\begin{lstlisting}[language=dafny]
+    if (n % 2 == 0)
+    {
+      exp_even(x,n);
+      x := x * x;
+      n := n / 2;
+    }
+    else
+    {
+      exp_odd(x,n);
+      y := x * y;
+      x := x * x;
+      n := (n-1)/2;
+    }
+\end{lstlisting}
+
+The precondition of the lemmas holds because it is just the immediately-preceding \textsf{if} condition.
+Dafny can therefore know that the postcondition is true. It happens that these postconditions are exactly the
+same as the \textsf{assume}s that we had previously inserted, so Dafny can verify the whole \textsf{exp\_by\_sqr}
+method (modulo the still-missing proofs of the lemmas).
+
+\paragraph{Proving lemmas.} Before we prove the lemmas for \textsf{exp\_by\_sqr}, we can learn how to prove some simpler
+lemmas. The file \textsf{lemmas.prob.inclass.dfy} contains some example lemmas which we'll work through.
+
+We usually need lemmas when we have some function which Dafny doesn't know the properties of.
+Dafny is pretty good with properties of its \textsf{+} operator, but let's provide a \textsf{add}
+function which does the same thing. Dafny doesn't know that function.
+\begin{lstlisting}[language=dafny]
+function add (x: nat, y: nat): nat
+{
+  if (y == 0) then x
+  else add (x, y-1) + 1
+}
+
+/* Lemma: x + 0 == 0 */
+lemma add_zero_lemma (x: nat)
+  ensures add (x, 0) == x
+{
+  // REPLACE BY PROOF
+  assume(false);
+}
+\end{lstlisting}
+It turns out that Dafny is actually smart enough to prove \textsf{add\_zero\_lemma} on its own,
+but let's provide our own proof of it, as a pedagogical exercise.
+
+Dafny supports \textsf{calc} blocks, where we put a sequence of lines that are each equal to the next one.
+Using these blocks, we can supply calculational proofs.
+\begin{lstlisting}[language=dafny]
+lemma add_zero_lemma (x: nat)
+  ensures add (x, 0) == x
+{
+  calc {
+    add(x,0);
+    x;
+  }
+}
+\end{lstlisting}
+This \textsf{calc} block shows that \textsf{add(x,0) == x}, which we knew already. If we make it wrong on purpose
+(e.g. \textsf{add(x,1) == x}), then Dafny complains.
+
+This next lemma is actually harder to prove---it doesn't follow immediately from the definition of \textsf{add}.
+Dafny is still smart enough to prove it automatically, but we'll do it manually again.
+\begin{lstlisting}[language=dafny]
+lemma zero_add_lemma (x: nat)
+  ensures add (0, x) == x
+{
+  assume(false);
+}
+\end{lstlisting}
+We can split the proof into cases, e.g.
+\begin{lstlisting}[language=dafny]
+lemma zero_add_lemma (x: nat)
+  ensures add (0, x) == x
+{
+  if x == 0 {
+  } else if x == 1 {
+  } else {
+    assume false;
+  }
+}
+\end{lstlisting}
+Dafny verifies this, so we know that it can handle the 0 and 1 cases automatically. (These are \textsf{add(0,0) == 0} and \textsf{add(0, 1) == 1} respectively).
+Let's write a \textsf{calc} block for the other cases.
+\begin{lstlisting}[language=dafny]
+  calc {
+    add(0,x);
+    add(0, x-1)+1;
+  }
+\end{lstlisting}
+What we really want to do now is to invoke induction, using 0 and 1 as the base cases. We can write the inductive hypothesis as an assume for \textsf{calc}:
+\begin{lstlisting}[language=dafny]
+  calc {
+    add(0,x);
+    add(0, x-1)+1;
+    {zero_add_lemma(x-1);}
+    (x-1)+1;
+    x;
+  }
+\end{lstlisting}
+Dafny checks that the preconditions to \textsf{zero\_add\_lemma} are met. Since there are none, those hold. Also, because it is a recursive call inside the
+braces, Dafny checks that the recursion is well-founded: the parameter \textsf{x-1} is smaller than \textsf{x}, and there are base cases. We can then use the
+postcondition to replace \textsf{add(0, x-1)} with \text{(x-1)} in the \textsf{calc} block, and the rest of the calculation is easy.
+
+There are a few more lemmas that Dafny can prove automatically. It's
+good to try to prove them manually as well, and the solutions are in
+\textsf{lemmas.sol.dfy}. I will put this one here, though.
+
+\begin{lstlisting}[language=dafny]
+lemma one_plus_add (x: nat, y: nat)
+  ensures add(x, y) + 1 == add (x+1, y)
+{ }
+\end{lstlisting}
+
+Here is one that Dafny cannot prove automatically.
+
+\begin{lstlisting}[language=dafny]
+/** Lemma: (x + y) == (y + x)
+*/
+lemma add_comm_lemma (x: nat, y: nat)
+  ensures add(x, y) == add(y, x)
+{
+}
+\end{lstlisting}
+We get the usual error that there is a postcondition that could not be proved.
+
+We can try some base cases:
+\begin{lstlisting}[language=dafny]
+/** Lemma: (x + y) == (y + x) */
+lemma add_comm_lemma (x: nat, y: nat)
+  ensures add(x, y) == add(y, x)
+{
+  if x == 0 { }
+  else if y == 0 { }
+  else {
+  }
+}
+\end{lstlisting}
+and see that those cases verify, but not the general case. Time to put a \textsf{calc} block.
+\begin{lstlisting}[language=dafny]
+  calc {
+    add(x, y);
+    add(x, y-1) + 1; // from the definition of add
+\end{lstlisting}
+This is straightforward so far. Then, we want to use induction again. The obvious thing to use
+induction on is what we have on the previous line, arguments \textsf{(x, y-1)}. And we can then
+deploy the postcondition of the present lemma. Note that if you get the inductive arguments
+wrong, Dafny will indeed complain.
+\begin{lstlisting}[language=dafny]
+    {add_comm_lemma(x,y-1);}
+    add(y-1,x) + 1;
+\end{lstlisting}
+Dafny can actually do it pretty much automatically from here, but let's explicitly also bring the
+\textsf{+1} back into the \textsf{add()} parameters using induction again. The remaining steps
+after that are straightforward. We'll be pedantic about \textsf{-1+1}, though Dafny doesn't need that either.
+\begin{lstlisting}[language=dafny]
+    {one_plus_add(y-1,x);}
+    add(y-1 + 1, x);
+    add(y,x);
+  }
+\end{lstlisting}
+
+\paragraph{Proving \textsf{fast\_exp} lemmas.} You don't actually need to use \textsf{calc} to prove these---you can iterate on \textsf{n} and write some invariants---but the solutions in \textsf{fast\_exp.sol.dfy} do use
+\textsf{calc} and mutual recursion, and I guess that's nicer? You decide.
+
+\begin{lstlisting}[language=dafny]
+lemma exp_even (x:real, n:nat)
+  requires n % 2 == 0
+  ensures exp (x, n) == exp (x*x, n/2)
+{
+  if (n == 0) { }
+  else
+  {
+    calc
+    {
+      exp (x, n);
+      x * exp (x, n-1);
+      { exp_odd (x, n-1); }
+      x * x * exp (x*x, (n-2)/2);
+      exp (x*x, n/2);
+    }
+  }
+}
+
+lemma exp_odd(x:real, n:nat)
+  requires n % 2 == 1
+  ensures exp (x, n) == exp (x*x, (n-1)/2)*x
+{
+  if (n == 0) { }
+  else
+  {
+    calc
+    {
+      exp (x, n);
+      x * exp (x, n-1);
+      { exp_even (x, n-1); }
+      x * exp (x*x, (n-1)/2);
+    }
+  }
+}
+\end{lstlisting}
+
+Here are my iterative proofs. \textsf{exp\_odd} just calls \textsf{exp\_even} since, if \textsf{n} is odd, then \textsf{n-1} is even; and I didn't use
+\textsf{exp\_odd} in my \textsf{exp\_even} proof.
+\begin{lstlisting}[language=dafny]
+lemma exp_even (x:real, n:nat)
+  requires n % 2 == 0
+  ensures exp (x, n) == exp (x*x, n/2)
+{
+  var i := 0;
+  var r, rr := 1.0, 1.0;
+  while i < n/2
+    invariant 0 <= i <= n/2
+    invariant r * r == rr
+    invariant exp(x, i) == r
+    invariant exp(x*x, i) == rr
+    invariant exp(x, i*2) == rr
+  {
+    r := r * x;
+    rr := rr * x * x;
+    i := i + 1;
+  }
+}
+
+lemma exp_odd(x:real, n:nat)
+  requires n % 2 == 1
+  ensures (exp (x, n) == exp (x*x, (n-1)/2)*x)
+{
+  exp_even(x, n-1);
+}
+\end{lstlisting}
+
+\section*{Bubble Sort}
+We are now going to verify a bubble sort implementation, which will be
+helpful for doing the assignment. I am assuming that everyone here has
+seen bubble sort at some point in the past. It's been longer for me
+than it's been for you. (Though I wouldn't expect bubble sort to be in
+CS 341). And, spoiler, there is going to be a twist in the
+verification.
+
+You can find the bubble sort implementation at
+\textsf{bubble\_sort.prob.dfy} in the Dafny repo.
+
+\paragraph{Auxiliary predicates: \textsf{sorted} and \textsf{pivot}.}
+First, we are going to define a predicate \textsf{sorted}. We've done
+similar things before. This time we specify a from and to range to check
+for sortedness. The predicate returns true iff its array parameter \textsf{a}
+is sorted between the range [from, to).
+
+\begin{lstlisting}[language=dafny]
+predicate sorted(a:array<int>, from:int, to:int)
+  requires 0 <= from && to <= a.Length
+  reads a
+{
+  forall j, k :: from <= j < k < to ==> a[j] <= a[k]
+}
+\end{lstlisting}
+
+Next, I'm going to introduce a \textsf{pivot} predicate. I'm going to do this
+before a reminder of how bubble sort works. You may remember pivots being useful,
+in general, for sorting algorithms.
+
+\textsf{pivot} takes three arguments: an array, a \textsf{to} argument, and
+a potential \textsf{pvt}. This predicate checks the sub-array
+[0, \textsf{to}) of its array for whether \textsf{pvt} is a pivot---that is,
+  all elements with index less than \textsf{pvt} are less than (or equal to)
+  all elements of the sub-array with index greater than \textsf{pvt}.
+
+We can encode the predicate as follows:
+\begin{lstlisting}[language=dafny]
+predicate pivot(a:array<int>, to:int, pvt:int)
+  requires 0 <= pvt <= to <= a.Length
+  reads a
+{
+  forall u, v :: 0 <= u < pvt < v < to ==> a[u] <= a[v]
+}
+\end{lstlisting}
+So, we let \textsf{u} take all values in $[0, \mathsf{pvt})$; and \textsf{v}
+is in $[\mathsf{pvt}+1, \mathsf{to})$. The predicate is true iff all \textsf{a[u]}
+are less than or equal to all \textsf{a[v]}.
+
+Dafny doesn't complain about this definition, but how do we know that the words
+correspond to the formalism?
+
+We don't.
+
+We can look at the formalism closely. It seems to be OK, but that is not a guarantee.
+
+Another thing we can do is to run some test cases. I've included both \textsf{assert} and
+\textsf{expect} checks. In this case, in the Dafny model, probably \textsf{assert} is better: it is possible
+to verify these statically. For a \textsf{method}, all we check is the postcondition. But this is a function
+and so we are running the body when we use \textsf{assert}.
+
+\begin{lstlisting}[language=dafny]
+method {:test} TestPivot()
+{
+  var singleton := new int[] [4];
+  assert pivot(singleton, singleton.Length, 0) == true;
+  var three := new int[] [2,3,4];
+  expect pivot(three, three.Length, 1) == true;
+  var threeB := new int[] [4,3,2];
+  expect pivot(threeB, threeB.Length, 1) == false;
+  var a := new int[] [3, 5, 9, 2, 11, 13, 15, 12];
+  expect pivot(a, a.Length, 0) == true;
+  // a[3] < a[1], so false:
+  expect pivot(a, a.Length, 2) == false;
+  expect pivot(a, a.Length, 3) == true;
+}
+\end{lstlisting}
+Dafny statically verifies the \textsf{assert} and, when you run the test case, it passes.
+
+\paragraph{Implementing bubble sort.} Here is an implementation of bubble sort.
+Note that it modifies array \textsf{a} in place.
+
+\begin{lstlisting}[language=dafny]
+method bubbleSort (a: array<int>)
+{
+  var i:nat := 1;
+
+  while (i < a.Length)
+  {
+    var j:nat := i;
+    while (j > 0)
+    {
+      if (a[j-1] > a[j]) {
+        // Swap a[j-1] and a[j]
+        var temp := a[j-1];
+        a[j] := temp;
+        a[j-1] := a[j];
+      }
+      j := j - 1;
+    }
+    i := i+1;
+  }
+}
+\end{lstlisting}
+
+Let's now review a bit how this works. We know that bubble sort is $O(n^2)$. The outer loop
+ensures that the subarray from $[0, i)$ is sorted at each iteration. The inner loop makes this
+happen by bubbling down items inside $[0, i)$ that are out-of-order, starting at index $i$
+and pushing them as far as needed, possibly to index 0.
+%]]
+
+For instance:
+{\scriptsize
+\begin{verbatim}
+9, 3, 5, 2
+3, 9, 5, 2
+3, 5, 9, 2
+3, 5, 2, 9
+3, 2, 5, 9
+2, 3, 5, 9
+\end{verbatim}
+}
+In the lecture notes I'm not showing the loop iterations explicitly, but it's a worthwhile
+exercise to write the array contents at each stage, and in particular, to note which sub-arrays are
+sorted.
+
+Let's write a contract. This is perhaps an obvious contract for this method.
+\begin{lstlisting}[language=dafny]
+  requires a.Length > 0
+  ensures sorted(a, 0, a.Length)
+  modifies a
+\end{lstlisting}
+And we know that we have to write invariants for the \textsf{while} loop. We've done this
+several times already, so we know that this invariant is likely to work:
+\begin{lstlisting}[language=dafny]
+  invariant i <= a.Length
+  invariant sorted(a, 0, i)
+\end{lstlisting}
+As we might expect, because we haven't provided any invariants at all for the inner loop,
+all Dafny knows coming out of the inner loop is that $j = 0$, which of course does not imply
+that any sub-array is sorted.
+
+What I did next was look at the expanded loop iterations to see which sub-arrays were
+sorted. One pattern that is possible to see is that, of course, the sub-array %(
+$[0, i)$ %]
+always remains sorted in the inner loop; and also, sub-array %(
+$[j, i+1)$%]
+~also remains sorted.
+So we can write this inner loop invariant:
+\begin{lstlisting}[language=dafny]
+  invariant 0 <= j <= i <= a.Length
+  invariant sorted(a, 0, i)
+  invariant sorted(a, j, i+1)
+\end{lstlisting}
+and Dafny doesn't complain.
+
+It might seem like we're done. That was easy?
+
+\paragraph{Are you sure?} Let's write a test case.
+\begin{lstlisting}[language=dafny]
+method {:test} TestSort()
+{
+  var a := new int[] [3, 5, 9, 2, 11, 13, 15, 12];
+  bubbleSort(a);
+  var b := new int[] [2, 3, 5, 9, 11, 12, 13, 15];
+  expect a[..] == b[..];
+}
+\end{lstlisting}
+Dafny's arrays, like many other languages,
+are object-like. It's like Java. Comparing \textsf{={}=} of two arrays is probably not what you
+want, and definitely not here. We want something like Java's \textsf{equals()}, where we check the
+contents of the arrays. To do that in Dafny, we can form sequences (a Dafny built-in type) from the arrays,
+and compare those.
+
+If we run this test case, Dafny reports that it fails. (Since we are calling a method,
+this really has to be \textsf{expect} and not \textsf{assert}). Why is this?
+The test harness output is not so helpful, but we can add \textsf{print a[..]} to the test case,
+printing out
+the sequence:
+\begin{verbatim}
+Dafny program verifier finished with 10 verified, 0 errors
+TestPivot: PASSED
+TestSort: [3, 5, 9, 9, 11, 13, 15, 15]FAILED
+  bubble_sort.prob.dfy(88,1): expectation violation
+TestSort2: PASSED
+[Program halted] bubble_sort.prob.dfy(12,0): Test failures occurred: see above.
+\end{verbatim}
+Uh oh. That's not what we expected. Somehow there are two 9s and two 15s in the array.
+
+\paragraph{Multisets to the rescue.} 
+We have seen that the output is wrong. Even though it verifies.
+The array is indeed sorted, but it's not at all equal to a permutation of the original array.
+Our \textsf{ensures} clause is too weak, and forgot to specify that part of the relationship between
+the old array and the new array. Indeed, a function could just return the empty array and still satisfy
+the specification.
+
+Permutations are actually not so obvious in Dafny. But Dafny has primitive type \textsf{multiset}, which stores
+elements and their multiplicities. If the output array is sorted, and if converting both arrays to multisets
+and comparing them succeeds, then we can say that we have a sort implementation. Let's do that.
+
+\begin{lstlisting}[language=dafny]
+method bubbleSort2 (a: array<int>)
+  requires a.Length > 0
+  ensures sorted(a, 0, a.Length)
+  ensures multiset(a[..]) == multiset(old(a[..]))
+  modifies a
+\end{lstlisting}
+
+Here, \textsf{old} refers to the contents of \textsf{a} upon entry to the method. Dafny has to be able to
+reason about those while verifying, so that we can compare old and new.
+
+Of course, \textsf{bubbleSort2} doesn't verify. It shouldn't! We add the multiset constraint as an invariant to
+both loops as well. Now, Dafny says that the multiset invariant is not preserved by the inner loop. That's odd\ldots
+the contents are changing in the inner loop? Oh! It turns out that someone put wrong code to swap array elements.
+There was a bug. Despite verification (of the wrong contract). Let's fix that.
+
+\begin{lstlisting}[language=dafny]
+  var temp := a[j-1];
+  a[j-1] := a[j];
+  a[j] := temp;
+\end{lstlisting}
+
+Now Dafny doesn't complain about the multiset invariant anymore. It
+does complain about how sortedness from 0 to \textsf{i} is not
+maintained by the loop.
+
+I did mention the \textsf{pivot} predicate a while ago. And the first \textsf{sorted} call from $0$ to \textsf{i} seems
+somewhat fishy. It would make more sense to have that call range from 0 to j, which is the loop variable here.
+And it would also make sense for \textsf{a[j]} to be the pivot of the sub-array between 0 and $\mathsf{i}+1$.
+So, this invariant actually works for the inner loop:
+\begin{lstlisting}[language=dafny]
+      invariant 0 <= j <= i <= a.Length
+      invariant sorted(a, 0, j)
+      invariant pivot(a, i+1, j)
+      invariant sorted(a, j, i+1)
+      invariant multiset(a[..]) == multiset(old(a[..]))
+\end{lstlisting}
+That's all the insight I can give you about where the corrected invariants come from.
+
+Dafny does verify this! It would be smart to still be a bit suspicious. But we can cross-check the verification with a test case.
+\begin{lstlisting}[language=dafny]
+method {:test} TestSort2()
+{
+  var a := new int[] [3, 5, 9, 2, 11, 13, 15, 12];
+  bubbleSort2(a);
+  var b := new int[] [2, 3, 5, 9, 11, 12, 13, 15];
+  expect multiset(a[..]) == multiset(b[..]);
+}
+\end{lstlisting}
+which passes. Between the test case (which is not super strong evidence) and the verification, we can be more sure that
+this implementation is correct, though again, there are still no guarantees.
+
 We are still pretty confident in our bubble sort implementation. We did, however, use multisets.
 This is not a correctness issue, but it's good to know how to implement things ourselves.
 
