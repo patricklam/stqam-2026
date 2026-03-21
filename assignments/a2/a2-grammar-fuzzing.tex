@@ -2,7 +2,7 @@ In the \texttt{a2-grammar-fuzzing} directory in your repo you'll find \texttt{sy
 \begin{enumerate}[label=(\alph*)]
 \item (2 points) Change the implementation of \texttt{grammar\_and\_symbol\_with\_cost\_7} so that it returns a grammar and symbol with symbol cost 7, when evaluated with empty \texttt{seen} set.
 \item (2 points) Change the implementation of \texttt{second\_grammar\_and\_symbol()}, \texttt{symbol\_cost\_with\_seen\_Z()}, as well as \texttt{symbol\_cost\_with\_seen\_Y()}, such that the \texttt{symbol\_cost()} of the returned symbol varies with different \texttt{seen} sets. The \texttt{seen} sets have to be sets that would get computed by an actual invocation to the \texttt{GrammarFuzzer}.
-\item (2 points) If you run \texttt{fuzz\_process\_numbers.py} as found in the repo (under \texttt{code/L10})
+\item (2 points) If you run \texttt{fuzz\_process\_numbers.py} as found in the repo (under \texttt{code/L10}, reproduced in your repo as \texttt{a2-grammar-fuzzing/grammar\_fuzzer.py})
   a bunch of times, you'll notice that the last number is pretty much always the longest number. 
   How could you modify the provided \texttt{fuzz\_process\_numbers.py} to get more balanced number lengths?
     % (don't set max-nonterminals)
