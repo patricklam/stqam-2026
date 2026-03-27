@@ -422,7 +422,7 @@ the corresponding location in shadow memory, that is:
 \end{lstlisting}
 But remember our original example, with the allocation of 10 ints perhaps next to 5 ints.
 The read from \texttt{x[12]} might go right into valid memory allocated for \texttt{y}.
-One way is to remember the size of \texttt{x} and do a bounds check. But Address Sanitizerr
+One way is to remember the size of \texttt{x} and do a bounds check. But Address Sanitizer
 instead uses redzones around allocated memory. It's not perfect (you can overshoot), but it's faster.
 
 Replace calls to \texttt{malloc()} by calls to \texttt{\_\_asan\_malloc()}. Here's a schematic implementation
