@@ -1,0 +1,548 @@
+\documentclass{beamer}
+
+\usetheme{Boadilla}
+
+\usepackage{times}
+\usefonttheme{structurebold}
+\usepackage{listings}
+\usepackage{listings-rust}
+
+\usepackage{pgf}
+\usepackage{tikz}
+\usepackage{alltt}
+\usepackage[normalem]{ulem}
+\usetikzlibrary{arrows,automata,shapes,positioning}
+\usepackage{amsmath,amssymb}
+\usepackage{rotating}
+\usepackage{ulem}
+\usepackage{pythonhighlight}
+\usepackage{amssymb}
+\usepackage{pifont}
+\newcommand{\xmark}{\ding{55}}
+\usepackage{dafny}
+
+
+\usetikzlibrary{arrows,automata,shapes}
+\tikzstyle{block} = [rectangle, draw, fill=blue!20, 
+    text width=5em, text centered, rounded corners, minimum height=2em]
+\tikzstyle{bt} = [rectangle, draw, fill=blue!20, 
+    text width=4em, text centered, rounded corners, minimum height=2em]
+
+\lstset{ %
+language=Rust}
+
+%\setbeamercovered{dynamic}
+\setbeamertemplate{footline}[page number]{}
+\setbeamertemplate{navigation symbols}{}
+\usefonttheme{structurebold}
+
+\title{Software Testing, Quality Assurance \& Maintenance---Lecture 23}
+\author{Patrick Lam\\University of Waterloo}
+\date{March 30, 2026}
+
+\colorlet{redshaded}{red!25!bg}
+\colorlet{shaded}{black!25!bg}
+\colorlet{shadedshaded}{black!10!bg}
+\colorlet{blackshaded}{black!40!bg}
+
+\colorlet{darkred}{red!80!black}
+\colorlet{darkblue}{blue!80!black}
+\colorlet{darkgreen}{green!80!black}
+
+\newcommand{\rot}[1]{\rotatebox{90}{\mbox{#1}}}
+\newcommand{\gray}[1]{\mbox{#1}}
+
+\newenvironment{changemargin}[1]{% 
+  \begin{list}{}{% 
+    \setlength{\topsep}{0pt}% 
+    \setlength{\leftmargin}{#1}% 
+    \setlength{\rightmargin}{1em}
+    \setlength{\listparindent}{\parindent}% 
+    \setlength{\itemindent}{\parindent}% 
+    \setlength{\parsep}{\parskip}% 
+  }% 
+  \item[]}{\end{list}}
+
+\newcommand{\brac}[1]{\texttt{\textless #1\textgreater}}
+
+
+\begin{document}
+\begin{frame}
+  \titlepage
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Yet More Dafny Motivation}
+  \begin{changemargin}{2cm}
+    {    \Large
+      Earlier: talked about verifying Cedar (authorization library).\\[1em]
+      
+      Recently: using Dafny to verify toy examples.\\[1em]
+
+      Today: more applications of Dafny for production software.
+}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Source}
+  \begin{changemargin}{1cm}
+    {    \Large
+      ``On the Impact of Formal Verification on Software Development.''\\
+      by       Eric Mugnier, Yuanyuan Zhou, Ranjit Jhala, and Michael Coblenz.\\
+      Appeared in OOPSLA 2025.
+
+}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Aside: evaluating papers}
+  \begin{changemargin}{1cm}
+    {    \Large
+      Is a paper worth your time?\\[1em]
+      Check the title and abstract.\\
+      Abstract: author-provided summary.
+}
+  \end{changemargin}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{On the Impact of \alert{Formal Verification} on \alert{Software Development}}
+  \begin{changemargin}{1cm}
+Auto-active verifiers like Dafny aim to make formal methods accessible to non-expert users through SMT automation. However, despite the automation and other programmer-friendly features, they remain \alert{sparsely used in real-world software development}, due to the significant effort required to apply them in practice. We interviewed \alert{14 experienced Dafny users} about their experiences using it in \alert{large-scale projects}. We apply grounded theory to analyze the interviews to \alert{systematically identify how auto-active verification impacts software development}, and to identify opportunities to simplify the use, and hence, expand the adoption of verification in software development.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Goals of this Lecture}
+    \Large
+  \begin{changemargin}{1cm}
+    \begin{itemize}
+    \item know advantages \& disadvantages of Dafny for real systems;
+    \item identify when Dafny could help;
+    \item know best practices in deploying Dafny.
+    \end{itemize}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Context: Dafny Applications}
+    \Large
+    \begin{changemargin}{1cm}
+      So far, seen Dafny to:
+    \begin{itemize}
+    \item verify in the small;
+    \item verify larger systems like Cedar.
+    \end{itemize}
+    Paper also cites other cases: cloud controllers, security modules.
+  \end{changemargin}
+\end{frame}
+    
+\begin{frame}
+  \frametitle{Context: Auto-active Verifiers}
+    \Large
+    \begin{changemargin}{1cm}
+      Dafny is called an auto-active verifier.\\[1em]
+      Usually, it proves what you need, but you may have to help it.\\
+      Besides invariants, also may need assertions and lemmas.\\[1em]
+      Fully interactive: Lean and Rocq \\
+      \qquad (beyond the scope of this course).
+      
+    \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Interactive theorem provers}
+    \Large
+    \begin{changemargin}{1cm}
+      Basically, give them a set of steps to prove a theorem.\\[1em]
+      Need expertise to use them.\\
+      (Much more powerful than George; can specify tactics.)\\[1em]
+      Contrast to Dafny, which undergrads can use.\\
+      But, for large codebases, Dafny is subject to automation failure.
+    \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Summary of Results}
+    \large
+    \begin{changemargin}{1cm}
+      \begin{itemize}
+    \item two types of developers: \emph{formal-first} vs \emph{engineering-first}\\[1em]
+    \item design/implementation: verification adds specification writing to design phase, and specification-proving to implementation phase. \\[1em]
+      also in implementation: debugging failed proof attempts, hardening the code for more robust verification.\\[1em]
+    \item testing/deployment: verification affects testing \& code reviews, making reviewing harder.
+      \end{itemize}
+    \end{changemargin}
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Methodology}
+    \large
+    \begin{changemargin}{1cm}
+      \begin{itemize}
+      \item 14 participants, interviewed by authors (semi-structured)
+      \item grad students, computer scientists, software engineers, professors; experience from $<1$ year to $\ge 10$ years.\\[1em]
+      \item projects: less than 1000 LOC to more than 10kLOC
+        \item domains: distributed systems, compilers, mathematical proof,
+security critical, cloud, authorization, business critical, file
+system, storage system, cryptography, blockchain
+      \end{itemize}
+    \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Impact of Verification on Development}
+  \Large
+  \begin{changemargin}{1cm}
+    \begin{itemize}
+    \item \emph{specification} now needs formal specifications;
+    \item \emph{implementation} now needs proofs;
+    \item \emph{debugging} includes proof debugging;
+      \item \emph{hardening} makes proofs more resilient to change.
+    \end{itemize}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Specification}
+  \Large
+  \begin{changemargin}{1cm}
+    How do specifications get written?\\[1em]
+    {\bf When:} some started with the spec; some started with an impl and test on real data; some write concurrently.\\[1em]
+    {\bf What:} we talked about the oracle problem; \\
+    often use the spec as an oracle.\\
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Where's the specification from?}
+  \Large
+  \begin{changemargin}{1cm}
+    documentation (including design documents); tests; code.\\[2em]
+    From docs: informal spec first, then Dafny contracts.\\[1em]
+    but: ``Documentation is often incomplete and vague''.\\[1em]
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Where's the specification from?}
+  \Large
+  \begin{changemargin}{1cm}
+    documentation (including design documents); tests; code.\\[2em]
+    Tests: generalize into specifications (can be challenging).\\[2em]
+    Code: ought to embody the specification, but extracting is not obvious,
+    and must omit implementation details.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Specification styles}
+  \Large
+  \begin{changemargin}{1cm}
+    \texttt{method} or \texttt{function}?\\[2em]
+    Functional specs in 5 of the interviews:\\
+    no need to track what state has changed; aliasing; complex control-flow.\\[2em]
+    Previous lecture: \texttt{swap}, definitely imperative.\\
+    Does in-place modification of state; nothing else changes.\\[1em]
+    Functional \texttt{swap}: return a copy of the array.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Figure 3 example }
+
+  \begin{lstlisting}[language=dafny]
+method UpperBoundedAdditionImpl(x:uint64, y:uint64, u:uint64)
+       returns (sum:uint64)
+  ensures sum as int = UpperBoundedAddition(x as int, y as int, 
+       UpperBoundFinite(u as int));
+{
+  if y >= u {
+    sum := u; // write
+  } else if x >= u - y {
+    sum := u; // write 
+  } else {
+    sum := x + y; // write
+  }
+}
+
+// functional spec: no intermediate state
+function UpperBoundedAddition(x:int, y:int, u:UpperBound):int
+{
+  // LeqUpperBound checks if a given integer x
+  // is less than or equal to the specified upper bound u.
+  if LeqUpperBound(x + y, u) then x + y else u.n
+}
+\end{lstlisting}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Problem: aliasing}
+  \Large
+\begin{lstlisting}[language=dafny]
+/** A helper method to swap two positions in an array */
+method swap(a: array<int>, pos1:nat, pos2:nat)
+\end{lstlisting}
+
+\begin{changemargin}{1cm}
+  OK, array \texttt{a} changes, but are there any aliases of it that simultaenously change?\\[1em]
+  Rust: uniqueness, enforced.\\
+  C++: uniqueness is an option.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Logical vs implementation types}
+  \large
+\begin{changemargin}{1cm}
+  One participant says:\\[1em]
+  spec should use logical types (sequences, maps)\\
+  and not ipmlementation types (vectors, hash maps).\\[1em]
+  Also: we haven't seen a layer that ``hides the details of the algorithm and exposes an interface''.\\[1em]
+  Use a \texttt{predicate} to summarize what to prove.
+\end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Getting satisfaction}
+  \Large
+  \begin{changemargin}{1cm}
+    11/14 participants would only be satisfied by a proof.\\[1em]
+    other 3: sometimes trust their impls; \\
+    \qquad 2 skipped ``well-tested or relatively straight forward functions''.\\[2em]
+\end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Writing proofs}
+  \Large
+  \begin{changemargin}{1cm}
+    As you know: writing proofs is hard.\\
+    Proofs can be 10$\times$ lines of implementation.\\[2em]
+    Some only committed verified code to repo; others committed proofs developed gradually with assumptions.\\[1em]
+    All developed proofs incrementally with assumptions (beware).
+\end{changemargin}
+\end{frame}
+
+\usebackgroundtemplate{\tikz\node[opacity=0.2]{\includegraphics[width=\paperwidth]{L23/20260224_002144704_bug_v1.jpg}};}
+\begin{frame}
+  \frametitle{Debugging proofs}
+  \Large
+  \begin{changemargin}{1cm}
+    For code: reproduce problem, figure out how to fix it.\\[1em]
+    For proof: like ``prove or disprove'' math problem.\\
+    Is the property actually true?\\
+    Use testing to help.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Debugging experiences}
+  \Large
+  \begin{changemargin}{1cm}
+    What's a bug?\\[2em]
+    Here: specification doesn't match the implementation.\\
+    Happens often.\\[2em]
+    
+    Dafny can fail to prove statements without hints.\\
+    1 participant reported Dafny unsoundness.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Complaints \& Workarounds}
+  \Large
+  \begin{changemargin}{1cm}
+    \begin{itemize}
+    \item Dafny error messages don't say why;
+    \item used assertions to figure out what Dafny knows (like breakpoints);
+    \item used \texttt{assume} and conditionals to understand what Dafny knows.
+    \end{itemize}
+    ~\\[1em]
+    Wider challenge: ``build a mental model of implicit verifier state''.\\
+    Interactive verifiers easier to use in that sense; \\
+    for Dafny, annotations can help.
+  \end{changemargin}
+\end{frame}
+
+\usebackgroundtemplate{}
+
+\begin{frame}
+  \frametitle{Proof Hardening}
+  \Large
+  \begin{changemargin}{1cm}
+    Kind of like code refactoring to eliminate smells.\\[2em]
+    Proof works now, but might not work on another machine, another solver version, or after small impl change.\\[1em]
+    \begin{quote}
+some little fiddly change to the code,
+just maybe pass one more element in the state [\ldots] and all the proofs
+would just stop working.
+    \end{quote}
+
+    ``soul crushing''; induces ``existential dread''
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Brittleness}
+  \Large
+  \begin{changemargin}{1cm}
+    3 participants had not encountered brittle proofs.\\[1em]
+    Some addressed brittleness reactively: increase resource limits.\\
+    Others proactively: month-long major refactoring; or, fix timeouts before continuing.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Why brittleness?}
+  \Large
+  \begin{changemargin}{1cm}
+    Dafny doesn't know what's important.\\
+    Passes too much context to server, but sometimes the wrong context.\\[1em]
+    Try to make state visible, but gigabytes of state is unreadable.\\[1em]
+    Frame conditions also get large.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Dealing with brittleness}
+  \Large
+  \begin{changemargin}{1cm}
+    Many: monitor solver resource count to see if things getting hard.\\[1em]
+    Also: add or remove hint assertions, reducing solving time.\\[1em]
+    Other tools:
+    \begin{itemize}
+    \item ``unsat core''
+    \item \texttt{assert false}
+    \item using smaller lemmas;
+    \item \texttt{opaque} and \texttt{reveal}
+    \end{itemize}
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Dealing with brittleness II}
+  \Large
+  \begin{changemargin}{1cm}
+    More systematically: 4 used structured approaches, including style guides, to reduce automation.\\[1em]
+    Report: Dafny is getting better.\\[2em]
+    Brittleness only matters to you if you observe it.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Impact of Verification on Deployment}
+  \Large
+  \begin{changemargin}{1cm}
+    Yes, we'll talk about software quality assurance and maintenance.\\[1em]
+    Also, deployment of verified software.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{How Testing}
+  \Large
+  \begin{changemargin}{1cm}
+    Everyone does it.\\
+    Half compare spec to impl or to expected behaviour.\\
+    \begin{itemize}
+    \item \emph{verified specifications}: some just wanted executable model of the code; not actually deployed, but model compared to impl.
+    \item \emph{verified implementations}: verified code that would be deployed, use testing to check vs unverified legacy code.
+    \end{itemize}
+    Differential random testing applicable.\\[1em]
+    Additionally: some verified new implementations of new specifications; there was no legacy.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Unit versus end-to-end testing}
+  \Large
+  \begin{changemargin}{1cm}
+    e.g. JUnit used all the time for system tests.\\[1em]
+    Participants did both unit testing and end-to-end testing, though
+    what infrastructure is unclear.\\[1em]
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Real Data}
+  \Large
+  \begin{changemargin}{1cm}
+    One participant ran verified impl in parallel with prod, finding differences, even after fuzzing.\\[1em]
+    Another participant said people wanted to see verified code working on real data.\\[2em]
+    NB: Dafny can be transpiled to other languages \& tested for performance.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Code Review}
+  \Large
+  \begin{changemargin}{1cm}
+    Is a best practice; all multi-author projects here used it.\\[2em]
+    But: makes reviews larger. Need to review specs \& transpiled code, plus impls.\\
+    Can be ``quite large'', and proof changes intertwined with code.\\[1em]
+    Participants focussed on specifications, plus non-verified code (e.g. libraries).\\[1em]
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{What to Review}
+  \Large
+  \begin{changemargin}{1cm}
+    One participant reviewed proofs for clarity \& maintainability.\\[1em]
+    Sometimes participants reviewed transpiled code (due to lack of trust), but not all the time.\\[1em]
+    Especially likely when other teams would interact with transpiled code.
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Impact of Verification on Maintenance}
+  \Large
+  \begin{changemargin}{1cm}
+    Testing: confidently refactor \& optimize code.\\
+    (Rust: ``fearless concurrency'' due to type system).\\[2em]
+    Verification: even better; can rely on verified specification even more than on your test suite; Dafny will tell you of divergence.\\[2em]
+    A change will often require both spec \& proof changes.\\
+    But, get more knowledge of the system as a result: what might break?
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Breaking changes}
+  \Large
+  \begin{changemargin}{1cm}
+    Can see which spec no longer holds, and focus testing accordingly.\\[1em]
+    Use small fixes for spec and proof.\\[2em]
+    And, get some confidence that a change is not breaking if Dafny agrees.\\[2em]
+    All this relies on verified code being deployed prior to change.
+  \end{changemargin}
+\end{frame}
+    
+\begin{frame}
+  \frametitle{Optimization}
+  \Large
+  \begin{changemargin}{1cm}
+    Participants reported being more willing to make changes due to verification.\\[1em]
+    e.g. localized changes that do not affect the specification, such as algorithmic optimization and removing redundant checks.\\[2em]
+    Verification implies that new code continues to meet the specification.\\[1em]
+    (Redundant checks: those that can be shown at proof time, eg with \texttt{requires}).
+  \end{changemargin}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Summary}
+  \Large
+  \begin{changemargin}{1cm}
+    Yes, people use Dafny on real systems, perhaps via transpilers.\\[2em]
+    Affects all stages of software developments.\\
+    Results in software that meets its formally-expressed specifications, and enables lower-risk changes.
+  \end{changemargin}
+\end{frame}
+
+\end{document}
